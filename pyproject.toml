@@ -9,4 +9,24 @@ dependencies = []
 [tool.uv.workspace]
 members = [ "services/*" ]
 
+# b2b = "uvicorn --project services.b2b.main:app --reload" 
 
+[tool.ruff]
+lint.extend-select = [
+    "FAST",
+    "ANN",
+    "S",
+    "BLE",
+    "B",
+    "C4",
+    "FIX",
+    "LOG",
+    "Q",
+    "ARG",
+    "PTH",
+    "N",
+]
+
+[tool.ruff.format]
+quote-style =  "double"
+indent-style = "tab"
