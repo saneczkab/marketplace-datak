@@ -1,5 +1,5 @@
 services:
-  b2b:
+  b2b-backend:
     build:
       context: .
       dockerfile: services/b2b/Dockerfile
@@ -8,9 +8,9 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      - b2b-db
 
-  db:
+  b2b-db:
     image: postgres:15
     restart: always
     ports:
