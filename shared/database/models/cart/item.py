@@ -22,7 +22,6 @@ class CartItem(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True,
                                           server_default=text("gen_random_uuid()"))
 
-    # ПРОВЕРЬ ЭТИ ТРИ СТРОЧКИ:
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     session_id: Mapped[str | None] = mapped_column(String(255))
     sku_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
