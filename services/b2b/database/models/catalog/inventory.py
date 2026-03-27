@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql.schema import CheckConstraint
 
-from shared.database.core import Base
+from database.core import Base
 
 
 class InvoiceStatusEnum(str, enum.Enum):

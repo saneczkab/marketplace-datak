@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import String, Text, DateTime, ForeignKey, Index, text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from shared.database.core import Base
+from database.core import Base
 
 
 class ProductStatusEnum(str, enum.Enum):
