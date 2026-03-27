@@ -8,7 +8,7 @@ build:
 	docker-compose build --no-cache
 
 migrate:
-	docker-compose exec app alembic upgrade head
+	docker-compose exec b2b-backend uv run alembic -c /app/database/alembic.ini upgrade head
 
 migration:
-	docker-compose exec app alembic revision --autogenerate -m "$(name)"
+	docker-compose exec b2b-backend uv run alembic -c /app/database/alembic.ini revision --autogenerate -m "$(name)"
