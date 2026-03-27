@@ -1,11 +1,13 @@
-FROM python:3.12-slim
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 
 WORKDIR /app
 
 COPY services/b2b/pyproject.toml uv.lock* ./
 
-RUN uv sync --freeze
+RUN uv sync --frozen
 
 COPY services/b2b /app
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
