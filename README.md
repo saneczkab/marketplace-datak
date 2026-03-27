@@ -10,3 +10,11 @@ uv add fastapi --project services/b2b
 ```
 uv run --project services/b2b uvicorn services.b2b.main:app
 ```
+
+# Команды Makefile
+
+*   `make up`: Запускает все сервисы, определенные в `docker-compose.yml`, в фоновом режиме (`-d`).
+*   `make down`: Останавливает и удаляет контейнеры, сети и тома, созданные командой `up`.
+*   `make build`: Пересобирает Docker-образы для всех сервисов без использования кэша (`--no-cache`).
+*   `make migrate`: Применяет все доступные миграции базы данных с помощью Alembic внутри контейнера `app`.
+*   `make migration name="your_migration_name"`: Создает новый файл миграции Alembic с указанным именем (`-m "$(name)"`).
