@@ -2,9 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY services/b2b/pyproject.toml .
+COPY services/b2b/pyproject.toml uv.lock* ./
 
-RUN pip install --no-cache-dir fastapi uvicorn
+RUN uv sync --freeze
 
 COPY services/b2b /app
 
