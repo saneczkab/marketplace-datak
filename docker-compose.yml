@@ -1,4 +1,13 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+
   b2b-backend:
     build:
       context: .
@@ -6,7 +15,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - ./services/b2b/.env 
     depends_on:
       - b2b-db
 
@@ -26,6 +35,8 @@ services:
       interval: 2s
       timeout: 5s
       retries: 10
+    env_file:
+      - ./services/b2b/.env
 
 volumes:
   postgres_data:
