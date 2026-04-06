@@ -1,8 +1,7 @@
 from fastapi import FastAPI
+from api import category
+
 
 app = FastAPI()
 
-
-@app.get("/")
-def read_root() -> dict[str, str]:
-	return {"Hello": "B2C"}
+app.include_router(category.router)
