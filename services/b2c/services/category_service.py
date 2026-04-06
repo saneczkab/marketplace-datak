@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from exceptions import category as category_exceptions
 from crud import category as category_crud
-from database.models.catalog.base import Category
+from crud import product as product_crud
+from database.models.catalog.base import Category, Product
 
 
 async def get_category_info_by_id(
@@ -21,7 +22,7 @@ async def get_category_info_by_id(
 
 	parent: Category | None = None
 	if category.parent_id:
-		parent = await get_category_info_by_id(db, category.parent_id) # TODO ХУЙНЯ ПЕРЕДЕЛАТЬ
+		parent = await category_crud.get_categories_by_parent_id(db, category.parent_id) 
 
 	# Count products in category if needed
 	# Otherwise, set count to None
@@ -71,3 +72,22 @@ async def get_categories_tree(db: AsyncSession) -> str:
 
 	tree = await build_tree(parent_category)
 	return json.dumps(tree)
+
+async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
+	categories: list[uuid.UUID] = [category_id]
+	queue: list[uuid.UUID] = [category_id]
+
+	while queue:
+		current_id = queue.pop(0)
+		subcategories = await category_crud.get_categories_by_parent_id(db, current_id)
+		for subcategory in subcategories:
+			subcategory_id = subcategory.id
+			categories.append(subcategory_id)
+			queue.append(subcategory_id)
+
+	count: int = 0
+
+	for category_id in categories:
+		count += await product_crud.count_products_in_category(db, category_id)
+
+	return count

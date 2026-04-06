@@ -23,4 +23,7 @@ async def get_category(
 	category_id: str,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> str:
-	pass # TODO implement this endpoint
+	try:
+		return await category_service.get_category_info_by_id(db, category_id, need_count=True)
+	except category_service.category_exceptions.CategoryNotFoundError as err:
+		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
