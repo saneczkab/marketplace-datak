@@ -7,25 +7,39 @@ from crud import category as category_crud
 from database.models.catalog.base import Category
 
 
-async def get_category_by_id(db: AsyncSession, category_id: uuid.UUID) -> Category:
-	"""Gets category by its id
-
-	Args:
-	    db (AsyncSession): Database session
-	    category_id (uuid.UUID): The ID of the category to retrieve
-
-	Raises:
-	    category_exceptions.CategoryNotFoundError: If the category with the specified ID is not found
-
-	Returns:
-	    Category: The retrieved category
-	"""
-	category: Category | None = await category_crud.get_category_by_id(db, category_id)
+async def get_category_info_by_id(
+	db: AsyncSession, category_id: uuid.UUID, need_count: bool = False
+) -> Category:
+	category_uuid = uuid.UUID(
+		str(category_id)
+	)  # Will raise ValueError if category_id is not a valid UUID
+	category: Category | None = await db.execute(
+		select(Category).where(Category.id == category_uuid)
+	).first()
 	if not category:
-		raise category_exceptions.CategoryNotFoundError(
-			f"Category with id {category_id} not found"
-		)
-	return category
+		raise category_exceptions.CategoryNotFoundError("Category not found")
+
+	parent: Category | None = None
+	if category.parent_id:
+		parent = await get_category_info_by_id(db, category.parent_id) # TODO ХУЙНЯ ПЕРЕДЕЛАТЬ
+
+	# Count products in category if needed
+	# Otherwise, set count to None
+	product_count: int | None = None
+	if need_count:
+		product_count = await category_crud.count_products_in_category(db, category.id)
+	return {
+		"id": str(category.id),
+		"name": category.name,
+		"slug": category.slug,
+		"description": category.description,
+		"parent": {
+			"id": str(category.parent_id) if category.parent_id else None,
+			"name": parent.name if parent else None,
+			"slug": parent.slug if parent else None,
+		},
+		"product_count": product_count,
+	}
 
 
 async def get_categories_tree(db: AsyncSession) -> str:
