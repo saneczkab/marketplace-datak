@@ -29,6 +29,18 @@ async def get_category_by_id(db: AsyncSession, category_id: uuid.UUID) -> Catego
 
 
 async def get_categories_tree(db: AsyncSession) -> str:
+	"""Gets categories tree from database
+
+	Args:
+	    db (AsyncSession): Database session
+
+	Raises:
+	    category_exceptions.CategoryNotFoundError: If no root category is found
+	            Most likely reason is empty database
+
+	Returns:
+	    str: JSON string representing the categories tree
+	"""
 	result = await db.execute(select(Category).where(Category.parent_id is None))
 	parent_category: Category | None = result.scalars().first()
 	if not parent_category:
