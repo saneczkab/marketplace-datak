@@ -5,7 +5,7 @@ from sqlalchemy import select
 from exceptions import category as category_exceptions
 from crud import category as category_crud
 from crud import product as product_crud
-from database.models.catalog.base import Category, Product
+from database.models.catalog.base import Category
 
 
 async def get_category_info_by_id(
@@ -40,6 +40,10 @@ async def get_category_info_by_id(
 			"slug": parent.slug if parent else None,
 		},
 		"product_count": product_count,
+		"seo": None,  # TODO: Add SEO fields to Category model and return them here
+		"created_at": category.created_at.isoformat(),
+		"is_active": category.is_active,
+
 	}
 
 
@@ -78,10 +82,10 @@ async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -
 	queue: list[uuid.UUID] = [category_id]
 
 	while queue:
-		current_id = queue.pop(0)
-		subcategories = await category_crud.get_categories_by_parent_id(db, current_id)
+		current_id: uuid.UUID = queue.pop(0)
+		subcategories: list[Category] = await category_crud.get_categories_by_parent_id(db, current_id)
 		for subcategory in subcategories:
-			subcategory_id = subcategory.id
+			subcategory_id: uuid.UUID = subcategory.id
 			categories.append(subcategory_id)
 			queue.append(subcategory_id)
 
