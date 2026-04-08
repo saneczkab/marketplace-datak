@@ -1,7 +1,5 @@
 # Script for filling db with test data.
 
-# На данный момент после запуска скрипт упадет с ошибкой НО данные сначала очистит а потом заполнит
-
 import sys
 from typing import AsyncGenerator
 import uuid
@@ -42,7 +40,7 @@ async def generate_categories(db_session: AsyncSession) -> None:
 
 	# Commit root category to get its ID
 	db_session.add(root_category)
-	await db_session.flush()
+	await db_session.commit()
 	await db_session.refresh(root_category)
 
 	root_category_id: uuid.UUID = root_category.id
@@ -61,7 +59,6 @@ async def generate_categories(db_session: AsyncSession) -> None:
 	for category in subcategories:
 		db_session.add(category)
 	await db_session.commit()
-	await generate_categories(db_session)
 
 
 async def main() -> None:
