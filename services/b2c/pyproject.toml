@@ -12,7 +12,8 @@ dependencies = [
     "sqlalchemy",
     "python-dotenv",
     "psycopg2-binary",
-    "asyncpg"
+    "asyncpg",
+    "pydantic>=2.12.5",
 ]
 
 [tool.ruff]
