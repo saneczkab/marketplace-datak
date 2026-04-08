@@ -7,6 +7,11 @@ down:
 build:
 	docker-compose build --no-cache
 
+rebuild:
+	docker-compose down
+	docker-compose build --no-cache
+	docker-compose up -d
+
 migrate:
 	docker-compose exec b2c-backend uv run alembic -c /app/database/alembic.ini upgrade head
 
@@ -19,3 +24,6 @@ format:
 
 check:
 	uv run ruff check .
+
+seed:
+	docker-compose exec b2c-backend uv run python ./scripts/seed.py

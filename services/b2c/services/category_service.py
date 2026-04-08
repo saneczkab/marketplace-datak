@@ -1,4 +1,3 @@
-import json
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -22,7 +21,7 @@ async def get_category_info_by_id(
 
 	parent: Category | None = None
 	if category.parent_id:
-		parent = await category_crud.get_categories_by_parent_id(db, category.parent_id) 
+		parent = await category_crud.get_categories_by_parent_id(db, category.parent_id)
 
 	# Count products in category if needed
 	# Otherwise, set count to None
@@ -43,11 +42,10 @@ async def get_category_info_by_id(
 		"seo": None,  # TODO: Add SEO fields to Category model and return them here
 		"created_at": category.created_at.isoformat(),
 		"is_active": category.is_active,
-
 	}
 
 
-async def get_categories_tree(db: AsyncSession) -> str:
+async def get_categories_tree(db: AsyncSession) -> dict:
 	"""Gets categories tree from database
 
 	Args:
@@ -58,9 +56,9 @@ async def get_categories_tree(db: AsyncSession) -> str:
 	            Most likely reason is empty database
 
 	Returns:
-	    str: JSON string representing the categories tree
+	    dict: Dictionary representing the categories tree
 	"""
-	result = await db.execute(select(Category).where(Category.parent_id is None))
+	result = await db.execute(select(Category).where(Category.parent_id.is_(None)))
 	parent_category: Category | None = result.scalars().first()
 	if not parent_category:
 		raise category_exceptions.CategoryNotFoundError("No root category found")
@@ -75,7 +73,8 @@ async def get_categories_tree(db: AsyncSession) -> str:
 		}
 
 	tree = await build_tree(parent_category)
-	return json.dumps(tree)
+	return tree
+
 
 async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
 	categories: list[uuid.UUID] = [category_id]
@@ -83,7 +82,9 @@ async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -
 
 	while queue:
 		current_id: uuid.UUID = queue.pop(0)
-		subcategories: list[Category] = await category_crud.get_categories_by_parent_id(db, current_id)
+		subcategories: list[Category] = await category_crud.get_categories_by_parent_id(
+			db, current_id
+		)
 		for subcategory in subcategories:
 			subcategory_id: uuid.UUID = subcategory.id
 			categories.append(subcategory_id)

@@ -5,6 +5,7 @@ from database.models.catalog.base import Category
 
 # TODO: Raise error if db is unavailable
 
+
 async def get_category_by_id(
 	db: AsyncSession, category_id: uuid.UUID
 ) -> Category | None:
@@ -17,4 +18,3 @@ async def get_categories_by_parent_id(
 ) -> list[Category]:
 	result = await db.execute(select(Category).where(Category.parent_id == parent_id))
 	return result.scalars().all()
-
