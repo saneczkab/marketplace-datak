@@ -19,8 +19,8 @@ migration:
 	docker-compose exec b2c-backend uv run alembic -c /app/database/alembic.ini revision --autogenerate -m "$(name)"
 
 format:
-	uv run ruff check . --fix
 	uv run ruff format .
+	uv run ruff check . --fix
 
 check:
 	uv run ruff check .
