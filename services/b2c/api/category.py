@@ -32,5 +32,5 @@ async def get_category(
 		)
 	except category_service.category_exceptions.CategoryNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	finally:
-		raise fastapi.HTTPException(status_code=500, detail="Internal Server Error")
+	# finally:
+	# 	raise fastapi.HTTPException(status_code=500, detail="Internal Server Error")
