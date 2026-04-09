@@ -21,18 +21,12 @@ async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -
 		raise DatabaseError from e
 
 
-async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> List[SkuSchema]:
+async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> List[SkuSchema] | None:
 	"""
 	Returns a list of skus for a given product ID.
 	:param db: database session
 	:param product_id: product ID
-	:return: list of skus
-	:throws: ProductNotFoundError if not found
+	:return: list of skus or None if not found
 	"""
 	result = await db.execute(select(Sku).where(Sku.product_id == product_id))
-	skus: list[SkuSchema] = list(result.scalars().all())
-
-	if not skus:
-		raise ProductNotFoundError()
-
-	return skus
+	return list(result.scalars().all())
