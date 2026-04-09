@@ -7,7 +7,6 @@ import uuid
 from database.models import Sku
 from database.models.catalog.base import Product
 from exceptions.database import DatabaseError
-from exceptions.product import ProductNotFoundError
 from schemas.sku import Sku as SkuSchema
 
 
@@ -21,7 +20,9 @@ async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -
 		raise DatabaseError from e
 
 
-async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> List[SkuSchema] | None:
+async def get_product_skus(
+	db: AsyncSession, product_id: uuid.UUID
+) -> List[SkuSchema] | None:
 	"""
 	Returns a list of skus for a given product ID.
 	:param db: database session
