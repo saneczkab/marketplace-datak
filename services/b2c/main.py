@@ -1,6 +1,8 @@
-def main() -> None:
-    print("Hello from b2c!")
+from fastapi import FastAPI
+
+app = FastAPI()
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/")
+def read_root() -> dict[str, str]:
+	return {"Hello": "B2C"}

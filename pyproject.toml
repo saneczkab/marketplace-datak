@@ -12,12 +12,12 @@ dependencies = [
     "sqlalchemy>=2.0.48",
 ]
 
-[tool.uv.workspace]
-members = ["services/*", "shared"]
-# b2b = "uvicorn --project services.b2b.main:app --reload"
-
-[tool.uv.sources]
-shared = { workspace = true }
+#[tool.uv.workspace]
+#members = ["services/*", "shared"]
+## b2b = "uvicorn --project services.b2b.main:app --reload"
+#
+#[tool.uv.sources]
+#shared = { workspace = true }
 
 [tool.ruff]
 lint.extend-select = [
