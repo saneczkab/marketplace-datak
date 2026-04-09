@@ -6,13 +6,19 @@ import uuid
 
 from database.models import Sku
 from database.models.catalog.base import Product
+from exceptions.database import DatabaseError
 from exceptions.product import ProductNotFoundError
 from schemas.sku import Sku as SkuSchema
 
 
 async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
-	result = await db.execute(select(Product).where(Product.category_id == category_id))
-	return result.scalars().count()
+	try:
+		result = await db.execute(
+			select(Product).where(Product.category_id == category_id)
+		)
+		return result.scalars().count()
+	except Exception as e:
+		raise DatabaseError from e
 
 
 async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> List[SkuSchema]:
