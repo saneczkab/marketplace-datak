@@ -1,4 +1,5 @@
 # Script for filling db with test data.
+# Script for filling db with test data.
 
 import sys
 from typing import AsyncGenerator
