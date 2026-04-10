@@ -16,7 +16,7 @@ router = fastapi.APIRouter(prefix="/api/v1/products")
 @router.get("/{product_id}/skus/{sku_id}", response_model=SkuSchema)
 async def get_sku_by_id_api(
 	sku_id: uuid.UUID,
-	product_id: uuid.UUID,
+	product_id: uuid.UUID, # noqa 
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> SkuSchema:
 	"""
