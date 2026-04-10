@@ -1,4 +1,3 @@
-from email.mime import image
 import enum
 import uuid
 from datetime import datetime

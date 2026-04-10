@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Result, select
 import uuid
 from database.models.catalog.base import Category
-from exceptions.database import DatabaseError
 
 
 async def get_category_by_id(

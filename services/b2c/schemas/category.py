@@ -28,7 +28,7 @@ class CategoryInfoResponse(BaseModel):
 	slug: str
 	description: str | None
 	parent: CategoryParent | None
-	product_count: int
+	product_count: int | None
 	seo: Seo | None
 	meta: CategoryMeta | None
 	image_url: str | None
@@ -36,10 +36,13 @@ class CategoryInfoResponse(BaseModel):
 	created_at: str
 	updated_at: str
 
+
 # Tree response models
+
 
 class CategoryTreeResponse(BaseModel):
 	items: list[CategoryNode]
+
 
 class CategoryNode(BaseModel):
 	id: uuid.UUID
