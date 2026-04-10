@@ -1,3 +1,4 @@
+from email.mime import image
 import enum
 import uuid
 from datetime import datetime
@@ -58,3 +59,8 @@ class Category(Base):
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
+	updated_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+	)
+	seo: Mapped[str] = mapped_column(Text, nullable=True)
+	image_url: Mapped[str] = mapped_column(String(255), nullable=True)
