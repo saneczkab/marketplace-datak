@@ -1,93 +1,81 @@
-from typing import Tuple
 import uuid
-
+from schemas.category import CategoryInfoResponse, CategoryParent, CategoryTreeResponse, CategoryNode
+from exceptions.category import CategoryNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from exceptions import category as category_exceptions
-from exceptions.database import DatabaseError
-from crud import category as category_crud
-from crud import product as product_crud
-from database.models.catalog.base import Category
 
+import crud.category as category_crud
 
-async def get_category_info_by_id(db: AsyncSession, category_id: str) -> Category:
-	category_uuid = uuid.UUID(category_id)
-	result = await category_crud.get_category_by_id(db, category_uuid)
-	if not result:
-		raise category_exceptions.CategoryNotFoundError(
-			f"Category with id {category_id} not found"
+async def get_category_info(db: AsyncSession, id: str) -> CategoryInfoResponse:
+	id: uuid.UUID = uuid.UUID(id) # Raises ValueError if invalid
+
+	category = await category_crud.get_category_by_id(db, id)
+	if not category:
+		raise CategoryNotFoundError(f"Category with id {id} not found")
+	
+	if category.parent_id:
+		parent_category = await category_crud.get_category_by_id(db, category.parent_id)
+		parent_info = CategoryParent(
+			id=parent_category.id,
+			name=parent_category.name,
+			slug=parent_category.slug
 		)
-	return result
+	
+	return CategoryInfoResponse(
+		id=category.id,
+		name=category.name,
+		slug=category.slug,
+		description=category.description,
+		parent=parent_info if category.parent_id else None,
+		product_count=await category_product_count(category.id),
+		seo=None, # TODO implement  # noqa
+		meta=None, # TODO implement # noqa
+		image_url=category.image_url,
+		is_active=category.is_active,
+		created_at=category.created_at.isoformat(),
+		updated_at=category.updated_at.isoformat()
+	)
 
-
-async def get_categories_tree(db: AsyncSession) -> dict:
-	"""Gets categories tree from database
-
-	Args:
-		db (AsyncSession): Database session
-
-	Raises:
-		category_exceptions.CategoryNotFoundError: If no root category is found
-				Most likely reason is empty database
-
-
-
-	Returns:
-		dict: Dictionary representing the categories tree
-	"""
-
-	result = await db.execute(select(Category).where(Category.parent_id.is_(None)))
-	parent_category: Category | None = result.scalars().first()
-	if not parent_category:
-		raise category_exceptions.CategoryNotFoundError("No root category found")
-
-	async def build_tree(category: Category) -> dict:
-		children = await category_crud.get_categories_by_parent_id(db, category.id)
-		return {
-			"id": str(category.id),
-			"name": category.name,
-			"parent_id": str(category.parent_id) if category.parent_id else None,
-			"children": [await build_tree(child) for child in children],
-		}
-
-	tree = await build_tree(parent_category)
-	return tree
-
-
-async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
-
-	category_uuid = uuid.UUID(
-		str(category_id)
-	)  # Will raise ValueError if category_id is not a valid UUID
-
-	categories: list[uuid.UUID] = [category_uuid]
-	queue: list[uuid.UUID] = [category_uuid]
-
-	while queue:
-		current_id: uuid.UUID = queue.pop(0)
-		subcategories: list[Category] = await category_crud.get_categories_by_parent_id(
-			db, current_id
-		)
-		for subcategory in subcategories:
-			subcategory_id: uuid.UUID = subcategory.id
-			categories.append(subcategory_id)
-			queue.append(subcategory_id)
-
-	count: int = 0
-
-	for category_id in categories:
-		count += await product_crud.count_products_in_category(db, category_id)
-
+		
+async def category_product_count(db: AsyncSession, category_id: uuid.UUID) -> int:
+	categories: list[uuid.UUID] = [category_id]
+	subcategories = await category_crud.get_categories_by_parent_id(db, category_id)
+	while subcategories:
+		subcategory_ids = [subcategory.id for subcategory in subcategories]
+		categories.extend(subcategory_ids)
+		subcategories = await category_crud.get_categories_by_parent_id(db, category_id)
+	
+	count = 0
+	for cat_id in categories:
+		count += await category_crud.count_products_in_category(db, cat_id)
 	return count
 
 
-async def get_category_filters() -> dict:
-	pass  # Will be implemented when filter are added to database
+async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
+	root_category_all = await category_crud.get_categories_by_parent_id(db, None)
+	root_category = root_category_all[0] if root_category_all else None
+	if not root_category:
+		raise CategoryNotFoundError("No root category found")
+	
+	result = CategoryTreeResponse(items=[
+		CategoryNode(
+			id=root_category.id,
+			name=root_category.name,
+			parent_id=root_category.parent_id,
+			children=[]
+		)
+	])
 
+	await build_category_tree(db, result.items[0])
+	return result
 
-async def get_breadcrumbs(category_id: uuid.UUID) -> list[dict]:
-	pass
-
-
-async def get_facets(category_id: uuid.UUID) -> dict:
-	pass
+async def build_category_tree(db: AsyncSession, node: CategoryNode) -> None:
+	subcategories = await category_crud.get_categories_by_parent_id(db, node.id)
+	for subcategory in subcategories:
+		child_node = CategoryNode(
+			id=subcategory.id,
+			name=subcategory.name,
+			parent_id=subcategory.parent_id,
+			children=[]
+		)
+		node.children.append(child_node)
+		await build_category_tree(db, child_node)

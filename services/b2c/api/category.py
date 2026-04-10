@@ -1,34 +1,29 @@
 import fastapi
-from typing import Annotated
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from services import category_service
-from core import db
-from schemas.category import Category as CategorySchema
 
+from typing import Annotated
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from schemas.category import CategoryInfoResponse, CategoryTreeResponse
+from exceptions.category import CategoryNotFoundError
+import services.category_service as category_service
+
+from core import db
 
 router = fastapi.APIRouter(prefix="/api/v1/categories")
 
-
-@router.get("/")
-async def list_categories(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-) -> str:
+@router.get("/{id}")
+async def get_category_info(db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],id: str) -> CategoryInfoResponse:
 	try:
-		return JSONResponse(content=await category_service.get_categories_tree(db))
-	except category_service.category_exceptions.CategoryNotFoundError as err:
-		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	except Exception as err:
-		raise fastapi.HTTPException(
-			status_code=500, detail="Internal Server Error"
-		) from err
+		return await category_service.get_category_info(db, id)
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail="id must be a valid UUID") from e
+	except CategoryNotFoundError as e:
+		raise fastapi.HTTPException(status_code=404, detail=str(e)) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+	
 
+@router.get("")
+async def get_categories_tree(db: Annotated[AsyncSession, fastapi.Depends(db.get_db)]) -> CategoryTreeResponse:
+	return await category_service.get_categories_tree(db)
 
-@router.get("/{category_id}")
-async def get_category(
-	category_id: str,
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-) -> CategorySchema:
-	result = await category_service.get_category_info_by_id(db, category_id)
-
-	return CategorySchema.model_validate(result)

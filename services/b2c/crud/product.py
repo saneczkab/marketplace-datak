@@ -11,13 +11,11 @@ from schemas.sku import Sku as SkuSchema
 
 
 async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
-	try:
-		result = await db.execute(
-			select(Product).where(Product.category_id == category_id)
-		)
-		return result.scalars().count()
-	except Exception as e:
-		raise DatabaseError from e
+	result = await db.execute(
+		select(Product).where(Product.category_id == category_id)
+	)
+	return result.scalars().count()
+
 
 
 async def get_product_skus(

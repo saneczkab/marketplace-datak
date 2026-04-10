@@ -3,7 +3,7 @@ import uuid
 from pydantic import BaseModel
 
 
-class Parent(BaseModel):
+class CategoryParent(BaseModel):
 	id: uuid.UUID
 	name: str
 	slug: str
@@ -22,12 +22,12 @@ class CategoryMeta(BaseModel):
 	twitter_card: str | None
 
 
-class GetCategoryResponse(BaseModel):
+class CategoryInfoResponse(BaseModel):
 	id: uuid.UUID
 	name: str
 	slug: str
 	description: str | None
-	parent: Parent | None
+	parent: CategoryParent | None
 	product_count: int
 	seo: Seo | None
 	meta: CategoryMeta | None
@@ -36,3 +36,13 @@ class GetCategoryResponse(BaseModel):
 	created_at: str
 	updated_at: str
 
+# Tree response models
+
+class CategoryTreeResponse(BaseModel):
+	items: list[CategoryNode]
+
+class CategoryNode(BaseModel):
+	id: uuid.UUID
+	name: str
+	parent_id: uuid.UUID | None
+	children: list[CategoryNode]
