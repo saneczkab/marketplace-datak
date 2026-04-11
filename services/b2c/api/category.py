@@ -19,6 +19,22 @@ async def get_category_info(
 	include_product_count: bool = False,
 	lang: str = "ru",  # noqa
 ) -> CategoryInfoResponse:
+	"""Category info endpoint
+
+	Args:
+		db (AsyncSession): database session
+		id (str): category id
+		include_product_count (bool, optional): whether to include product count. Defaults to False.
+		lang (str, optional): language code. Defaults to "ru". Actually does nothing
+
+	Raises:
+		fastapi.HTTPException(404): Category not found
+		fastapi.HTTPException(400): Invalid UUID format 
+		fastapi.HTTPException(503): Other errors
+
+	Returns:
+		CategoryInfoResponse: The category information
+	"""
 	try:
 		return await category_service.get_category_info(db, id, include_product_count)
 	except ValueError as e:
@@ -35,14 +51,44 @@ async def get_category_info(
 async def get_categories_tree(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> CategoryTreeResponse:
-	return await category_service.get_categories_tree(db)
+	"""Builds categories tree
 
+	Args:
+		db (AsyncSession): database session
+
+	Raises:
+		fastapi.HTTPException(404): Root category not found
+		fastapi.HTTPException(503): Other errors
+
+	Returns:
+		CategoryTreeResponse: The categories tree
+	"""
+	try:
+		return await category_service.get_categories_tree(db)
+	except CategoryNotFoundError as e:
+		raise fastapi.HTTPException(status_code=404, detail="Root category not found. Check database") from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 @router.get("/{id}/filters")
 async def get_category_filters(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	id: str,
 ) -> FilterResponse:
+	"""Lists filters for category
+
+	Args:
+		db (AsyncSession): database session
+		id (str): category id
+
+	Raises:
+		fastapi.HTTPException(400): Invalid UUID format
+		fastapi.HTTPException(404): Category not found
+		fastapi.HTTPException(503): Other errors
+
+	Returns:
+		FilterResponse: The list of filters for the category
+	"""
 	try:
 		return await category_service.get_category_filters(db, id)
 	except ValueError as e:
