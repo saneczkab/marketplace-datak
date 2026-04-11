@@ -95,7 +95,7 @@ async def build_category_tree(db: AsyncSession, node: CategoryNode) -> None:
 
 
 async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResponse:
-	id: uuid.UUID = uuid.UUID(category_id)  
+	id: uuid.UUID = uuid.UUID(category_id)
 
 	category = await category_crud.get_category_by_id(db, id)
 	if not category:
@@ -108,7 +108,9 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 			id=filter.id,
 			name=filter.name,
 			type=filter.type,
-			value= await category_crud.get_filter_values(db, filter.id) if filter.type == "LIST" else None,
+			value=await category_crud.get_filter_values(db, filter.id)
+			if filter.type == "LIST"
+			else None,
 			min=filter.min,
 			max=filter.max,
 		)

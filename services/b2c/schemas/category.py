@@ -1,5 +1,3 @@
-from tkinter import E, SW
-from unittest.mock import Base
 import uuid
 
 from enum import Enum
@@ -60,13 +58,15 @@ class FilterTypesEnum(str, Enum):
 	RANGE = "RANGE"
 	SWITCH = "SWITCH"
 
+
 class Filter(BaseModel):
 	id: uuid.UUID
 	name: str
 	type: FilterTypesEnum
-	value: list[str] | None 
+	value: list[str] | None
 	min: float | None
 	max: float | None
+
 
 class FilterResponse(BaseModel):
 	items: list[Filter]

@@ -27,23 +27,19 @@ async def get_categories_by_parent_id(
 	)
 	return result.scalars().all()
 
+
 async def get_category_filters(
 	db: AsyncSession, category_id: uuid.UUID
 ) -> FilterResponse:
-	exists = await db.execute(
-		select(Category.id).where(Category.id == category_id)
-	)
+	exists = await db.execute(select(Category.id).where(Category.id == category_id))
 	if not exists.scalars().first():
 		raise CategoryNotFoundError(f"Category with id {category_id} not found")
-	
+
 	filters = await db.execute(
-		select(
-			FilterResponse
-		).where(
-			FilterResponse.category_id == category_id
-		)
+		select(FilterResponse).where(FilterResponse.category_id == category_id)
 	)
 	return filters.scalars().all()
+
 
 async def get_filter_values(db: AsyncSession, filter_id: uuid.UUID) -> list[str]:
 	result = await db.execute(
