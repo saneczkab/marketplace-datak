@@ -1,4 +1,8 @@
+from tkinter import E, SW
+from unittest.mock import Base
 import uuid
+
+from enum import Enum
 
 from pydantic import BaseModel
 
@@ -49,3 +53,20 @@ class CategoryNode(BaseModel):
 	name: str
 	parent_id: uuid.UUID | None
 	children: list[CategoryNode]
+
+
+class FilterTypesEnum(str, Enum):
+	LIST = "LIST"
+	RANGE = "RANGE"
+	SWITCH = "SWITCH"
+
+class Filter(BaseModel):
+	id: uuid.UUID
+	name: str
+	type: FilterTypesEnum
+	value: list[str] | None 
+	min: float | None
+	max: float | None
+
+class FilterResponse(BaseModel):
+	items: list[Filter]
