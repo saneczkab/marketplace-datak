@@ -15,6 +15,12 @@ class ProductStatusEnum(str, enum.Enum):
 	BLOCKED = "BLOCKED"
 
 
+class FilterTypeEnum(str, enum.Enum):
+	LIST = "LIST"
+	RANGE = "RANGE"
+	SWITCH = "SWITCH"
+
+
 class Product(Base):
 	__tablename__ = "products"
 	__table_args__ = (
@@ -63,3 +69,36 @@ class Category(Base):
 	)
 	seo: Mapped[str] = mapped_column(Text, nullable=True)
 	image_url: Mapped[str] = mapped_column(String(255), nullable=True)
+
+
+class CategoryFilters(Base):
+	__tablename__ = "category_filters"
+	__table_args__ = {"schema": "catalog"}
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	category_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("catalog.categories.id", ondelete="CASCADE")
+	)
+	name: Mapped[str] = mapped_column(String(255))
+	slug: Mapped[str] = mapped_column(String(255), unique=True)
+	type: Mapped[FilterTypeEnum] = mapped_column(String(50))
+	value: Mapped[str] = mapped_column(
+		Text
+	)  # Exists beacause of stupid specs. Will be stored in separate table
+	min: Mapped[float | None] = mapped_column()
+	max: Mapped[float | None] = mapped_column()
+
+
+class FilterValues(Base):
+	__tablename__ = "filter_values"
+	__table_args__ = {"schema": "catalog"}
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	filter_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("catalog.category_filters.id", ondelete="CASCADE")
+	)
+	value: Mapped[str] = mapped_column(String(255))
