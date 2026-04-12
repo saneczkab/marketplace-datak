@@ -3,7 +3,12 @@ import fastapi
 from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from schemas.category import CategoryInfoResponse, CategoryTreeResponse, FilterResponse
+from schemas.category import (
+	CategoryInfoResponse,
+	CategoryTreeResponse,
+	FilterResponse,
+	FacetResonse,
+)
 from exceptions.category import CategoryNotFoundError
 import services.category_service as category_service
 
@@ -29,7 +34,7 @@ async def get_category_info(
 
 	Raises:
 		fastapi.HTTPException(404): Category not found
-		fastapi.HTTPException(400): Invalid UUID format 
+		fastapi.HTTPException(400): Invalid UUID format
 		fastapi.HTTPException(503): Other errors
 
 	Returns:
@@ -66,9 +71,12 @@ async def get_categories_tree(
 	try:
 		return await category_service.get_categories_tree(db)
 	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail="Root category not found. Check database") from e
+		raise fastapi.HTTPException(
+			status_code=404, detail="Root category not found. Check database"
+		) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+
 
 @router.get("/{id}/filters")
 async def get_category_filters(
@@ -91,6 +99,24 @@ async def get_category_filters(
 	"""
 	try:
 		return await category_service.get_category_filters(db, id)
+	except ValueError as e:
+		raise fastapi.HTTPException(
+			status_code=400, detail="id must be a valid UUID"
+		) from e
+	except CategoryNotFoundError as e:
+		raise fastapi.HTTPException(status_code=404, detail=str(e)) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.get("/{id}/facets")
+async def get_category_facets(
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	id: str,
+	filters: str | None = None,
+) -> FacetResonse:
+	try:
+		return await category_service.get_category_facets(db, id, filters)
 	except ValueError as e:
 		raise fastapi.HTTPException(
 			status_code=400, detail="id must be a valid UUID"

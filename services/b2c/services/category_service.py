@@ -4,6 +4,9 @@ from schemas.category import (
 	CategoryParent,
 	CategoryTreeResponse,
 	CategoryNode,
+	FacetsResponse,
+	Facet,
+	FacetValue,
 	FilterResponse,
 )
 from exceptions.category import CategoryNotFoundError
@@ -118,3 +121,35 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 	]
 
 	return FilterResponse(items=filters_schemas)
+
+
+async def get_category_facets(
+	db: AsyncSession, category_id: str, filters: str | None = None
+) -> FacetsResponse:
+	id: uuid.UUID = uuid.UUID(category_id)
+	# Возвращает список фасетов (фильтров) для указанной категории и для каждого значения — количество товаров (count), соответствующих этому значению при текущих применённых фильтрах. Вызывается при загрузке страницы категории и при каждом изменении фильтров на клиенте (чтобы обновить счётчики рядом с опциями фильтров).
+	category = await category_crud.get_category_by_id(db, id)
+	if not category:
+		raise CategoryNotFoundError(f"Category with id {id} not found")
+
+	category_uuid: uuid.UUID = uuid.UUID(category_id)
+
+	available_filters: FilterResponse = await category_crud.get_category_filters(
+		db, category_uuid
+	)
+
+	if not filters:
+		facets: list[Facet] = []
+		for filter in available_filters.items:
+			facet_values: list[FacetValue] = []
+			if filter.type == "LIST":
+				for value in filter.value:
+					count = await product_crud.count_products_by_filter(
+						db, category_uuid, filter.id, value
+					)
+					facet_values.append(FacetValue(value=value, count=count))
+			facets.append(Facet(name=filter.name, values=facet_values))
+
+	# TODO implement if filters are given # noqa
+	# TODO what to do if type isn't LIST? # noqa
+	return FacetsResponse(category_id=category_uuid, facets=[])

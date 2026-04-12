@@ -10,7 +10,9 @@ router = fastapi.APIRouter(prefix="/api/v1/catalog")
 
 
 @router.get("/facets")
-async def get_facets(category_id: uuid.UUID, filters: str | None = None) -> FacetsResponse:
+async def get_facets(
+	category_id: uuid.UUID, filters: str | None = None
+) -> FacetsResponse:
 	try:
 		return await category_service.get_category_facets(category_id, filters)
 	except CategoryNotFoundError as e:

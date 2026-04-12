@@ -5,7 +5,7 @@ from sqlalchemy import Result, select
 import uuid
 from database.models.catalog.base import Category, FilterValues
 from schemas.category import FilterResponse
-from services.b2c.exceptions.category import CategoryNotFoundError
+from exceptions.category import CategoryNotFoundError
 
 
 async def get_category_by_id(

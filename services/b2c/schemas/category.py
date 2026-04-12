@@ -70,3 +70,18 @@ class Filter(BaseModel):
 
 class FilterResponse(BaseModel):
 	items: list[Filter]
+
+
+class FacetValue(BaseModel):
+	value: str
+	count: int
+
+
+class Facet(BaseModel):
+	name: str
+	values: list[FacetValue]
+
+
+class FacetResonse(BaseModel):
+	category_id: str
+	facets: list[Filter]
