@@ -115,6 +115,21 @@ async def get_category_facets(
 	id: str,
 	filters: str | None = None,
 ) -> FacetResonse:
+	"""Lists facets for category with applied filters
+
+	Args:
+		db (AsyncSession): database session
+		id (str): category id
+		filters (str | None, optional): applied filters. Defaults to None.
+
+	Raises:
+		fastapi.HTTPException(400): Invalid UUID format
+		fastapi.HTTPException(404): Category not found
+		fastapi.HTTPException(503): Other errors
+
+	Returns:
+		FacetResonse: The list of facets for the category with applied filters
+	"""
 	try:
 		return await category_service.get_category_facets(db, id, filters)
 	except ValueError as e:
