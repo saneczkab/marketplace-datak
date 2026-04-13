@@ -7,7 +7,7 @@ from schemas.category import (
 	CategoryInfoResponse,
 	CategoryTreeResponse,
 	FilterResponse,
-	FacetResonse,
+	FacetsResponse,
 )
 from exceptions.category import CategoryNotFoundError
 import services.category_service as category_service
@@ -114,7 +114,7 @@ async def get_category_facets(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	id: str,
 	filters: str | None = None,
-) -> FacetResonse:
+) -> FacetsResponse:
 	"""Lists facets for category with applied filters
 
 	Args:
@@ -128,7 +128,7 @@ async def get_category_facets(
 		fastapi.HTTPException(503): Other errors
 
 	Returns:
-		FacetResonse: The list of facets for the category with applied filters
+		FacetsResponse: The list of facets for the category with applied filters
 	"""
 	try:
 		return await category_service.get_category_facets(db, id, filters)

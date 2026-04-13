@@ -11,7 +11,7 @@ from sqlalchemy import (
 	func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.core import Base
 
@@ -38,6 +38,7 @@ class Sku(Base):
 	updated_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
+	product = relationship("Product", back_populates="skus")
 
 
 class Characteristic(Base):
@@ -62,6 +63,10 @@ class Characteristic(Base):
 	name: Mapped[str] = mapped_column(String(255))
 	value: Mapped[str] = mapped_column(String(255))
 
+	product = relationship(
+		"Product", back_populates="characteristics", foreign_keys=[product_id]
+	)
+
 
 class Image(Base):
 	__tablename__ = "images"
@@ -78,3 +83,7 @@ class Image(Base):
 	)
 	url: Mapped[str] = mapped_column(String(512))
 	ordering: Mapped[int] = mapped_column(default=0, server_default="0")
+
+	product = relationship(
+		"Product", back_populates="images", foreign_keys=[product_id]
+	)

@@ -82,6 +82,6 @@ class Facet(BaseModel):
 	values: list[FacetValue]
 
 
-class FacetResonse(BaseModel):
+class FacetsResponse(BaseModel):
 	category_id: str
 	facets: list[Filter]
