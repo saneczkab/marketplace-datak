@@ -109,34 +109,3 @@ async def get_category_filters(
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
-@router.get("/{id}/facets")
-async def get_category_facets(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	id: str,
-	filters: str | None = None,
-) -> FacetResonse:
-	"""Lists facets for category with applied filters
-
-	Args:
-		db (AsyncSession): database session
-		id (str): category id
-		filters (str | None, optional): applied filters. Defaults to None.
-
-	Raises:
-		fastapi.HTTPException(400): Invalid UUID format
-		fastapi.HTTPException(404): Category not found
-		fastapi.HTTPException(503): Other errors
-
-	Returns:
-		FacetResonse: The list of facets for the category with applied filters
-	"""
-	try:
-		return await category_service.get_category_facets(db, id, filters)
-	except ValueError as e:
-		raise fastapi.HTTPException(
-			status_code=400, detail="id must be a valid UUID"
-		) from e
-	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail=str(e)) from e
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
