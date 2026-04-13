@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from database.models import Sku
 from database.models.catalog.base import Product
 from schemas.sku import Sku as SkuSchema
+from exceptions.product import ProductNotFoundError
 
 
 async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
@@ -107,3 +108,11 @@ async def get_similar_products(
 	total = (await db.execute(count_query)).scalar() or 0
 
 	return products, total
+async def get_product_category_id(db: AsyncSession, product_id: uuid.UUID) -> uuid.UUID:
+	result = await db.execute(
+		select(Product.category_id).where(Product.id == product_id)
+	)
+	category_id = result.scalar()
+	if not category_id:
+		raise ProductNotFoundError(f"Product with id {product_id} not found")
+	return category_id

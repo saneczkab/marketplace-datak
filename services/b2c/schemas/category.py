@@ -85,3 +85,28 @@ class Facet(BaseModel):
 class FacetsResponse(BaseModel):
 	category_id: str
 	facets: list[Filter]
+
+
+class BreadcrumbItem(BaseModel):
+	id: uuid.UUID
+	slug: str
+	name: str
+	url: str
+	level: int
+	is_current: bool  # Всмысле является ли элемент текущим? кто это писал? -_-
+
+
+class ResolveViaEnum(str, Enum):
+	CATEGORY = "CATEGORY"
+	PRODUCT = "PRODUCT"
+
+
+class BreadcrumbMeta(BaseModel):
+	resolved_via: ResolveViaEnum
+	category_id: uuid.UUID | None
+	product_id: uuid.UUID | None
+
+
+class BreadcrumbResponse(BaseModel):
+	data: BreadcrumbItem
+	meta: BreadcrumbMeta

@@ -1,5 +1,8 @@
 import uuid
 from schemas.category import (
+	BreadcrumbItem,
+	BreadcrumbMeta,
+	BreadcrumbResponse,
 	CategoryInfoResponse,
 	CategoryParent,
 	CategoryTreeResponse,
@@ -8,12 +11,14 @@ from schemas.category import (
 	Facet,
 	FacetValue,
 	FilterResponse,
+	ResolveViaEnum,
 )
 from exceptions.category import CategoryNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud.category as category_crud
 import crud.product as product_crud
+from database.models.catalog.base import Category
 
 
 async def get_category_info(
@@ -153,3 +158,48 @@ async def get_category_facets(
 	# TODO implement if filters are given # noqa
 	# TODO what to do if type isn't LIST? # noqa
 	return FacetsResponse(category_id=category_uuid, facets=[])
+
+
+async def get_category_breadcrumbs(
+	db: AsyncSession, category_id: str | None, product_id: str | None
+) -> BreadcrumbResponse:
+	if not category_id and not product_id:
+		raise ValueError("Either category_id or product_id must be provided")
+
+	if category_id and product_id:
+		raise ValueError("Only one of category_id or product_id should be provided")
+
+	flag: bool = True if product_id else False
+
+	if flag:
+		category_id: uuid.UUID = await product_crud.get_product_category_id(
+			db, uuid.UUID(product_id)
+		)
+	else:
+		category_id: uuid.UUID = uuid.UUID(category_id)
+
+	category: Category = await category_crud.get_category_by_id(db, category_id)
+
+	level: int = 1
+	url: str = category.slug
+
+	while category.parent_id:
+		category = await category_crud.get_category_by_id(db, category.parent_id)
+		url = category.slug + "/" + url
+		level += 1
+
+	return BreadcrumbResponse(
+		BreadcrumbItem(
+			id=uuid.UUID(category_id),
+			slug="",  # Todo What should be here? # noqa
+			name=category.name,
+			url=url,
+			level=level,
+			is_current=True,
+		),
+		BreadcrumbMeta(
+			resolved_via=ResolveViaEnum.PRODUCT if flag else ResolveViaEnum.CATEGORY,
+			category_id=category_id if flag else None,
+			product_id=uuid.UUID(product_id) if flag else None,
+		),
+	)
