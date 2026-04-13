@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import String, Text, DateTime, ForeignKey, Index, text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.core import Base
 
 
@@ -45,6 +45,10 @@ class Product(Base):
 	updated_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
+
+	images = relationship("Image", back_populates="product")
+	characteristics = relationship("Characteristic", back_populates="product")
+	skus = relationship("Sku", back_populates="product")
 
 
 class Category(Base):

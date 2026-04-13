@@ -1,5 +1,5 @@
-from typing import Annotated
 import uuid
+from typing import Annotated, Optional
 
 import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core import db
 from exceptions.product import ProductNotFoundError
 from exceptions.sku import SkuNotFoundError
+from schemas.product import (
+	Product,
+	ProductShortListResponse,
+	SimilarProductsResponse,
+)
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
 from services import product_service, sku_service
 
@@ -50,3 +55,53 @@ async def get_product_skus_short_api(
 		return list(skus_validated)
 	except ProductNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
+
+
+@router.get("", response_model=ProductShortListResponse)
+async def get_product_list_api(
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	limit: int,
+	offset: int,
+	category_id: uuid.UUID,
+	filters: Optional[str],
+	sort: str,
+	search: str,
+) -> ProductShortListResponse:
+	try:
+		return await product_service.get_products_list(
+			db, limit, offset, category_id, filters, sort, search
+		)
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{id}", response_model=Product)
+async def get_product_api(
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)], id: uuid.UUID
+) -> Product:
+	try:
+		return await product_service.get_product_by_id(db, id)
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{id}/similar", response_model=SimilarProductsResponse)
+async def get_similar_product_api(
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	id: uuid.UUID,
+	category: uuid.UUID,
+	limit: int = 8,
+	offset: int = 0,
+) -> SimilarProductsResponse:
+	try:
+		return await product_service.get_similar_products(
+			db, id, category, limit, offset
+		)
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
