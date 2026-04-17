@@ -5,7 +5,7 @@ down:
 	docker-compose down
 
 build:
-	docker-compose build --no-cache
+	docker-compose build 
 
 rebuild:
 	docker-compose down
@@ -27,3 +27,6 @@ check:
 
 seed:
 	docker-compose exec b2c-backend uv run python ./scripts/seed.py
+
+parse-category:
+	docker-compose exec b2c-backend uv run python ./scripts/parse_category.py
