@@ -14,6 +14,8 @@ dependencies = [
     "psycopg2-binary",
     "asyncpg",
     "pydantic>=2.12.5",
+    "openpyxl>=3.1.5",
+    "deep-translator>=1.11.4",
 ]
 
 [tool.ruff]
