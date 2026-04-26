@@ -17,7 +17,7 @@ async def list_categories(
 		return JSONResponse(content=await category_service.get_categories_tree(db))
 	except category_service.category_exceptions.CategoryNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	finally:
+	except Exception:
 		raise fastapi.HTTPException(status_code=500, detail="Internal Server Error")
 
 
@@ -32,5 +32,5 @@ async def get_category(
 		)
 	except category_service.category_exceptions.CategoryNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	# finally:
-	# 	raise fastapi.HTTPException(status_code=500, detail="Internal Server Error")
+	except Exception:
+		raise fastapi.HTTPException(status_code=500, detail="Internal Server Error")
