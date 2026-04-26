@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from api.products import router as product_router
+from api.categories import router as category_router
 app = FastAPI(
     title="NeoMarket B2B API",
     description="API для кабинета продавца: управление товарами и складом",
@@ -7,6 +8,7 @@ app = FastAPI(
 )
 
 app.include_router(product_router, prefix="/api/v1")
+app.include_router(category_router, prefix="/api/v1")
 
 
 
