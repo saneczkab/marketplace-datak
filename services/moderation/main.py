@@ -1,6 +1,6 @@
 def main() -> None:
-    print("Hello from moderation!")
+	print("Hello from moderation!")
 
 
 if __name__ == "__main__":
-    main()
+	main()
