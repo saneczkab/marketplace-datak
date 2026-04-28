@@ -1,31 +1,15 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from database.models.catalog.variants import Sku
+from crud import sku as sku_crud
 
+async def create_sku(db: AsyncSession, data: dict):
+    return await sku_crud.create(db, data)
 
-def create_sku(db: Session, data: dict) -> Sku:
-    sku = Sku(**data)
-    db.add(sku)
-    db.commit()
-    db.refresh(sku)
-    return sku
+async def update_sku(db: AsyncSession, sku_id: UUID, data: dict):
+    return await sku_crud.update(db, sku_id, data)
 
-def update_sku(db: Session, sku_id: UUID, data: dict):
-    sku = db.query(Sku).filter(Sku.id == sku_id).first()
+async def get_sku(db: AsyncSession, sku_id: UUID):
+    return await sku_crud.get_by_id(db, sku_id)
 
-    if not sku:
-        return None
-
-    for key, value in data.items():
-        setattr(sku, key, value)
-
-    db.commit()
-    db.refresh(sku)
-    return sku
-
-def get_sku(db: Session, sku_id: UUID):
-    return db.query(Sku).filter(Sku.id == sku_id).first()
-
-
-def get_skus_by_product(db: Session, product_id: UUID):
-    return db.query(Sku).filter(Sku.product_id == product_id).all()
+async def get_skus_by_product(db: AsyncSession, product_id: UUID):
+    return await sku_crud.get_by_product(db, product_id)

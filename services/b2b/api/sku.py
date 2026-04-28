@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+from typing import List
 
 from database.core import get_db
 from schemas.sku import SkuCreate, SkuResponse
@@ -15,19 +16,19 @@ router = APIRouter(prefix="/api/v1/skus", tags=["SKU"])
 
 
 @router.post("", response_model=SkuResponse)
-def create_sku_endpoint(
+async def create_sku_endpoint(
     data: SkuCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    return create_sku(db, data.dict())
+    return await create_sku(db, data.model_dump()) 
 
 @router.put("/{sku_id}", response_model=SkuResponse)
-def update_sku_endpoint(
+async def update_sku_endpoint(
     sku_id: UUID,
     data: SkuCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    sku = update_sku(db, sku_id, data.dict())
+    sku = await update_sku(db, sku_id, data.model_dump())
 
     if not sku:
         raise HTTPException(status_code=404, detail="SKU not found")
@@ -35,20 +36,20 @@ def update_sku_endpoint(
     return sku
 
 @router.get("/{sku_id}", response_model=SkuResponse)
-def get_sku_endpoint(
+async def get_sku_endpoint(
     sku_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    sku = get_sku(db, sku_id)
+    sku = await get_sku(db, sku_id)
 
     if not sku:
         raise HTTPException(status_code=404, detail="SKU not found")
 
     return sku
 
-@router.get("/product/{product_id}")
-def get_skus_by_product_endpoint(
+@router.get("/product/{product_id}", response_model=List[SkuResponse])
+async def get_skus_by_product_endpoint(
     product_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    return get_skus_by_product(db, product_id)
+    return await get_skus_by_product(db, product_id)

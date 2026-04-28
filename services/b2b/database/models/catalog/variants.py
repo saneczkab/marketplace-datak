@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from database.models.catalog.base import Product, Category
 
 from sqlalchemy import (
 	String,

@@ -1,30 +1,28 @@
-from sqlalchemy.orm import DeclarativeBase
-
-# class Base(DeclarativeBase):
-#     pass
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
 import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+from dotenv import load_dotenv
+from config import settings
 
+load_dotenv()
 
 class Base(DeclarativeBase):
     pass
 
+engine = create_async_engine(settings.database_url, echo=True)
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@b2b-db:5432/marketplace-datak"
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine, 
+    class_=AsyncSession, 
+    expire_on_commit=False
 )
 
-engine = create_engine(DATABASE_URL)
-
-SessionLocal = sessionmaker(bind=engine)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db():
+    async with AsyncSessionLocal() as db:
+        try:
+            yield db
+        finally:
+            await db.close()
+            
+import database.models.catalog.base
+import database.models.catalog.variants
