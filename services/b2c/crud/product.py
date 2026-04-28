@@ -12,7 +12,9 @@ from exceptions.product import ProductNotFoundError
 
 
 async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
-	result = await db.execute(select(Product).where(Product.category_id == category_id))
+	result = await db.execute(
+		select(func.count(Product.id)).where(Product.category_id == category_id)
+	)
 	return result.scalar() or 0
 
 
@@ -108,6 +110,8 @@ async def get_similar_products(
 	total = (await db.execute(count_query)).scalar() or 0
 
 	return products, total
+
+
 async def get_product_category_id(db: AsyncSession, product_id: uuid.UUID) -> uuid.UUID:
 	result = await db.execute(
 		select(Product.category_id).where(Product.id == product_id)
