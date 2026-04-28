@@ -59,3 +59,47 @@ class CartResponse(BaseModel):
 	items: list[CartItem]
 	summary: CartSummary
 	checkout_payload: CheckoutPayload
+
+
+class AddCartItemRequest(BaseModel):
+	"""Request to add item to cart"""
+
+	sku_id: uuid.UUID = Field(description="Идентификатор SKU")
+	quantity: int = Field(ge=1, description="Количество единиц товара")
+
+
+class UpdateCartItemRequest(BaseModel):
+	"""Request to update cart item quantity"""
+
+	quantity: int = Field(ge=1, description="Новое количество товара")
+
+
+class CartMutationResponse(BaseModel):
+	"""Response after cart mutation (add/update)"""
+
+	message: str = Field(description="Сообщение о результате операции")
+	item: CartItem = Field(description="Обновленная позиция корзины")
+	summary: CartSummary = Field(description="Обновленная сводка по корзине")
+
+
+class CartValidationIssue(BaseModel):
+	"""Single validation issue"""
+
+	cart_item_id: str = Field(description="ID позиции в корзине")
+	sku_id: uuid.UUID = Field(description="ID SKU")
+	issue_type: str = Field(
+		description="Тип проблемы: BLOCKED, DELETED, OUT_OF_STOCK, INSUFFICIENT_STOCK, ON_MODERATION"
+	)
+	severity: str = Field(description="Критичность: critical или warning")
+	message: str = Field(description="Описание проблемы")
+	details: dict = Field(description="Дополнительные данные")
+
+
+class CartValidationResponse(BaseModel):
+	"""Cart validation response"""
+
+	is_valid: bool = Field(description="Все товары доступны и валидны")
+	can_checkout: bool = Field(description="Можно ли оформить заказ")
+	total_items: int = Field(description="Количество проверенных позиций")
+	validation_timestamp: str = Field(description="Время валидации ISO 8601")
+	issues: list[CartValidationIssue] = Field(description="Список проблем")

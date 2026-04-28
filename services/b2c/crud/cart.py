@@ -59,3 +59,89 @@ async def get_cart_items_with_details(
 		enriched_items.append((cart_item, sku, product, image_url))
 
 	return enriched_items
+
+
+async def clear_cart(
+	db: AsyncSession, user_id: Optional[uuid.UUID], session_id: Optional[str]
+) -> None:
+	"""Delete all cart items for user or session"""
+	from sqlalchemy import delete
+
+	query = delete(CartItem)
+
+	if user_id:
+		query = query.where(CartItem.user_id == user_id)
+	elif session_id:
+		query = query.where(CartItem.session_id == session_id)
+
+	await db.execute(query)
+	await db.commit()
+
+
+async def get_cart_item_by_id(
+	db: AsyncSession, item_id: uuid.UUID
+) -> Optional[CartItem]:
+	"""Get cart item by ID"""
+	result: Result[Tuple[CartItem]] = await db.execute(
+		select(CartItem).where(CartItem.id == item_id)
+	)
+	return result.scalar_one_or_none()
+
+
+async def get_sku_by_id(db: AsyncSession, sku_id: uuid.UUID) -> Optional[Sku]:
+	"""Get SKU by ID with product relationship"""
+	result: Result[Tuple[Sku]] = await db.execute(
+		select(Sku).where(Sku.id == sku_id).options(selectinload(Sku.product))
+	)
+	return result.scalar_one_or_none()
+
+
+async def get_cart_item_by_sku(
+	db: AsyncSession,
+	user_id: Optional[uuid.UUID],
+	session_id: Optional[str],
+	sku_id: uuid.UUID,
+) -> Optional[CartItem]:
+	"""Find existing cart item for user/session and SKU"""
+	query = select(CartItem).where(CartItem.sku_id == sku_id)
+
+	if user_id:
+		query = query.where(CartItem.user_id == user_id)
+	elif session_id:
+		query = query.where(CartItem.session_id == session_id)
+
+	result: Result[Tuple[CartItem]] = await db.execute(query)
+	return result.scalar_one_or_none()
+
+
+async def create_cart_item(
+	db: AsyncSession,
+	user_id: Optional[uuid.UUID],
+	session_id: Optional[str],
+	sku_id: uuid.UUID,
+	quantity: int,
+) -> CartItem:
+	"""Create new cart item"""
+	cart_item = CartItem(
+		user_id=user_id, session_id=session_id, sku_id=sku_id, quantity=quantity
+	)
+	db.add(cart_item)
+	await db.commit()
+	await db.refresh(cart_item)
+	return cart_item
+
+
+async def update_cart_item_quantity(
+	db: AsyncSession, cart_item: CartItem, quantity: int
+) -> CartItem:
+	"""Update cart item quantity"""
+	cart_item.quantity = quantity
+	await db.commit()
+	await db.refresh(cart_item)
+	return cart_item
+
+
+async def delete_cart_item(db: AsyncSession, cart_item: CartItem) -> None:
+	"""Delete cart item"""
+	await db.delete(cart_item)
+	await db.commit()
