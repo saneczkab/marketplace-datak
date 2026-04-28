@@ -2,15 +2,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 class Settings(BaseSettings):
-    USER_DB: str
-    PASSWORD_DB: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
     HOST_DB: str
     PORT_DB: int
-    NAME_DB: str
+    POSTGRES_DB: str
 
     @property
     def database_url(self) -> str:
-        return f"postgresql+asyncpg://{self.USER_DB}:{self.PASSWORD_DB}@{self.HOST_DB}:{self.PORT_DB}/{self.NAME_DB}"
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.HOST_DB}:{self.PORT_DB}/{self.POSTGRES_DB}"
 
     model_config = SettingsConfigDict(
         env_file=".env", 
