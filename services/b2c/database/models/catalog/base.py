@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import String, Text, DateTime, ForeignKey, Index, text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.core import Base
 
 
@@ -13,6 +13,12 @@ class ProductStatusEnum(str, enum.Enum):
 	ON_MODERATION = "ON_MODERATION"
 	MODERATED = "MODERATED"
 	BLOCKED = "BLOCKED"
+
+
+class FilterTypeEnum(str, enum.Enum):
+	LIST = "LIST"
+	RANGE = "RANGE"
+	SWITCH = "SWITCH"
 
 
 class Product(Base):
@@ -40,6 +46,10 @@ class Product(Base):
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
 
+	images = relationship("Image", back_populates="product")
+	characteristics = relationship("Characteristic", back_populates="product")
+	skus = relationship("Sku", back_populates="product")
+
 
 class Category(Base):
 	__tablename__ = "categories"
@@ -58,3 +68,41 @@ class Category(Base):
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
+	updated_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+	)
+	seo: Mapped[str] = mapped_column(Text, nullable=True)
+	image_url: Mapped[str] = mapped_column(String(255), nullable=True)
+
+
+class CategoryFilters(Base):
+	__tablename__ = "category_filters"
+	__table_args__ = {"schema": "catalog"}
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	category_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("catalog.categories.id", ondelete="CASCADE")
+	)
+	name: Mapped[str] = mapped_column(String(255))
+	slug: Mapped[str] = mapped_column(String(255), unique=True)
+	type: Mapped[FilterTypeEnum] = mapped_column(String(50))
+	value: Mapped[str] = mapped_column(
+		Text
+	)  # Exists beacause of stupid specs. Will be stored in separate table
+	min: Mapped[float | None] = mapped_column()
+	max: Mapped[float | None] = mapped_column()
+
+
+class FilterValues(Base):
+	__tablename__ = "filter_values"
+	__table_args__ = {"schema": "catalog"}
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	filter_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("catalog.category_filters.id", ondelete="CASCADE")
+	)
+	value: Mapped[str] = mapped_column(String(255))
