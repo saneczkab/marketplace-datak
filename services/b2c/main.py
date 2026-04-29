@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from api import category, product, breadcrumbs, cart
 
+app = FastAPI()
 
 app = FastAPI()
 
