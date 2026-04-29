@@ -85,11 +85,11 @@ def open_xlsx_file(file_path: str) -> Generator:
 async def category_parser(db_session: AsyncSession, file_path: str) -> bool:
 
 	await add_root_category(db_session)
-	
+
 	is_oll_category_add: bool = True
 	for row in open_xlsx_file(file_path):
 		row[0] = "Все товары"
-		
+
 		row = row[0 : row.index(None) if row.count(None) != 0 else len(row)]
 		flag: bool = await add_category_in_db(row, db_session)
 

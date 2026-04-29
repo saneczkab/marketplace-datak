@@ -3,7 +3,6 @@ from api import category, product, breadcrumbs, cart
 
 app = FastAPI()
 
-app = FastAPI()
 
 app.include_router(category.router)
 app.include_router(product.router)
