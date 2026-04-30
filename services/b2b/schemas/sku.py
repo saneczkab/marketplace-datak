@@ -37,12 +37,8 @@ class SkuResponse(BaseModel):
     active_quantity: int = Field(serialization_alias="activeQuantity")
     created_at: datetime
     updated_at: datetime
-    
+
     characteristics: List[CharacteristicSchema] = []
     images: List[ImageSchema] = []
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True
-    )
-
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
