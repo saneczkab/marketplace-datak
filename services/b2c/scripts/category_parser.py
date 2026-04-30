@@ -23,15 +23,6 @@ async def clear_db(db_session: AsyncSession) -> True:
 	return True
 
 
-async def translator(name: str) -> str:
-
-	translated = await asyncio.to_thread(
-		GoogleTranslator(source="ru", target="en").translate, name.strip()
-	)
-
-	return translated.lower().replace(" ", "-").replace("_", "-")
-
-
 async def add_root_category(db_session: AsyncGenerator) -> None:
 
 	root_category: Category = Category(
@@ -46,9 +37,28 @@ async def add_root_category(db_session: AsyncGenerator) -> None:
 	await db_session.refresh(root_category)
 
 
+async def slug_generator(name: str, db_session: AsyncGenerator):
+	slug: str = await name
+	result = await db_session.execute(select(Category).where(Category.slug == slug))
+	result = result.scalar_one_or_none()
+
+	if result:
+		result = await db_session.execute(
+			select(Category).where(Category.slug.like(f"{name}(%)"))
+		)
+		result_obj = result.scalars().all()
+
+		if result_obj == []:
+			slug += "(1)"
+		else:
+			slug += "(" + str(int(result_obj[-1][len(slug) : -2]) + 1) + ")"
+	return slug
+
+
 async def add_category_in_db(path: list, db_session: AsyncSession) -> bool:
 
 	parent_id = None
+
 	for parent_name in path[0 : len(path) - 1]:
 		result = await db_session.execute(
 			select(Category).where(
@@ -63,7 +73,7 @@ async def add_category_in_db(path: list, db_session: AsyncSession) -> bool:
 			return False
 
 	name = path[-1]
-	slug = await translator(name)
+	slug = slug_generator(name, db_session)
 	category: Category = Category(
 		name=name, slug=slug, description=name, parent_id=parent_id, is_active=True
 	)
@@ -86,21 +96,11 @@ async def category_parser(db_session: AsyncSession, file_path: str) -> bool:
 
 	await add_root_category(db_session)
 
-	is_oll_category_add: bool = True
 	for row in open_xlsx_file(file_path):
 		row[0] = "Все товары"
-
 		row = row[0 : row.index(None) if row.count(None) != 0 else len(row)]
-		flag: bool = await add_category_in_db(row, db_session)
+		await add_category_in_db(row, db_session)
 
-		if not flag:
-			is_oll_category_add = True
-
-	print(
-		"[+] All category added corect!"
-		if is_oll_category_add
-		else "[-] NOT all category added corect"
-	)
 	return True
 
 
@@ -110,7 +110,7 @@ async def main() -> None:
 	db_session: AsyncSession = await db_gen.__anext__()
 	await clear_db(db_session)
 
-	await category_parser(db_session, "/app/./scripts/taxonomy-with-ids.ru-RU.xlsx")
+	await category_parser(db_session, "/app/./scripts/translated.xlsx")
 	return True
 
 
