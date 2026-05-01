@@ -29,6 +29,12 @@ jobs:
             services/b2c/uv.lock
             services/b2c/pyproject.toml
 
+      - name: Create .env from secret
+        env:
+          B2C_ENV_FILE: ${{ secrets.B2C_ENV_FILE }}
+        run: |
+          printf '%s' "$B2C_ENV_FILE" > .env
+
       - name: Install dependencies
         run: uv sync --frozen --dev
 
@@ -58,6 +64,12 @@ jobs:
           cache-dependency-glob: |
             services/b2c/uv.lock
             services/b2c/pyproject.toml
+
+      - name: Create .env from secret
+        env:
+          B2C_ENV_FILE: ${{ secrets.B2C_ENV_FILE }}
+        run: |
+          printf '%s' "$B2C_ENV_FILE" > .env
 
       - name: Install dependencies
         run: uv sync --frozen --dev
