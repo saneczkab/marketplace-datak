@@ -56,8 +56,9 @@ async def get_products_list(
 				id=p.id,
 				title=p.title,
 				image=main_image_url,
-				price=Decimal(0.0),
+				price=float(0.0),
 				in_stock=False,
+				is_in_cart=False,
 			)
 		)
 
@@ -85,7 +86,7 @@ async def get_similar_products(
 
 	items = [
 		ProductShort(
-			id=p.id, title=p.title, image="", price=Decimal(0.0), in_stock=False
+			id=p.id, title=p.title, image="", price=float(0.0), in_stock=False, is_in_cart=False
 		)
 		for p in products
 	]

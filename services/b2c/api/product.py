@@ -60,16 +60,16 @@ async def get_product_skus_short_api(
 @router.get("", response_model=ProductShortListResponse)
 async def get_product_list_api(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	limit: int,
-	offset: int,
 	category_id: uuid.UUID,
-	filters: Optional[str],
-	sort: str,
-	search: str,
+	limit: int = 20,
+	offset: int = 0,
+	filters: Optional[str] = None,
+	sort: str = 'default',
+	search: str = '',
 ) -> ProductShortListResponse:
 	try:
 		return await product_service.get_products_list(
-			db, limit, offset, category_id, filters, sort, search
+			db, limit, offset, str(category_id), filters, sort, search
 		)
 	except ValueError as e:
 		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
