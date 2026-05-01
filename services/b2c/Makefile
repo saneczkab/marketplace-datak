@@ -25,6 +25,9 @@ format:
 check:
 	uv run ruff check .
 
+test:
+	uv run python -m pytest -q
+
 seed:
 	docker-compose exec b2c-backend uv run python ./scripts/seed.py
 
