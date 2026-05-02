@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { productsApi, categoriesApi } from '../api';
+import type { Product, Category } from '../types/api';
 import styles from './Catalog.module.css';
+
+interface CategoryWithLevel extends Category {
+  level: number;
+}
 
 const Catalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const categoryId = searchParams.get('category');
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -47,7 +52,7 @@ const Catalog = () => {
         });
         setProducts(data.products || []);
       } catch (err) {
-        setError(err.message);
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }
@@ -56,14 +61,14 @@ const Catalog = () => {
     fetchProducts();
   }, [categoryId, page]);
 
-  const handleCategorySelect = (catId) => {
+  const handleCategorySelect = (catId: string) => {
     setSearchParams({ category: catId, page: '1' });
   };
 
   // Flatten category tree to display all categories
-  const flattenCategories = (cats) => {
-    const result = [];
-    const flatten = (items, level = 0) => {
+  const flattenCategories = (cats: Category[]): CategoryWithLevel[] => {
+    const result: CategoryWithLevel[] = [];
+    const flatten = (items: Category[], level = 0) => {
       items.forEach((cat) => {
         result.push({ ...cat, level });
         if (cat.children && cat.children.length > 0) {

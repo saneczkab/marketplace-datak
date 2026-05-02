@@ -1,18 +1,26 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const useThemeStore = create(
+type Theme = 'light' | 'dark';
+
+interface ThemeStore {
+  theme: Theme;
+  toggleTheme: () => void;
+  setTheme: (theme: Theme) => void;
+}
+
+const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
       theme: 'light',
       
       toggleTheme: () => set((state) => {
-        const newTheme = state.theme === 'light' ? 'dark' : 'light';
+        const newTheme: Theme = state.theme === 'light' ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', newTheme);
         return { theme: newTheme };
       }),
       
-      setTheme: (theme) => set(() => {
+      setTheme: (theme: Theme) => set(() => {
         document.documentElement.setAttribute('data-theme', theme);
         return { theme };
       }),

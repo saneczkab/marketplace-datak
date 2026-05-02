@@ -9,7 +9,7 @@ const Cart = () => {
     fetchCart();
   }, [fetchCart]);
 
-  const handleQuantityChange = async (itemId, newQuantity) => {
+  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
     try {
       await updateItem(itemId, newQuantity);
@@ -18,7 +18,7 @@ const Cart = () => {
     }
   };
 
-  const handleRemoveItem = async (itemId) => {
+  const handleRemoveItem = async (itemId: string) => {
     try {
       await removeItem(itemId);
     } catch (err) {

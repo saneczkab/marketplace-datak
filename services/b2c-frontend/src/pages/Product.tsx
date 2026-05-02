@@ -2,21 +2,24 @@ import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { productsApi } from '../api';
 import useCartStore from '../store/cartStore';
+import type { ProductDetailResponse, SKU } from '../types/api';
 import styles from './Product.module.css';
 
 const Product = () => {
-  const { id } = useParams();
-  const [product, setProduct] = useState(null);
-  const [skus, setSkus] = useState([]);
-  const [selectedSku, setSelectedSku] = useState(null);
+  const { id } = useParams<{ id: string }>();
+  const [product, setProduct] = useState<ProductDetailResponse | null>(null);
+  const [skus, setSkus] = useState<SKU[]>([]);
+  const [selectedSku, setSelectedSku] = useState<SKU | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
 
   const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
     const fetchProduct = async () => {
+      if (!id) return;
+
       setLoading(true);
       setError(null);
 
@@ -32,7 +35,7 @@ const Product = () => {
           setSelectedSku(skusData[0]);
         }
       } catch (err) {
-        setError(err.message);
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }
@@ -49,7 +52,7 @@ const Product = () => {
       await addItem(selectedSku.id, 1);
       alert('Товар добавлен в корзину');
     } catch (err) {
-      alert('Ошибка при добавлении в корзину: ' + err.message);
+      alert('Ошибка при добавлении в корзину: ' + (err as Error).message);
     } finally {
       setAddingToCart(false);
     }
