@@ -37,25 +37,24 @@ async def add_root_category(db_session: AsyncGenerator) -> None:
 	await db_session.refresh(root_category)
 
 
-async def slug_generator(name: str, db_session: AsyncGenerator):
-	slug: str = await name
+async def slug_generator(slug: str, db_session: AsyncGenerator):
 	result = await db_session.execute(select(Category).where(Category.slug == slug))
 	result = result.scalar_one_or_none()
 
 	if result:
 		result = await db_session.execute(
-			select(Category).where(Category.slug.like(f"{name}(%)"))
+			select(Category).where(Category.slug.like(f"{slug}(%)"))
 		)
 		result_obj = result.scalars().all()
 
 		if result_obj == []:
 			slug += "(1)"
 		else:
-			slug += "(" + str(int(result_obj[-1][len(slug) : -2]) + 1) + ")"
+			slug += "(" + str(int((result_obj[-1].slug)[len(slug) + 1 : -1]) + 1) + ")"
 	return slug
 
 
-async def add_category_in_db(path: list, db_session: AsyncSession) -> bool:
+async def add_category_in_db(path: list, slug:str, db_session: AsyncSession) -> bool:
 
 	parent_id = None
 
@@ -73,7 +72,7 @@ async def add_category_in_db(path: list, db_session: AsyncSession) -> bool:
 			return False
 
 	name = path[-1]
-	slug = slug_generator(name, db_session)
+	slug = await slug_generator(slug, db_session)
 	category: Category = Category(
 		name=name, slug=slug, description=name, parent_id=parent_id, is_active=True
 	)
@@ -95,11 +94,17 @@ def open_xlsx_file(file_path: str) -> Generator:
 async def category_parser(db_session: AsyncSession, file_path: str) -> bool:
 
 	await add_root_category(db_session)
-
+	p = 0
+	wb = openpyxl.load_workbook('file.xlsx', read_only=True, data_only=True)
+	max_row = (wb.active).max_row 
+	wb.close()
 	for row in open_xlsx_file(file_path):
+		p += 1	
+		print(f"{p}/{max_row} {row}")
+		slug = row[0]
 		row[0] = "Все товары"
 		row = row[0 : row.index(None) if row.count(None) != 0 else len(row)]
-		await add_category_in_db(row, db_session)
+		await add_category_in_db(row, slug, db_session)
 
 	return True
 

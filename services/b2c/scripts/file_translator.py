@@ -3,6 +3,7 @@ from typing import Generator
 import asyncio
 from pathlib import Path
 import openpyxl
+import datetime
 from deep_translator import GoogleTranslator
 
 
@@ -29,25 +30,24 @@ def open_xlsx_file(file_path: str) -> Generator:
 		wb.close()
 
 
+
 async def main(file_path: str) -> None:
+	start = datetime.datetime.now()
 	trans = openpyxl.Workbook()
 	trans_s = trans.active
-	l_row, l_row_t = [None] * 100, [None] * 100
 	p = 0
 	for row in open_xlsx_file(file_path):
 		p += 1
-		row_t = []
-		for i in range(len(row)):
-			if row[i] == l_row[i]:
-				row_t.append(l_row_t[i])
-			else:
-				row_t.append(await translator(row[i]))
-		trans_s.append(row_t)
-		l_row ,l_row_t = row, row_t
-		print(p, row_t)
-
+		try:
+			row[0] = await translator(row[row.index(None)-1 if row.count(None) != 0 else -1])
+			trans_s.append(row)  
+			print(p, row)
+		except:
+			break
 	out_path = Path(file_path).parent / "translated.xlsx"
 	trans.save(str(out_path))
+	print(datetime.datetime.now() - start)
+  
 
 
 if __name__ == "__main__":
