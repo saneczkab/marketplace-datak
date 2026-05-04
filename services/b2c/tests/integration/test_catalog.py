@@ -75,3 +75,63 @@ async def test_invalid_sort_returns_400(
 		params={"category_id": str(category_with_products.category.id), "sort": sort},
 	)
 	assert response.status_code == 400
+
+
+async def test_search_description_returns_matching_products(
+	client: AsyncClient, category_with_products: CategoryWithProductsData
+) -> None:
+	response = await client.get(
+		"/api/v1/products",
+		params={"category_id": str(category_with_products.category.id), "search": "Description 1"},
+	)
+	assert response.status_code == 200
+	body = response.json()
+	items = body["items"]
+	assert len(items) == 2
+	assert items[0]["id"] == str(category_with_products.products[0].id)
+	assert items[1]["id"] == str(category_with_products.products[1].id)
+
+async def test_search_title_returns_matching_products(
+	client: AsyncClient, category_with_products: CategoryWithProductsData
+) -> None:
+	response = await client.get(
+		"/api/v1/products",
+		params={"category_id": str(category_with_products.category.id), "search": "Product 1"},
+	)
+	assert response.status_code == 200
+	body = response.json()
+	items = body["items"]
+	assert len(items) == 1
+	assert items[0]["id"] == str(category_with_products.products[0].id)
+
+pytest.mark.parametrize("search", ["", "t", "te", "tes"])
+async def test_short_query_returns_400(
+	client: AsyncClient, category_with_products: CategoryWithProductsData, search: str
+) -> None:
+	response = await client.get(
+		"/api/v1/products",
+		params={"category_id": str(category_with_products.category.id), "search": search},
+	)
+	assert response.status_code == 400
+
+async def test_empty_results_returns_200(
+	client: AsyncClient, category_with_products: CategoryWithProductsData
+) -> None:
+	response = await client.get(
+		"/api/v1/products",
+		params={"category_id": str(category_with_products.category.id), "search": "Nonexistent"},
+	)
+	assert response.status_code == 200
+	body = response.json()
+	assert body["items"] == []
+
+async def test_special_chars_do_not_break_query(
+	client: AsyncClient, category_with_products: CategoryWithProductsData
+) -> None:
+	response = await client.get(
+		"/api/v1/products",
+		params={"category_id": str(category_with_products.category.id), "search": "!@#$%^&*()"},
+	)
+	assert response.status_code == 200
+	body = response.json()
+	assert body["items"] == []

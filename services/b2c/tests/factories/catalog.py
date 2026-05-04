@@ -59,4 +59,4 @@ class ProductFactory(factory.Factory):
 	title = factory.Faker("sentence", nb_words=3)
 	slug = factory.Faker("slug")
 	description = factory.Faker("sentence", nb_words=6)
-	status = ProductStatusEnum.CREATED
+	status = ProductStatusEnum.MODERATED
