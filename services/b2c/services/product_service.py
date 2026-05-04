@@ -33,7 +33,9 @@ async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]
 	return skus
 
 
-async def get_product_skus_short(db: AsyncSession, product_id: uuid.UUID) -> list[SkuShort]:
+async def get_product_skus_short(
+	db: AsyncSession, product_id: uuid.UUID
+) -> list[SkuShort]:
 	"""
 	Gets SKUs in short format by product ID
 	:param db: database session
@@ -42,15 +44,15 @@ async def get_product_skus_short(db: AsyncSession, product_id: uuid.UUID) -> lis
 	:raises ProductNotFoundError: if product not found
 	"""
 	skus = await product_crud.get_product_skus(db, product_id)
-	
+
 	if not skus:
 		raise ProductNotFoundError
-	
+
 	return [
 		SkuShort(
 			name=sku.name,
 			price=sku.price,
-			image=sku.images[0] if sku.images else Image(url="", order=0)
+			image=sku.images[0] if sku.images else Image(url="", order=0),
 		)
 		for sku in skus
 	]

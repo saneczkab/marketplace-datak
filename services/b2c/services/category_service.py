@@ -83,10 +83,10 @@ async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
 	# Try to load from cache file
 	if CATEGORIES_TREE_CACHE_FILE.exists():
 		try:
-			with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:
+			with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:  # noqa
 				cache_data = json.load(f)
 				return CategoryTreeResponse(**cache_data)
-		except Exception as e:
+		except Exception as e:  # noqa
 			# If cache is corrupted, rebuild it
 			print(f"Failed to load cache: {e}")
 
@@ -95,10 +95,10 @@ async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
 		# Double-check if cache was created while waiting for lock
 		if CATEGORIES_TREE_CACHE_FILE.exists():
 			try:
-				with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:
+				with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:  # noqa
 					cache_data = json.load(f)
 					return CategoryTreeResponse(**cache_data)
-			except Exception:
+			except Exception:  # noqa
 				pass
 
 		# Build tree
@@ -107,11 +107,11 @@ async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
 		# Save to cache file
 		try:
 			CACHE_DIR.mkdir(exist_ok=True)
-			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:
+			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:  # noqa
 				json.dump(
 					result.model_dump(mode="json"), f, ensure_ascii=False, indent=2
 				)
-		except Exception as e:
+		except Exception as e:  # noqa
 			print(f"Failed to save cache: {e}")
 
 		return result
@@ -145,20 +145,20 @@ async def invalidate_categories_tree_cache(db: AsyncSession) -> None:
 		# Remove old cache file
 		if CATEGORIES_TREE_CACHE_FILE.exists():
 			try:
-				os.remove(CATEGORIES_TREE_CACHE_FILE)
-			except Exception as e:
+				os.remove(CATEGORIES_TREE_CACHE_FILE)  # noqa
+			except Exception as e:  # noqa
 				print(f"Failed to remove cache file: {e}")
 
 		# Rebuild cache
 		try:
 			result = await _build_categories_tree(db)
 			CACHE_DIR.mkdir(exist_ok=True)
-			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:
+			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:  # noqa
 				json.dump(
 					result.model_dump(mode="json"), f, ensure_ascii=False, indent=2
 				)
 			print("Categories tree cache rebuilt successfully")
-		except Exception as e:
+		except Exception as e:  # noqa
 			print(f"Failed to rebuild cache: {e}")
 
 

@@ -40,7 +40,9 @@ class Sku(Base):
 	)
 	product = relationship("Product", back_populates="skus")
 	images = relationship("Image", foreign_keys="Image.sku_id")
-	characteristics = relationship("Characteristic", foreign_keys="Characteristic.sku_id")
+	characteristics = relationship(
+		"Characteristic", foreign_keys="Characteristic.sku_id"
+	)
 
 
 class Characteristic(Base):

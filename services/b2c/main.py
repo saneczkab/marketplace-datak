@@ -19,12 +19,12 @@ if settings.debug:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa
 	# Startup: warm up categories tree cache
 	try:
 		db = await anext(get_db())
 		await category_service.get_categories_tree(db)
-	except Exception:
+	except Exception:  # noqa
 		pass
 
 	yield

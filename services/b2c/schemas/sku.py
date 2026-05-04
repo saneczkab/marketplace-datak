@@ -12,7 +12,7 @@ class Sku(BaseModel):
 	id: uuid.UUID
 	name: str
 	price: float
-	quantity: int = Field(alias='active_quantity')
+	quantity: int = Field(alias="active_quantity")
 	characteristics: list[Characteristic]
 	images: list[Image]
 
