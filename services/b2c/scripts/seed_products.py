@@ -87,8 +87,8 @@ async def create_products_for_category(
 
 	for i in range(count):
 		# Generate product name
-		adjective = random.choice(ADJECTIVES)
-		base_name = random.choice(PRODUCT_NAMES)
+		adjective = random.choice(ADJECTIVES)  # noqa: S311
+		base_name = random.choice(PRODUCT_NAMES)  # noqa: S311
 		product_name = f"{adjective} {base_name} {i + 1}"
 		slug = f"{category.slug}-{base_name.lower().replace(' ', '-')}-{i + 1}-{uuid.uuid4().hex[:8]}"
 
@@ -106,9 +106,9 @@ async def create_products_for_category(
 		await db.flush()  # Get product ID
 
 		# Create 1-3 SKUs for each product
-		sku_count = random.randint(1, 3)
+		sku_count = random.randint(1, 3)  # noqa: S311
 		for j in range(sku_count):
-			base_price = random.randint(1000, 50000)
+			base_price = random.randint(1000, 50000)  # noqa: S311
 			sku_name = f"{product_name}"
 
 			if sku_count > 1:
@@ -119,7 +119,7 @@ async def create_products_for_category(
 				product_id=product.id,
 				name=sku_name,
 				price=base_price,
-				active_quantity=random.randint(0, 100),
+				active_quantity=random.randint(0, 100),  # noqa: S311
 			)
 
 			db.add(sku)
@@ -153,7 +153,7 @@ async def main() -> None:
 
 	for category in categories:
 		# Create 3-8 products per category
-		product_count = random.randint(3, 8)
+		product_count = random.randint(3, 8)  # noqa: S311
 		await create_products_for_category(db, category, product_count)
 
 	print(f"\n✅ Successfully created products for {len(categories)} categories!")
