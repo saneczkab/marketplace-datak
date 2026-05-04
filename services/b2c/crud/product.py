@@ -54,7 +54,11 @@ async def get_product_skus(
 	:param product_id: product ID
 	:return: list of skus or None if not found
 	"""
-	result = await db.execute(select(Sku).where(Sku.product_id == product_id))
+	result = await db.execute(
+		select(Sku)
+		.where(Sku.product_id == product_id)
+		.options(selectinload(Sku.images))
+	)
 	return list(result.scalars().all())
 
 
@@ -113,7 +117,8 @@ async def get_product_full(db: AsyncSession, id: uuid.UUID) -> Optional[Product]
 		.options(
 			selectinload(Product.images),
 			selectinload(Product.characteristics),
-			selectinload(Product.skus),
+			selectinload(Product.skus).selectinload(Sku.images),
+			selectinload(Product.skus).selectinload(Sku.characteristics),
 		)
 	)
 	return (await db.execute(stmt)).scalar_one_or_none()

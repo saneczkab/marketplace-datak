@@ -2,14 +2,13 @@ import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { productsApi } from '../api';
 import useCartStore from '../store/cartStore';
-import type { ProductDetailResponse, SKU } from '../types/api';
+import type { ProductDetail, SKUDetail } from '../types/api';
 import styles from './Product.module.css';
 
 const Product = () => {
   const { id } = useParams<{ id: string }>();
-  const [product, setProduct] = useState<ProductDetailResponse | null>(null);
-  const [skus, setSkus] = useState<SKU[]>([]);
-  const [selectedSku, setSelectedSku] = useState<SKU | null>(null);
+  const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [selectedSku, setSelectedSku] = useState<SKUDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -24,15 +23,12 @@ const Product = () => {
       setError(null);
 
       try {
-        const [productData, skusData] = await Promise.all([
-          productsApi.getProductById(id),
-          productsApi.getProductSkus(id),
-        ]);
-
+        const productData = await productsApi.getProductById(id);
         setProduct(productData);
-        setSkus(skusData);
-        if (skusData.length > 0) {
-          setSelectedSku(skusData[0]);
+        
+        // Select first SKU by default
+        if (productData.skus && productData.skus.length > 0) {
+          setSelectedSku(productData.skus[0]);
         }
       } catch (err) {
         setError((err as Error).message);
@@ -70,35 +66,35 @@ const Product = () => {
     return <div className={styles.error}>Товар не найден</div>;
   }
 
+  const displayImage = selectedSku?.images?.[0]?.url || product.images?.[0]?.url || '/no-image.png';
+
   return (
     <div className={styles.product}>
       <div className={styles.content}>
         <div className={styles.imageSection}>
-          <div className={styles.imagePlaceholder}>
-            Изображение товара
+          <div className={styles.mainImage}>
+            <img src={displayImage} alt={product.title} />
           </div>
         </div>
 
         <div className={styles.info}>
-          <h1>{product.name}</h1>
+          <h1>{product.title}</h1>
           
           {product.description && (
             <p className={styles.description}>{product.description}</p>
           )}
 
-          {skus.length > 0 && (
+          {product.skus && product.skus.length > 0 && (
             <div className={styles.skuSection}>
               <h3>Варианты:</h3>
               <div className={styles.skuList}>
-                {skus.map((sku) => (
+                {product.skus.map((sku) => (
                   <button
                     key={sku.id}
                     className={`${styles.skuButton} ${selectedSku?.id === sku.id ? styles.selected : ''}`}
                     onClick={() => setSelectedSku(sku)}
                   >
-                    {sku.attributes && Object.entries(sku.attributes).map(([key, value]) => (
-                      <span key={key}>{value}</span>
-                    ))}
+                    {sku.name}
                   </button>
                 ))}
               </div>
@@ -107,14 +103,29 @@ const Product = () => {
 
           {selectedSku && (
             <div className={styles.priceSection}>
-              <p className={styles.price}>{selectedSku.price} ₽</p>
+              <p className={styles.price}>{selectedSku.price.toFixed(2)} ₽</p>
+              <p className={styles.stock}>В наличии: {selectedSku.active_quantity} шт.</p>
               <button
                 className={styles.addToCartButton}
                 onClick={handleAddToCart}
-                disabled={addingToCart || !selectedSku.is_available}
+                disabled={addingToCart || selectedSku.active_quantity === 0}
               >
-                {addingToCart ? 'Добавление...' : selectedSku.is_available ? 'Добавить в корзину' : 'Нет в наличии'}
+                {addingToCart ? 'Добавление...' : selectedSku.active_quantity > 0 ? 'Добавить в корзину' : 'Нет в наличии'}
               </button>
+            </div>
+          )}
+
+          {product.characteristics && product.characteristics.length > 0 && (
+            <div className={styles.characteristicsSection}>
+              <h3>Характеристики:</h3>
+              <dl className={styles.characteristicsList}>
+                {product.characteristics.map((char) => (
+                  <div key={char.id} className={styles.characteristicItem}>
+                    <dt>{char.name}</dt>
+                    <dd>{char.value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           )}
         </div>

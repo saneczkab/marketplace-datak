@@ -13,6 +13,8 @@ from schemas.product import (
 	ProductShortListResponse,
 	SimilarProductsResponse,
 )
+from schemas.sku import SkuShort
+from schemas.image import Image
 
 
 async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]:
@@ -29,6 +31,29 @@ async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]
 		raise ProductNotFoundError
 
 	return skus
+
+
+async def get_product_skus_short(db: AsyncSession, product_id: uuid.UUID) -> list[SkuShort]:
+	"""
+	Gets SKUs in short format by product ID
+	:param db: database session
+	:param product_id: Product ID
+	:return: List of SKUs in short format
+	:raises ProductNotFoundError: if product not found
+	"""
+	skus = await product_crud.get_product_skus(db, product_id)
+	
+	if not skus:
+		raise ProductNotFoundError
+	
+	return [
+		SkuShort(
+			name=sku.name,
+			price=sku.price,
+			image=sku.images[0] if sku.images else Image(url="", order=0)
+		)
+		for sku in skus
+	]
 
 
 async def get_products_list(

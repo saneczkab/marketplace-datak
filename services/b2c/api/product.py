@@ -50,7 +50,7 @@ async def get_product_skus_short_api(
 	:return: SKUs short
 	"""
 	try:
-		skus = await product_service.get_product_skus(db, product_id)
+		skus = await product_service.get_product_skus_short(db, product_id)
 		skus_validated = (SkuShortSchema.model_validate(sku) for sku in skus)
 		return list(skus_validated)
 	except ProductNotFoundError as err:

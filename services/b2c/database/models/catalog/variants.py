@@ -39,6 +39,8 @@ class Sku(Base):
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
 	product = relationship("Product", back_populates="skus")
+	images = relationship("Image", foreign_keys="Image.sku_id")
+	characteristics = relationship("Characteristic", foreign_keys="Characteristic.sku_id")
 
 
 class Characteristic(Base):

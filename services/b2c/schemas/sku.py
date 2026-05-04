@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.characteristic import Characteristic
 from schemas.image import Image
@@ -12,7 +12,7 @@ class Sku(BaseModel):
 	id: uuid.UUID
 	name: str
 	price: float
-	quantity: int
+	quantity: int = Field(alias='active_quantity')
 	characteristics: list[Characteristic]
 	images: list[Image]
 

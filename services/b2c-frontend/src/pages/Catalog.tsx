@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { productsApi, categoriesApi } from '../api';
-import type { Product, Category } from '../types/api';
+import type { Product, Category, SKUShort } from '../types/api';
 import styles from './Catalog.module.css';
+
+interface ProductWithSku extends Product {
+  skuData?: SKUShort;
+}
 
 interface CategoryWithLevel extends Category {
   level: number;
-  hasChildren: boolean;
+  hasChildren?: boolean;
 }
 
 const Catalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductWithSku[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const categoryId = searchParams.get('category');
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -60,7 +64,24 @@ const Catalog = () => {
           sort: 'default',
           search: '',
         });
-        setProducts(data.products || []);
+        
+        // Fetch SKU data for each product
+        const productsWithSkus = await Promise.all(
+          (data.items || []).map(async (product) => {
+            try {
+              const skus = await productsApi.getProductSkus(product.id);
+              return {
+                ...product,
+                skuData: skus[0], // Get first SKU
+              };
+            } catch (err) {
+              console.error(`Failed to fetch SKUs for product ${product.id}:`, err);
+              return product;
+            }
+          })
+        );
+        
+        setProducts(productsWithSkus);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -154,12 +175,26 @@ const Catalog = () => {
             <p className={styles.placeholder}>Товары не найдены</p>
           ) : (
             <div className={styles.productGrid}>
-              {products.map((product) => (
-                <div key={product.id} className={styles.productCard}>
-                  <h3>{product.name}</h3>
-                  <p className={styles.price}>{product.price} ₽</p>
-                </div>
-              ))}
+              {products.map((product) => {
+                const displayPrice = product.skuData?.price ?? product.price;
+                const displayImage = product.skuData?.image?.url || product.image || '/no-image.png';
+                
+                return (
+                  <Link 
+                    key={product.id} 
+                    to={`/product/${product.id}`} 
+                    className={styles.productCard}
+                  >
+                    <div className={styles.productImage}>
+                      <img src={displayImage} alt={product.title} />
+                    </div>
+                    <div className={styles.productInfo}>
+                      <h3>{product.title}</h3>
+                      <p className={styles.price}>{displayPrice.toFixed(2)} ₽</p>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </main>

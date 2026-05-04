@@ -2,8 +2,9 @@ import apiClient from './client';
 import type {
   ProductsListParams,
   ProductsListResponse,
-  ProductDetailResponse,
-  SKU,
+  ProductDetail,
+  SKUDetail,
+  SKUShort,
 } from '../types/api';
 
 export const productsApi = {
@@ -29,21 +30,21 @@ export const productsApi = {
     return response.data;
   },
 
-  // Get product by ID
-  getProductById: async (productId: string): Promise<ProductDetailResponse> => {
-    const response = await apiClient.get<ProductDetailResponse>(`/api/v1/products/${productId}`);
+  // Get product by ID (full detail)
+  getProductById: async (productId: string): Promise<ProductDetail> => {
+    const response = await apiClient.get<ProductDetail>(`/api/v1/products/${productId}`);
     return response.data;
   },
 
-  // Get product SKUs
-  getProductSkus: async (productId: string): Promise<SKU[]> => {
-    const response = await apiClient.get<SKU[]>(`/api/v1/products/${productId}/skus`);
+  // Get product SKUs (short version)
+  getProductSkus: async (productId: string): Promise<SKUShort[]> => {
+    const response = await apiClient.get<SKUShort[]>(`/api/v1/products/${productId}/skus`);
     return response.data;
   },
 
-  // Get specific SKU
-  getSku: async (productId: string, skuId: string): Promise<SKU> => {
-    const response = await apiClient.get<SKU>(`/api/v1/products/${productId}/skus/${skuId}`);
+  // Get specific SKU (full detail)
+  getSku: async (productId: string, skuId: string): Promise<SKUDetail> => {
+    const response = await apiClient.get<SKUDetail>(`/api/v1/products/${productId}/skus/${skuId}`);
     return response.data;
   },
 

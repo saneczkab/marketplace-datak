@@ -56,13 +56,11 @@ export interface CategoryFacetsResponse {
 // Product types
 export interface Product {
   id: string;
-  name: string;
-  description?: string;
-  category_id: string;
+  title: string;
+  image: string;
   price: number;
-  is_available: boolean;
-  created_at: string;
-  updated_at: string;
+  in_stock: boolean;
+  is_in_cart: boolean;
 }
 
 export interface ProductsListParams {
@@ -75,14 +73,49 @@ export interface ProductsListParams {
 }
 
 export interface ProductsListResponse {
-  products: Product[];
-  total: number;
+  items: Product[];
+  total_count: number;
   limit: number;
   offset: number;
 }
 
 export interface ProductDetailResponse extends Product {
   attributes?: Record<string, string>;
+}
+
+// Full Product Detail
+export interface ProductDetail {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  images: Image[];
+  status: string;
+  characteristics: Characteristic[];
+  skus: SKUDetail[];
+}
+
+// Image type
+export interface Image {
+  url: string;
+  order: number;
+}
+
+// Characteristic type
+export interface Characteristic {
+  id: string;
+  name: string;
+  value: string;
+}
+
+// Full SKU Detail
+export interface SKUDetail {
+  id: string;
+  name: string;
+  price: number;
+  active_quantity: number;
+  characteristics: Characteristic[];
+  images: Image[];
 }
 
 // SKU types
@@ -94,6 +127,15 @@ export interface SKU {
   stock_quantity: number;
   is_available: boolean;
   attributes?: Record<string, string>;
+}
+
+export interface SKUShort {
+  name: string;
+  price: number;
+  image: {
+    url: string;
+    order: number;
+  };
 }
 
 export interface ProductSkusResponse {

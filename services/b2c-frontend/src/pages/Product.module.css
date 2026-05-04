@@ -14,18 +14,23 @@
   align-items: flex-start;
 }
 
-.imagePlaceholder {
+.mainImage {
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
   aspect-ratio: 1;
   background: var(--bg-secondary);
   border-radius: 8px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
-  font-size: 1.1rem;
   transition: background-color 0.3s ease;
+}
+
+.mainImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .info h1 {
@@ -86,7 +91,13 @@
   font-size: 2rem;
   font-weight: bold;
   color: var(--accent-color);
-  margin-bottom: 1.5rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.stock {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin: 0 0 1.5rem 0;
 }
 
 .addToCartButton {
@@ -109,6 +120,43 @@
 .addToCartButton:disabled {
   background-color: var(--border-color);
   cursor: not-allowed;
+}
+
+.characteristicsSection {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.characteristicsSection h3 {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.characteristicsList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.characteristicItem {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.characteristicItem dt {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.characteristicItem dd {
+  margin: 0;
+  color: var(--text-primary);
 }
 
 .loading,
