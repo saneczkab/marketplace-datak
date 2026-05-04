@@ -33,3 +33,6 @@ seed:
 
 parse-category:
 	docker-compose exec b2c-backend uv run python ./scripts/category_parser.py
+
+translator:
+	docker-compose exec b2c-backend uv run python ./scripts/file_translator.py
