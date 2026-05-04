@@ -11,6 +11,7 @@ PROJECT_ROOT = str(Path(__file__).resolve().parents[1])
 if PROJECT_ROOT not in sys.path:
 	sys.path.insert(0, PROJECT_ROOT)
 
+
 async def translator(name: str) -> str:
 	if name is None:
 		return None
@@ -30,7 +31,6 @@ def open_xlsx_file(file_path: str) -> Generator:
 		wb.close()
 
 
-
 async def main(file_path: str) -> None:
 	start = datetime.datetime.now()
 	trans = openpyxl.Workbook()
@@ -39,15 +39,16 @@ async def main(file_path: str) -> None:
 	for row in open_xlsx_file(file_path):
 		p += 1
 		try:
-			row[0] = await translator(row[row.index(None)-1 if row.count(None) != 0 else -1])
-			trans_s.append(row)  
+			row[0] = await translator(
+				row[row.index(None) - 1 if row.count(None) != 0 else -1]
+			)
+			trans_s.append(row)
 			print(p, row)
-		except:
+		except:  # noqa
 			break
 	out_path = Path(file_path).parent / "translated.xlsx"
 	trans.save(str(out_path))
 	print(datetime.datetime.now() - start)
-  
 
 
 if __name__ == "__main__":

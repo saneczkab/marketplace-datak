@@ -3,7 +3,6 @@ from typing import AsyncGenerator, Generator
 import asyncio
 from pathlib import Path
 import openpyxl
-from deep_translator import GoogleTranslator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
@@ -37,7 +36,7 @@ async def add_root_category(db_session: AsyncGenerator) -> None:
 	await db_session.refresh(root_category)
 
 
-async def slug_generator(slug: str, db_session: AsyncGenerator):
+async def slug_generator(slug: str, db_session: AsyncGenerator) -> str:
 	result = await db_session.execute(select(Category).where(Category.slug == slug))
 	result = result.scalar_one_or_none()
 
@@ -54,7 +53,7 @@ async def slug_generator(slug: str, db_session: AsyncGenerator):
 	return slug
 
 
-async def add_category_in_db(path: list, slug:str, db_session: AsyncSession) -> bool:
+async def add_category_in_db(path: list, slug: str, db_session: AsyncSession) -> bool:
 
 	parent_id = None
 
@@ -96,10 +95,10 @@ async def category_parser(db_session: AsyncSession, file_path: str) -> bool:
 	await add_root_category(db_session)
 	p = 0
 	wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-	max_row = (wb.active).max_row 
+	max_row = (wb.active).max_row
 	wb.close()
 	for row in open_xlsx_file(file_path):
-		p += 1	
+		p += 1
 		print(f"{p}/{max_row} {row}")
 		slug = row[0]
 		row[0] = "Все товары"

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api import category, product, breadcrumbs, cart
+from api import category, product, breadcrumbs, cart, catalog
 
 app = FastAPI()
 
@@ -9,3 +9,4 @@ app.include_router(product.router)
 app.include_router(breadcrumbs.router)
 app.include_router(cart.router)
 app.include_router(cart.validate_router)
+app.include_router(catalog.router)
