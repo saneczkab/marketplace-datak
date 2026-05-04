@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from api.sku import router as sku_router
 from api.products import router as product_router
 from api.categories import router as category_router
 app = FastAPI(
@@ -9,7 +10,7 @@ app = FastAPI(
 
 app.include_router(product_router, prefix="/api/v1")
 app.include_router(category_router, prefix="/api/v1")
-
+app.include_router(sku_router, prefix="/api/v1")
 
 
 @app.get("/")

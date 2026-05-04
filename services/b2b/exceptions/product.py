@@ -1,6 +1,9 @@
-class ProductError(Exception):
-	"""Base exception for product-related errors."""
+from exceptions.base import MarketplaceError
+
+
+class ProductError(MarketplaceError):
+    """Base exception for product-related errors."""
 
 
 class ProductNotFoundError(ProductError):
-	"""Raised when a product is not found."""
+    """Raised when a product is not found in the catalog."""
