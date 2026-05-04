@@ -1,4 +1,5 @@
 import uuid
+from collections import deque
 from typing import List, Tuple, Optional
 
 from sqlalchemy import select, func, and_, or_
@@ -6,14 +7,40 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models import Sku
-from database.models.catalog.base import Product
+from database.models.catalog.base import Category, Product
 from schemas.sku import Sku as SkuSchema
 from exceptions.product import ProductNotFoundError
 
 
+async def get_category_descendants(
+	db: AsyncSession, category_id: uuid.UUID
+) -> list[uuid.UUID]:
+	res = await db.execute(select(Category.id, Category.parent_id))
+	cats = res.all()
+
+	children_by_parent: dict[uuid.UUID | None, list[uuid.UUID]] = {}
+	for child_id, parent_id in cats:
+		children_by_parent.setdefault(parent_id, []).append(child_id)
+
+	collected: list[uuid.UUID] = []
+	seen: set[uuid.UUID] = set()
+	queue = deque([category_id])
+
+	while queue:
+		current_id = queue.popleft()
+		if current_id in seen:
+			continue
+		seen.add(current_id)
+		collected.append(current_id)
+		queue.extend(children_by_parent.get(current_id, []))
+
+	return collected
+
+
 async def count_products_in_category(db: AsyncSession, category_id: uuid.UUID) -> int:
+	category_ids = await get_category_descendants(db, category_id)
 	result = await db.execute(
-		select(func.count(Product.id)).where(Product.category_id == category_id)
+		select(func.count(Product.id)).where(Product.category_id.in_(category_ids))
 	)
 	return result.scalar() or 0
 
@@ -40,18 +67,20 @@ async def get_products_list(
 	sort: str,
 	search: Optional[str],
 ) -> Tuple[List[Product], int]:
-	query = select(Product)
+	query = select(Product).options(selectinload(Product.images))
 	count_query = select(func.count(Product.id))
 
 	if category_id:
-		query = query.where(Product.category_id == category_id)
-		count_query = count_query.where(Product.category_id == category_id)
+		category_ids = await get_category_descendants(db, category_id)
+		query = query.where(Product.category_id.in_(category_ids))
+		count_query = count_query.where(Product.category_id.in_(category_ids))
 
 	if filters:
 		for key, value in filters.items():
-			if hasattr(Product, key):
-				query = query.where(getattr(Product, key) == value)
-				count_query = count_query.where(getattr(Product, key) == value)
+			column = getattr(Product, key, None)
+			if column is not None:
+				query = query.where(column == value)
+				count_query = count_query.where(column == value)
 
 	if search and len(search.strip()) >= 3:
 		term = f"%{search.strip()}%"
@@ -97,11 +126,14 @@ async def get_similar_products(
 	limit: int,
 	offset: int,
 ) -> Tuple[List[Product], int]:
-	query = select(Product).where(
-		and_(Product.category_id == category_id, Product.id != exclude_id)
+	category_ids = await get_category_descendants(db, category_id)
+	query = (
+		select(Product)
+		.options(selectinload(Product.images))
+		.where(and_(Product.category_id.in_(category_ids), Product.id != exclude_id))
 	)
 	count_query = select(func.count(Product.id)).where(
-		and_(Product.category_id == category_id, Product.id != exclude_id)
+		and_(Product.category_id.in_(category_ids), Product.id != exclude_id)
 	)
 
 	query = query.order_by(Product.created_at.desc()).offset(offset).limit(limit)
