@@ -14,6 +14,7 @@ if PROJECT_ROOT not in sys.path:
 
 from core.db import get_db  # noqa: E402
 from database.models.catalog.base import Category  # noqa: E402
+from services.category_service import invalidate_categories_tree_cache  # noqa: E402
 
 
 async def clear_db(db_session: AsyncSession) -> True:
@@ -115,6 +116,7 @@ async def main() -> None:
 	await clear_db(db_session)
 
 	await category_parser(db_session, "/app/./scripts/translated.xlsx")
+	await invalidate_categories_tree_cache(db_session)
 	return True
 
 
