@@ -2,6 +2,7 @@ import uuid
 from dataclasses import dataclass
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +12,9 @@ from database.models.catalog.base import (
 	FilterTypeEnum,
 	FilterValues,
 	Product,
+	ProductStatusEnum,
 )
+from database.models.catalog.variants import Sku
 from tests.factories.catalog import (
 	CategoryFactory,
 	CategoryFiltersFactory,
@@ -139,6 +142,21 @@ async def category_with_products(
 		description="Description 1",
 	)
 
+	sku_1 = Sku(
+		id=_fixed_uuid(),
+		product_id=product_1.id,
+		name="Sku 1",
+		price=100,
+		active_quantity=1,
+	)
+	sku_2 = Sku(
+		id=_fixed_uuid(),
+		product_id=product_2.id,
+		name="Sku 2",
+		price=100,
+		active_quantity=1,
+	)
+
 	db_session.add_all(
 		[
 			category,
@@ -148,6 +166,8 @@ async def category_with_products(
 			filter_value_2,
 			product_1,
 			product_2,
+			sku_1,
+			sku_2,
 		]
 	)
 	await db_session.commit()
@@ -156,4 +176,60 @@ async def category_with_products(
 		filters=(filter_1, filter_2),
 		values=(filter_value_1, filter_value_2),
 		products=(product_1, product_2),
+	)
+
+
+@dataclass(frozen=True, slots=True)
+class VisibilityProductsData:
+	category: Category
+	visible_product: Product
+	hidden_by_status_product: Product
+	hidden_by_stock_product: Product
+
+
+@pytest.fixture()
+async def visibility_products(
+	db_session: AsyncSession,
+	category_with_products: CategoryWithProductsData,
+) -> VisibilityProductsData:
+	hidden_by_status = category_with_products.products[0]
+	hidden_by_status.status = ProductStatusEnum.CREATED
+
+	hidden_by_stock = category_with_products.products[1]
+	existing_skus = (
+		(
+			await db_session.execute(
+				select(Sku).where(Sku.product_id == hidden_by_stock.id)
+			)
+		)
+		.scalars()
+		.all()
+	)
+	for sku in existing_skus:
+		sku.active_quantity = 0
+
+	visible_product = ProductFactory.build(
+		id=_fixed_uuid(),
+		category_id=category_with_products.category.id,
+		title="Visible product",
+		slug="visible-product",
+		description="Visible",
+		status=ProductStatusEnum.MODERATED,
+	)
+	visible_sku = Sku(
+		id=_fixed_uuid(),
+		product_id=visible_product.id,
+		name="Visible sku",
+		price=100,
+		active_quantity=1,
+	)
+
+	db_session.add_all([visible_product, visible_sku])
+	await db_session.commit()
+
+	return VisibilityProductsData(
+		category=category_with_products.category,
+		visible_product=visible_product,
+		hidden_by_status_product=hidden_by_status,
+		hidden_by_stock_product=hidden_by_stock,
 	)
