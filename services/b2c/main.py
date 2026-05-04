@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import category, product, breadcrumbs, cart
+from api import category, product, breadcrumbs, cart, catalog
 from config import settings
 from core.db import get_db
 from services import category_service
