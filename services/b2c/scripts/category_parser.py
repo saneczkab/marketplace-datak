@@ -95,7 +95,7 @@ async def category_parser(db_session: AsyncSession, file_path: str) -> bool:
 
 	await add_root_category(db_session)
 	p = 0
-	wb = openpyxl.load_workbook('file.xlsx', read_only=True, data_only=True)
+	wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
 	max_row = (wb.active).max_row 
 	wb.close()
 	for row in open_xlsx_file(file_path):
