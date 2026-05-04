@@ -1,4 +1,8 @@
 import uuid
+import json
+import os
+import asyncio
+from pathlib import Path
 from schemas.category import (
 	BreadcrumbItem,
 	BreadcrumbMeta,
@@ -19,6 +23,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.category as category_crud
 import crud.product as product_crud
 from database.models.catalog.base import Category
+
+# Cache file path
+CACHE_DIR = Path("cache")
+CATEGORIES_TREE_CACHE_FILE = CACHE_DIR / "categories_tree.json"
+
+# Lock to prevent concurrent cache rebuilds
+_cache_rebuild_lock = asyncio.Lock()
 
 
 async def get_category_info(
@@ -69,6 +80,45 @@ async def category_product_count(db: AsyncSession, category_id: uuid.UUID) -> in
 
 
 async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
+	# Try to load from cache file
+	if CATEGORIES_TREE_CACHE_FILE.exists():
+		try:
+			with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:
+				cache_data = json.load(f)
+				return CategoryTreeResponse(**cache_data)
+		except Exception as e:
+			# If cache is corrupted, rebuild it
+			print(f"Failed to load cache: {e}")
+
+	# Use lock to prevent concurrent rebuilds
+	async with _cache_rebuild_lock:
+		# Double-check if cache was created while waiting for lock
+		if CATEGORIES_TREE_CACHE_FILE.exists():
+			try:
+				with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:
+					cache_data = json.load(f)
+					return CategoryTreeResponse(**cache_data)
+			except Exception:
+				pass
+
+		# Build tree
+		result = await _build_categories_tree(db)
+
+		# Save to cache file
+		try:
+			CACHE_DIR.mkdir(exist_ok=True)
+			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:
+				json.dump(
+					result.model_dump(mode="json"), f, ensure_ascii=False, indent=2
+				)
+		except Exception as e:
+			print(f"Failed to save cache: {e}")
+
+		return result
+
+
+async def _build_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
+	"""Internal function to build categories tree from database."""
 	root_category_all = await category_crud.get_categories_by_parent_id(db, None)
 	root_category = root_category_all[0] if root_category_all else None
 	if not root_category:
@@ -87,6 +137,29 @@ async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
 
 	await build_category_tree(db, result.items[0])
 	return result
+
+
+async def invalidate_categories_tree_cache(db: AsyncSession) -> None:
+	"""Invalidate and rebuild the categories tree cache. Call this when categories are modified."""
+	async with _cache_rebuild_lock:
+		# Remove old cache file
+		if CATEGORIES_TREE_CACHE_FILE.exists():
+			try:
+				os.remove(CATEGORIES_TREE_CACHE_FILE)
+			except Exception as e:
+				print(f"Failed to remove cache file: {e}")
+
+		# Rebuild cache
+		try:
+			result = await _build_categories_tree(db)
+			CACHE_DIR.mkdir(exist_ok=True)
+			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:
+				json.dump(
+					result.model_dump(mode="json"), f, ensure_ascii=False, indent=2
+				)
+			print("Categories tree cache rebuilt successfully")
+		except Exception as e:
+			print(f"Failed to rebuild cache: {e}")
 
 
 async def build_category_tree(db: AsyncSession, node: CategoryNode) -> None:

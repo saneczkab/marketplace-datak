@@ -37,8 +37,34 @@
   margin-bottom: 0.5rem;
 }
 
-.categoryList button {
-  width: 100%;
+.categoryItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.expandButton {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.expandButton:hover {
+  color: var(--text-primary);
+}
+
+.categoryButton {
+  flex: 1;
   text-align: left;
   padding: 0.75rem;
   border: none;
@@ -49,11 +75,11 @@
   color: var(--text-primary);
 }
 
-.categoryList button:hover {
+.categoryButton:hover {
   background-color: var(--border-color);
 }
 
-.categoryList button.active {
+.categoryButton.active {
   background-color: var(--button-primary);
   color: white;
 }

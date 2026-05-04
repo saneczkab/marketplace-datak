@@ -1,6 +1,5 @@
 import json
 import uuid
-from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,7 +85,12 @@ async def get_similar_products(
 
 	items = [
 		ProductShort(
-			id=p.id, title=p.title, image="", price=float(0.0), in_stock=False, is_in_cart=False
+			id=p.id,
+			title=p.title,
+			image="",
+			price=float(0.0),
+			in_stock=False,
+			is_in_cart=False,
 		)
 		for p in products
 	]

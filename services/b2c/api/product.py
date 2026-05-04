@@ -64,8 +64,8 @@ async def get_product_list_api(
 	limit: int = 20,
 	offset: int = 0,
 	filters: Optional[str] = None,
-	sort: str = 'default',
-	search: str = '',
+	sort: str = "default",
+	search: str = "",
 ) -> ProductShortListResponse:
 	try:
 		return await product_service.get_products_list(

@@ -6,12 +6,14 @@ import styles from './Catalog.module.css';
 
 interface CategoryWithLevel extends Category {
   level: number;
+  hasChildren: boolean;
 }
 
 const Catalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +27,14 @@ const Catalog = () => {
         const data = await categoriesApi.getCategoriesTree();
         console.log('Categories response:', data);
         setCategories(data.items || []);
+        
+        // Expand "Все товары" category by default
+        if (data.items && data.items.length > 0) {
+          const rootCategory = data.items[0];
+          if (rootCategory.name === 'Все товары') {
+            setExpandedCategories(new Set([rootCategory.id]));
+          }
+        }
       } catch (err) {
         console.error('Failed to fetch categories:', err);
       }
@@ -65,13 +75,27 @@ const Catalog = () => {
     setSearchParams({ category: catId, page: '1' });
   };
 
-  // Flatten category tree to display all categories
+  const toggleCategory = (catId: string) => {
+    setExpandedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(catId)) {
+        newSet.delete(catId);
+      } else {
+        newSet.add(catId);
+      }
+      return newSet;
+    });
+  };
+
+  // Flatten category tree to display visible categories only
   const flattenCategories = (cats: Category[]): CategoryWithLevel[] => {
     const result: CategoryWithLevel[] = [];
     const flatten = (items: Category[], level = 0) => {
       items.forEach((cat) => {
-        result.push({ ...cat, level });
-        if (cat.children && cat.children.length > 0) {
+        const hasChildren = cat.children && cat.children.length > 0;
+        result.push({ ...cat, level, hasChildren });
+        // Only show children if parent is expanded
+        if (hasChildren && expandedCategories.has(cat.id)) {
           flatten(cat.children, level + 1);
         }
       });
@@ -95,14 +119,27 @@ const Catalog = () => {
           <h2>Категории</h2>
           <ul className={styles.categoryList}>
             {flatCategories.map((category) => (
-              <li key={category.id}>
-                <button
-                  className={categoryId === category.id ? styles.active : ''}
-                  onClick={() => handleCategorySelect(category.id)}
-                  style={{ paddingLeft: `${0.75 + category.level * 0.5}rem` }}
-                >
-                  {category.name}
-                </button>
+              <li key={category.id} style={{ marginLeft: `${category.level * 1.5}rem` }}>
+                <div className={styles.categoryItem}>
+                  {category.hasChildren && (
+                    <button
+                      className={styles.expandButton}
+                      onClick={() => toggleCategory(category.id)}
+                      aria-label={expandedCategories.has(category.id) ? 'Свернуть' : 'Развернуть'}
+                    >
+                      {expandedCategories.has(category.id) ? '▼' : '▶'}
+                    </button>
+                  )}
+                  <button
+                    className={`${styles.categoryButton} ${categoryId === category.id ? styles.active : ''}`}
+                    onClick={() => handleCategorySelect(category.id)}
+                    style={{ 
+                      paddingLeft: category.hasChildren ? '0.5rem' : '2rem'
+                    }}
+                  >
+                    {category.name}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

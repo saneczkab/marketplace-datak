@@ -1,28 +1,46 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import category, product, breadcrumbs, cart
 from config import settings
+from core.db import get_db
+from services import category_service
 
 # Configure logging
 if settings.debug:
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    logging.getLogger("uvicorn").setLevel(logging.DEBUG)
-    logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+	logging.basicConfig(
+		level=logging.DEBUG,
+		format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+	)
+	logging.getLogger("uvicorn").setLevel(logging.DEBUG)
+	logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+	logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
-app = FastAPI(debug=settings.debug)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+	# Startup: warm up categories tree cache
+	try:
+		db = await anext(get_db())
+		await category_service.get_categories_tree(db)
+	except Exception:
+		pass
+
+	yield
+
+	# Shutdown: cleanup if needed
+
+
+app = FastAPI(debug=settings.debug, lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Frontend URLs
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
-    allow_headers=["*"],  # Allow all headers
+	CORSMiddleware,
+	allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Frontend URLs
+	allow_credentials=True,
+	allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
+	allow_headers=["*"],  # Allow all headers
 )
 
 app.include_router(category.router)
