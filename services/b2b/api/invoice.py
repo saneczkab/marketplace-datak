@@ -1,0 +1,69 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
+from database.core import get_db
+from schemas.invoice import InvoiceCreate, InvoiceResponse, InvoiceListResponse
+from services import invoice as invoice_service
+from exceptions.invoice import InvoiceError, InvoiceNotFoundError, InvalidInvoiceStatusError
+from exceptions.sku import SkuError
+
+
+router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
+
+
+@router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
+async def create_invoice_endpoint(
+    invoice_data: InvoiceCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        # Временно используем фиксированный UUID для seller_id, пока нет авторизации
+        temp_seller_id = "550e8400-e29b-41d4-a716-446655440000"
+        return await invoice_service.create_new_invoice(db, invoice_data, temp_seller_id)
+    except (SkuError, InvoiceError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/{invoice_id}", response_model=InvoiceResponse)
+async def get_invoice_endpoint(invoice_id: UUID, db: AsyncSession = Depends(get_db)):
+    try:
+        return await invoice_service.get_invoice(db, invoice_id)
+    except InvoiceError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/{invoice_id}/accept", response_model=InvoiceResponse)
+async def accept_invoice_endpoint(
+    invoice_id: UUID, 
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        return await invoice_service.accept_invoice(db, invoice_id)
+    except InvoiceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except InvalidInvoiceStatusError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/") 
+async def get_all_invoices_endpoint(
+    skip: int = 0,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db)
+):
+    total, invoices = await invoice_service.get_all_invoices(db, skip=skip, limit=limit)
+    return {"total": total, "items": invoices, "skip": skip, "limit": limit}
+
+
+@router.get("/{invoice_id}")
+async def get_invoice_endpoint(invoice_id: UUID, db: AsyncSession = Depends(get_db)):
+    return await invoice_service.get_invoice_by_id(db, invoice_id)
+
+
+@router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_invoice_endpoint(
+    invoice_id: UUID, 
+    db: AsyncSession = Depends(get_db)
+):
+    await invoice_service.delete_invoice(db, invoice_id)
+    return None
