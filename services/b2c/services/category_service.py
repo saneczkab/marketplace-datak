@@ -17,8 +17,9 @@ from schemas.category import (
 	FilterResponse,
 	ResolveViaEnum,
 )
-from exceptions.category import CategoryNotFoundError
+from exceptions.category import CategoryHierarchyError, CategoryNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
+from threading import Lock
 
 import crud.category as category_crud
 import crud.product as product_crud
@@ -32,7 +33,7 @@ CATEGORIES_TREE_CACHE_FILE = CACHE_DIR / "categories_tree.json"
 _cache_rebuild_lock = None
 
 
-def _get_cache_lock():
+def _get_cache_lock() -> Lock | None:
 	"""Get or create the cache rebuild lock for the current event loop."""
 	global _cache_rebuild_lock
 	if _cache_rebuild_lock is None:
@@ -267,37 +268,57 @@ async def get_category_breadcrumbs(
 	if category_id and product_id:
 		raise ValueError("Only one of category_id or product_id should be provided")
 
-	flag: bool = True if product_id else False
+	resolved_via = ResolveViaEnum.PRODUCT if product_id else ResolveViaEnum.CATEGORY
 
-	if flag:
-		category_id: uuid.UUID = await product_crud.get_product_category_id(
+	resolved_category_id: uuid.UUID
+	if product_id:
+		resolved_category_id = await product_crud.get_product_category_id(
 			db, uuid.UUID(product_id)
 		)
 	else:
-		category_id: uuid.UUID = uuid.UUID(category_id)
+		resolved_category_id = uuid.UUID(category_id)
 
-	category: Category = await category_crud.get_category_by_id(db, category_id)
+	current = await category_crud.get_category_by_id(db, resolved_category_id)
+	if not current:
+		raise CategoryNotFoundError(
+			f"Category with id {resolved_category_id} not found"
+		)
 
-	level: int = 1
-	url: str = category.slug
+	chain: list[Category] = [current]
+	while chain[-1].parent_id:
+		parent_id = chain[-1].parent_id
+		parent = await category_crud.get_category_by_id(db, parent_id)
+		if not parent:
+			raise CategoryHierarchyError(
+				f"Category with id {resolved_category_id} has missing parent {parent_id}"
+			)
+		chain.append(parent)
 
-	while category.parent_id:
-		category = await category_crud.get_category_by_id(db, category.parent_id)
-		url = category.slug + "/" + url
-		level += 1
+	path = list(reversed(chain))
+	url_parts: list[str] = []
+	items: list[BreadcrumbItem] = []
+	for idx, cat in enumerate(path, start=1):
+		url_parts.append(cat.slug)
+		items.append(
+			BreadcrumbItem(
+				id=cat.id,
+				slug=cat.slug,
+				name=cat.name,
+				url="/".join(url_parts),
+				level=idx,
+				is_current=(idx == len(path)),
+			)
+		)
 
 	return BreadcrumbResponse(
-		BreadcrumbItem(
-			id=uuid.UUID(category_id),
-			slug="",  # Todo What should be here? # noqa
-			name=category.name,
-			url=url,
-			level=level,
-			is_current=True,
-		),
-		BreadcrumbMeta(
-			resolved_via=ResolveViaEnum.PRODUCT if flag else ResolveViaEnum.CATEGORY,
-			category_id=category_id if flag else None,
-			product_id=uuid.UUID(product_id) if flag else None,
+		data=items,
+		meta=BreadcrumbMeta(
+			resolved_via=resolved_via,
+			category_id=resolved_category_id
+			if resolved_via == ResolveViaEnum.PRODUCT
+			else None,
+			product_id=uuid.UUID(product_id)
+			if resolved_via == ResolveViaEnum.PRODUCT
+			else None,
 		),
 	)

@@ -109,5 +109,5 @@ class BreadcrumbMeta(BaseModel):
 
 
 class BreadcrumbResponse(BaseModel):
-	data: BreadcrumbItem
+	data: list[BreadcrumbItem]
 	meta: BreadcrumbMeta
