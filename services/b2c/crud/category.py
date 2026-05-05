@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Result, select
 import uuid
 from database.models.catalog.base import Category, FilterValues
-from schemas.category import FilterResponse
 from exceptions.category import CategoryNotFoundError
 
 
@@ -28,15 +27,15 @@ async def get_categories_by_parent_id(
 	return result.scalars().all()
 
 
-async def get_category_filters(
-	db: AsyncSession, category_id: uuid.UUID
-) -> FilterResponse:
+async def get_category_filters(db: AsyncSession, category_id: uuid.UUID) -> list:
+	from database.models.catalog.base import CategoryFilters
+
 	exists = await db.execute(select(Category.id).where(Category.id == category_id))
 	if not exists.scalars().first():
 		raise CategoryNotFoundError(f"Category with id {category_id} not found")
 
 	filters = await db.execute(
-		select(FilterResponse).where(FilterResponse.category_id == category_id)
+		select(CategoryFilters).where(CategoryFilters.category_id == category_id)
 	)
 	return filters.scalars().all()
 

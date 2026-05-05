@@ -78,7 +78,30 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 			yield session
 
 	fastapi_app.dependency_overrides[core_db.get_db] = override_get_db
-	return fastapi_app
+
+	# Отключаем lifespan для тестов, чтобы избежать проблем с event loop
+	# Создаем новый app без lifespan
+	from fastapi import FastAPI
+	from fastapi.middleware.cors import CORSMiddleware
+	from api import category, product, breadcrumbs, cart, catalog
+
+	test_app = FastAPI(debug=False)
+	test_app.add_middleware(
+		CORSMiddleware,
+		allow_origins=["http://localhost:5173", "http://localhost:3000"],
+		allow_credentials=True,
+		allow_methods=["*"],
+		allow_headers=["*"],
+	)
+	test_app.include_router(category.router)
+	test_app.include_router(product.router)
+	test_app.include_router(breadcrumbs.router)
+	test_app.include_router(cart.router)
+	test_app.include_router(cart.validate_router)
+	test_app.include_router(catalog.router)
+	test_app.dependency_overrides[core_db.get_db] = override_get_db
+
+	return test_app
 
 
 @pytest.fixture()

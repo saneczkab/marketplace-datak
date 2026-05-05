@@ -5,7 +5,7 @@ from alembic import context
 from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from config import settings
+from core.config import settings
 from database.core import Base
 import database.models  # noqa: F401
 
@@ -13,7 +13,7 @@ config = context.config
 if config.config_file_name is not None:
 	fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
 

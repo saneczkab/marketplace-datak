@@ -71,8 +71,22 @@ async def get_products_list(
 	sort: str,
 	search: Optional[str],
 ) -> Tuple[List[Product], int]:
+	from database.models.catalog.base import ProductStatusEnum
+
 	query = select(Product).options(selectinload(Product.images))
-	count_query = select(func.count(Product.id))
+	count_query = select(func.count(func.distinct(Product.id)))
+
+	# Условие видимости: status = MODERATED AND active_quantity > 0
+	# Используем exists() чтобы избежать дубликатов продуктов
+	query = query.where(
+		Product.status == ProductStatusEnum.MODERATED,
+		Product.id.in_(select(Sku.product_id).where(Sku.active_quantity > 0)),
+	)
+
+	count_query = count_query.where(
+		Product.status == ProductStatusEnum.MODERATED,
+		Product.id.in_(select(Sku.product_id).where(Sku.active_quantity > 0)),
+	)
 
 	if category_id:
 		category_ids = await get_category_descendants(db, category_id)
@@ -96,9 +110,12 @@ async def get_products_list(
 		)
 
 	sort_map = {
+		"rating": Product.created_at.desc(),  # TODO: добавить поле rating когда будет
+		"popularity": Product.created_at.desc(),  # TODO: добавить поле popularity когда будет
+		"price_asc": Product.created_at.desc(),  # TODO: сортировка по цене SKU
+		"price_desc": Product.created_at.desc(),  # TODO: сортировка по цене SKU
 		"date_desc": Product.created_at.desc(),
-		"title_asc": Product.title.asc(),
-		"title_desc": Product.title.desc(),
+		"discount_desc": Product.created_at.desc(),  # TODO: добавить поле discount когда будет
 	}
 	query = query.order_by(sort_map.get(sort, Product.created_at.desc()))
 
@@ -157,3 +174,17 @@ async def get_product_category_id(db: AsyncSession, product_id: uuid.UUID) -> uu
 	if not category_id:
 		raise ProductNotFoundError(f"Product with id {product_id} not found")
 	return category_id
+
+
+async def count_products_by_filter(
+	db: AsyncSession, category_id: uuid.UUID, filter_id: uuid.UUID, filter_value: str
+) -> int:
+	"""
+	Подсчитывает количество видимых товаров в категории с определенным значением фильтра.
+	"""
+
+	category_ids = await get_category_descendants(db, category_id)
+
+	# TODO: Реализовать подсчет по фильтрам когда будет связь Product <-> FilterValues
+	# Пока возвращаем 0, так как связи между товарами и значениями фильтров нет в текущей схеме
+	return 0
