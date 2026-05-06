@@ -110,12 +110,12 @@ async def get_products_list(
 		)
 
 	sort_map = {
-		"rating": Product.created_at.desc(),  # TODO: добавить поле rating когда будет
-		"popularity": Product.created_at.desc(),  # TODO: добавить поле popularity когда будет
-		"price_asc": Product.created_at.desc(),  # TODO: сортировка по цене SKU
-		"price_desc": Product.created_at.desc(),  # TODO: сортировка по цене SKU
+		"rating": Product.created_at.desc(),  # TODO: добавить поле rating когда будет # noqa
+		"popularity": Product.created_at.desc(),  # TODO: добавить поле popularity когда будет # noqa
+		"price_asc": Product.created_at.desc(),  # TODO: сортировка по цене SKU # noqa
+		"price_desc": Product.created_at.desc(),  # TODO: сортировка по цене SKU # noqa
 		"date_desc": Product.created_at.desc(),
-		"discount_desc": Product.created_at.desc(),  # TODO: добавить поле discount когда будет
+		"discount_desc": Product.created_at.desc(),  # TODO: добавить поле discount когда будет # noqa
 	}
 	query = query.order_by(sort_map.get(sort, Product.created_at.desc()))
 

@@ -32,7 +32,7 @@ CATEGORIES_TREE_CACHE_FILE = CACHE_DIR / "categories_tree.json"
 _cache_rebuild_lock = None
 
 
-def _get_cache_lock():
+def _get_cache_lock() -> asyncio.Lock:
 	"""Get or create the cache rebuild lock for the current event loop."""
 	global _cache_rebuild_lock
 	if _cache_rebuild_lock is None:
@@ -210,7 +210,7 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 
 
 async def get_category_facets(
-	db: AsyncSession, category_id: uuid.UUID, filters: str | None = None
+	db: AsyncSession, category_id: uuid.UUID, filters: str | None = None # TODO: Why is it here? # noqa
 ) -> FacetsResponse:
 	from database.models.catalog.base import FilterTypeEnum
 

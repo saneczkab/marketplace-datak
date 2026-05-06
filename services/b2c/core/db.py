@@ -6,7 +6,9 @@ SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 DATABASE_VERBPOSE = settings.DATABASE_VERBPOSE
 
 
-engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=DATABASE_VERBPOSE, future=True)
+engine = create_async_engine(
+	SQLALCHEMY_DATABASE_URL, echo=DATABASE_VERBPOSE, future=True
+)
 SessionLocal = async_sessionmaker(
 	bind=engine,
 	class_=AsyncSession,
