@@ -84,7 +84,8 @@ class Facet(BaseModel):
 
 class FacetsResponse(BaseModel):
 	category_id: str
-	facets: list[Filter]
+	filters: list[Filter]
+	facets: list[Facet]
 
 
 class BreadcrumbItem(BaseModel):
@@ -108,5 +109,5 @@ class BreadcrumbMeta(BaseModel):
 
 
 class BreadcrumbResponse(BaseModel):
-	data: BreadcrumbItem
+	data: list[BreadcrumbItem]
 	meta: BreadcrumbMeta

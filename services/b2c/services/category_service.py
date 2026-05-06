@@ -17,8 +17,9 @@ from schemas.category import (
 	FilterResponse,
 	ResolveViaEnum,
 )
-from exceptions.category import CategoryNotFoundError
+from exceptions.category import CategoryHierarchyError, CategoryNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
+from threading import Lock
 
 import crud.category as category_crud
 import crud.product as product_crud
@@ -28,8 +29,16 @@ from database.models.catalog.base import Category
 CACHE_DIR = Path("cache")
 CATEGORIES_TREE_CACHE_FILE = CACHE_DIR / "categories_tree.json"
 
-# Lock to prevent concurrent cache rebuilds
-_cache_rebuild_lock = asyncio.Lock()
+# Lock to prevent concurrent cache rebuilds - created lazily
+_cache_rebuild_lock = None
+
+
+def _get_cache_lock() -> Lock | None:
+	"""Get or create the cache rebuild lock for the current event loop."""
+	global _cache_rebuild_lock
+	if _cache_rebuild_lock is None:
+		_cache_rebuild_lock = asyncio.Lock()
+	return _cache_rebuild_lock
 
 
 async def get_category_info(
@@ -91,7 +100,7 @@ async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
 			print(f"Failed to load cache: {e}")
 
 	# Use lock to prevent concurrent rebuilds
-	async with _cache_rebuild_lock:
+	async with _get_cache_lock():
 		# Double-check if cache was created while waiting for lock
 		if CATEGORIES_TREE_CACHE_FILE.exists():
 			try:
@@ -141,7 +150,7 @@ async def _build_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
 
 async def invalidate_categories_tree_cache(db: AsyncSession) -> None:
 	"""Invalidate and rebuild the categories tree cache. Call this when categories are modified."""
-	async with _cache_rebuild_lock:
+	async with _get_cache_lock():
 		# Remove old cache file
 		if CATEGORIES_TREE_CACHE_FILE.exists():
 			try:
@@ -202,35 +211,52 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 
 
 async def get_category_facets(
-	db: AsyncSession, category_id: str, filters: str | None = None
+	db: AsyncSession, category_id: uuid.UUID, filters: str | None = None
 ) -> FacetsResponse:
-	id: uuid.UUID = uuid.UUID(category_id)
+	from database.models.catalog.base import FilterTypeEnum
+
 	# Возвращает список фасетов (фильтров) для указанной категории и для каждого значения — количество товаров (count), соответствующих этому значению при текущих применённых фильтрах. Вызывается при загрузке страницы категории и при каждом изменении фильтров на клиенте (чтобы обновить счётчики рядом с опциями фильтров).
-	category = await category_crud.get_category_by_id(db, id)
+	category = await category_crud.get_category_by_id(db, category_id)
 	if not category:
-		raise CategoryNotFoundError(f"Category with id {id} not found")
+		raise CategoryNotFoundError(f"Category with id {category_id} not found")
 
-	category_uuid: uuid.UUID = uuid.UUID(category_id)
+	available_filters = await category_crud.get_category_filters(db, category_id)
 
-	available_filters: FilterResponse = await category_crud.get_category_filters(
-		db, category_uuid
+	# Преобразуем фильтры в схему Filter
+	from schemas.category import Filter
+
+	filters_list = []
+	for filter_item in available_filters:
+		filter_values = None
+		if filter_item.type == FilterTypeEnum.LIST:
+			filter_values = await category_crud.get_filter_values(db, filter_item.id)
+
+		filters_list.append(
+			Filter(
+				id=filter_item.id,
+				name=filter_item.name,
+				type=filter_item.type,
+				value=filter_values,
+				min=filter_item.min,
+				max=filter_item.max,
+			)
+		)
+
+	facets: list[Facet] = []
+	for filter_item in available_filters:
+		facet_values: list[FacetValue] = []
+		if filter_item.type == FilterTypeEnum.LIST:
+			filter_values = await category_crud.get_filter_values(db, filter_item.id)
+			for value in filter_values:
+				count = await product_crud.count_products_by_filter(
+					db, category_id, filter_item.id, value
+				)
+				facet_values.append(FacetValue(value=value, count=count))
+		facets.append(Facet(name=filter_item.name, values=facet_values))
+
+	return FacetsResponse(
+		category_id=str(category_id), filters=filters_list, facets=facets
 	)
-
-	if not filters:
-		facets: list[Facet] = []
-		for filter in available_filters.items:
-			facet_values: list[FacetValue] = []
-			if filter.type == "LIST":
-				for value in filter.value:
-					count = await product_crud.count_products_by_filter(
-						db, category_uuid, filter.id, value
-					)
-					facet_values.append(FacetValue(value=value, count=count))
-			facets.append(Facet(name=filter.name, values=facet_values))
-
-	# TODO implement if filters are given # noqa
-	# TODO what to do if type isn't LIST? # noqa
-	return FacetsResponse(category_id=category_uuid, facets=[])
 
 
 async def get_category_breadcrumbs(
@@ -242,37 +268,57 @@ async def get_category_breadcrumbs(
 	if category_id and product_id:
 		raise ValueError("Only one of category_id or product_id should be provided")
 
-	flag: bool = True if product_id else False
+	resolved_via = ResolveViaEnum.PRODUCT if product_id else ResolveViaEnum.CATEGORY
 
-	if flag:
-		category_id: uuid.UUID = await product_crud.get_product_category_id(
+	resolved_category_id: uuid.UUID
+	if product_id:
+		resolved_category_id = await product_crud.get_product_category_id(
 			db, uuid.UUID(product_id)
 		)
 	else:
-		category_id: uuid.UUID = uuid.UUID(category_id)
+		resolved_category_id = uuid.UUID(category_id)
 
-	category: Category = await category_crud.get_category_by_id(db, category_id)
+	current = await category_crud.get_category_by_id(db, resolved_category_id)
+	if not current:
+		raise CategoryNotFoundError(
+			f"Category with id {resolved_category_id} not found"
+		)
 
-	level: int = 1
-	url: str = category.slug
+	chain: list[Category] = [current]
+	while chain[-1].parent_id:
+		parent_id = chain[-1].parent_id
+		parent = await category_crud.get_category_by_id(db, parent_id)
+		if not parent:
+			raise CategoryHierarchyError(
+				f"Category with id {resolved_category_id} has missing parent {parent_id}"
+			)
+		chain.append(parent)
 
-	while category.parent_id:
-		category = await category_crud.get_category_by_id(db, category.parent_id)
-		url = category.slug + "/" + url
-		level += 1
+	path = list(reversed(chain))
+	url_parts: list[str] = []
+	items: list[BreadcrumbItem] = []
+	for idx, cat in enumerate(path, start=1):
+		url_parts.append(cat.slug)
+		items.append(
+			BreadcrumbItem(
+				id=cat.id,
+				slug=cat.slug,
+				name=cat.name,
+				url="/".join(url_parts),
+				level=idx,
+				is_current=(idx == len(path)),
+			)
+		)
 
 	return BreadcrumbResponse(
-		BreadcrumbItem(
-			id=uuid.UUID(category_id),
-			slug="",  # Todo What should be here? # noqa
-			name=category.name,
-			url=url,
-			level=level,
-			is_current=True,
-		),
-		BreadcrumbMeta(
-			resolved_via=ResolveViaEnum.PRODUCT if flag else ResolveViaEnum.CATEGORY,
-			category_id=category_id if flag else None,
-			product_id=uuid.UUID(product_id) if flag else None,
+		data=items,
+		meta=BreadcrumbMeta(
+			resolved_via=resolved_via,
+			category_id=resolved_category_id
+			if resolved_via == ResolveViaEnum.PRODUCT
+			else None,
+			product_id=uuid.UUID(product_id)
+			if resolved_via == ResolveViaEnum.PRODUCT
+			else None,
 		),
 	)

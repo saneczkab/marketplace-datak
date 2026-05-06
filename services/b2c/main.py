@@ -3,12 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import category, product, breadcrumbs, cart, catalog
-from config import settings
+from core.config import settings
 from core.db import get_db
 from services import category_service
 
 # Configure logging
-if settings.debug:
+if settings.DEBUG:
 	logging.basicConfig(
 		level=logging.DEBUG,
 		format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):  # noqa
 	# Shutdown: cleanup if needed
 
 
-app = FastAPI(debug=settings.debug, lifespan=lifespan)
+app = FastAPI(debug=settings.DEBUG, lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(

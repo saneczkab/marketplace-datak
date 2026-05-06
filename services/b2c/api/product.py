@@ -64,7 +64,7 @@ async def get_product_list_api(
 	limit: int = 20,
 	offset: int = 0,
 	filters: Optional[str] = None,
-	sort: str = "default",
+	sort: str = "rating",
 	search: str = "",
 ) -> ProductShortListResponse:
 	try:
