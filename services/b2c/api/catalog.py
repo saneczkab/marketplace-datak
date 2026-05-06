@@ -12,7 +12,7 @@ from core import db
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
 
 
-@router.get("/facets")
+@router.get("/facets/")
 async def get_facets(
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	category_id: uuid.UUID,

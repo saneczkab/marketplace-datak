@@ -16,7 +16,7 @@ async def test_facets_returns_empty_list_for_empty_category(
 	categories_tree: CategoriesTreeData,
 ) -> None:
 	response = await client.get(
-		"/api/v1/catalog/facets",
+		"/api/v1/catalog/facets/",
 		params={"category_id": str(categories_tree.grandchild.id)},
 	)
 	body = response.json()
@@ -31,7 +31,7 @@ async def test_facets_return_counts_per_filter_value(
 	category_with_products: CategoryWithProductsData,
 ) -> None:
 	response = await client.get(
-		"/api/v1/catalog/facets",
+		"/api/v1/catalog/facets/",
 		params={"category_id": str(category_with_products.category.id)},
 	)
 	body = response.json()
