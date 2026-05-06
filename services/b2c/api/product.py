@@ -5,6 +5,7 @@ import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db
+from exceptions.category import CategoryNotFoundError
 from exceptions.product import ProductNotFoundError
 from exceptions.sku import SkuNotFoundError
 from schemas.product import (
@@ -105,7 +106,7 @@ async def get_similar_product_api(
 		)
 	except ProductNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	except ValueError as e:
+	except (ValueError, CategoryNotFoundError) as e:
 		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e

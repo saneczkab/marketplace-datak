@@ -5,7 +5,9 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud.product as product_crud
+import crud.category as category_crud
 from database.models import Sku
+from exceptions.category import CategoryNotFoundError
 from exceptions.product import ProductNotFoundError
 from schemas.product import (
 	ProductShort,
@@ -125,6 +127,9 @@ async def get_similar_products(
 ) -> SimilarProductsResponse:
 	if not await product_crud.get_product_full(db, id):
 		raise ProductNotFoundError("Product not found")
+
+	if not await category_crud.get_category_by_id(db, category_id):
+		raise CategoryNotFoundError("Unknown category")
 
 	products, total_count = await product_crud.get_similar_products(
 		db, category_id, id, limit, offset
