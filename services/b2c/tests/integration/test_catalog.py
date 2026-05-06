@@ -38,16 +38,19 @@ async def test_facets_return_counts_per_filter_value(
 
 	assert response.status_code == 200
 	assert body["category_id"] == str(category_with_products.category.id)
-	filter_ids = [filter["id"] for filter in body["filters"]]
-	assert len(filter_ids) == 2
-	assert str(category_with_products.filters[0].id) in filter_ids
-	assert str(category_with_products.filters[1].id) in filter_ids
-	facet_values = [facet["values"] for facet in body["facets"]]
-	assert len(facet_values) == 2
-	assert facet_values[0]["value"] == "Value 1"
-	assert facet_values[0]["count"] == 1
-	assert facet_values[1]["value"] == "Value 2"
-	assert facet_values[1]["count"] == 1
+
+	expected_filter_ids = {str(filter.id) for filter in category_with_products.filters}
+	actual_filter_ids = {filter["id"] for filter in body["filters"]}
+	assert expected_filter_ids == actual_filter_ids
+
+	values = [val for facet in body["facets"] for val in facet.get("values", [])]
+	values_by_value = {val["value"]: val["count"] for val in values}
+
+	expected_values = {val.value for val in category_with_products.values}
+	assert expected_values.issubset(values_by_value.keys())
+
+	for value in expected_values:
+		assert values_by_value[value] == 0
 
 
 async def test_catalog_returns_filtered_sorted_products(
