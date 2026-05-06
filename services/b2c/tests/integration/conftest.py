@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database.models.catalog.base import (
 	Category,
@@ -319,3 +320,107 @@ async def similar_products_data(db_session: AsyncSession) -> SimilarProductsData
 		other_category=other_category,
 		other_products=tuple(other_products),
 	)
+
+
+@dataclass(frozen=True, slots=True)
+class ProductData:
+	base_product: Product
+	skus: tuple[Sku, ...]
+
+
+@pytest.fixture()
+async def products_data(db_session: AsyncSession) -> ProductData:
+	category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+	products: list[Product] = []
+	for _ in range(15):
+		products.append(
+			ProductFactory.build(
+				id=_fixed_uuid(),
+				category_id=category.id,
+				status=ProductStatusEnum.MODERATED,
+			)
+		)
+	db_session.add_all([category, *products])
+	await db_session.commit()
+
+	sku_1 = Sku(
+		id=_fixed_uuid(),
+		product_id=products[0].id,
+		name="sku1",
+		price=100,
+		active_quantity=1,
+	)
+	sku_2 = Sku(
+		id=_fixed_uuid(),
+		product_id=products[0].id,
+		name="sku2",
+		price=200,
+		active_quantity=1,
+	)
+	db_session.add_all([sku_1, sku_2])
+	await db_session.commit()
+
+	stmt = (
+		select(Product)
+		.where(Product.id == products[0].id)
+		.options(selectinload(Product.images), selectinload(Product.skus))
+	)
+	base_product = (await db_session.execute(stmt)).scalar_one()
+	return ProductData(base_product=base_product, skus=tuple(base_product.skus))
+
+
+@pytest.fixture()
+async def blocked_product_data(db_session: AsyncSession) -> ProductData:
+	category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+	product = ProductFactory.build(
+		id=_fixed_uuid(),
+		category_id=category.id,
+		status=ProductStatusEnum.BLOCKED,
+	)
+	db_session.add_all([category, product])
+	await db_session.commit()
+	stmt = (
+		select(Product)
+		.where(Product.id == product.id)
+		.options(selectinload(Product.images), selectinload(Product.skus))
+	)
+	base_product = (await db_session.execute(stmt)).scalar_one()
+	return ProductData(base_product=base_product, skus=tuple(base_product.skus))
+
+
+@pytest.fixture()
+async def product_skus_out_of_stock_data(db_session: AsyncSession) -> ProductData:
+	category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+	product = ProductFactory.build(
+		id=_fixed_uuid(),
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	db_session.add_all([category, product])
+	await db_session.commit()
+
+	sku = Sku(
+		id=_fixed_uuid(),
+		product_id=product.id,
+		name="sku",
+		price=100,
+		active_quantity=0,
+	)
+	db_session.add(sku)
+	await db_session.commit()
+	stmt = (
+		select(Product)
+		.where(Product.id == product.id)
+		.options(selectinload(Product.images), selectinload(Product.skus))
+	)
+	base_product = (await db_session.execute(stmt)).scalar_one()
+	return ProductData(base_product=base_product, skus=tuple(base_product.skus))
