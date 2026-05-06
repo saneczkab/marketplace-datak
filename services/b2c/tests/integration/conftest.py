@@ -233,3 +233,89 @@ async def visibility_products(
 		hidden_by_status_product=hidden_by_status,
 		hidden_by_stock_product=hidden_by_stock,
 	)
+
+
+@dataclass(frozen=True, slots=True)
+class SimilarProductsData:
+	category: Category
+	base_product: Product
+	similar_products: tuple[Product, ...]
+	other_category: Category
+	other_products: tuple[Product, ...]
+
+
+@pytest.fixture()
+async def one_product_category(db_session: AsyncSession) -> SimilarProductsData:
+	category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+	other_category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+	product = ProductFactory.build(
+		id=_fixed_uuid(),
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	db_session.add_all([category, other_category, product])
+	await db_session.commit()
+	return SimilarProductsData(
+		category=category,
+		base_product=product,
+		similar_products=tuple(),
+		other_category=other_category,
+		other_products=tuple(),
+	)
+
+
+@pytest.fixture()
+async def similar_products_data(db_session: AsyncSession) -> SimilarProductsData:
+	category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+	other_category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+
+	base_product = ProductFactory.build(
+		id=_fixed_uuid(),
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+
+	similar_products: list[Product] = []
+	for _ in range(10):
+		similar_products.append(
+			ProductFactory.build(
+				id=_fixed_uuid(),
+				category_id=category.id,
+				status=ProductStatusEnum.MODERATED,
+			)
+		)
+
+	other_products: list[Product] = []
+	for _ in range(2):
+		other_products.append(
+			ProductFactory.build(
+				id=_fixed_uuid(),
+				category_id=other_category.id,
+				status=ProductStatusEnum.MODERATED,
+			)
+		)
+
+	db_session.add_all(
+		[category, other_category, base_product, *similar_products, *other_products]
+	)
+	await db_session.commit()
+
+	return SimilarProductsData(
+		category=category,
+		base_product=base_product,
+		similar_products=tuple(similar_products),
+		other_category=other_category,
+		other_products=tuple(other_products),
+	)
