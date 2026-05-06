@@ -264,9 +264,9 @@ async def one_product_category(db_session: AsyncSession) -> SimilarProductsData:
 	return SimilarProductsData(
 		category=category,
 		base_product=product,
-		similar_products=tuple(),
+		similar_products=(),
 		other_category=other_category,
-		other_products=tuple(),
+		other_products=(),
 	)
 
 

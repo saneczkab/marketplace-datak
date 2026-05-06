@@ -177,14 +177,17 @@ async def get_product_category_id(db: AsyncSession, product_id: uuid.UUID) -> uu
 
 
 async def count_products_by_filter(
-	db: AsyncSession, category_id: uuid.UUID, filter_id: uuid.UUID, filter_value: str
+	db: AsyncSession,
+	category_id: uuid.UUID,
+	filter_id: uuid.UUID,  # noqa
+	filter_value: str,  # noqa
 ) -> int:
 	"""
 	Подсчитывает количество видимых товаров в категории с определенным значением фильтра.
 	"""
 
-	category_ids = await get_category_descendants(db, category_id)
+	category_ids = await get_category_descendants(db, category_id)  # noqa
 
-	# TODO: Реализовать подсчет по фильтрам когда будет связь Product <-> FilterValues
+	# TODO: Реализовать подсчет по фильтрам когда будет связь Product <-> FilterValues # noqa
 	# Пока возвращаем 0, так как связи между товарами и значениями фильтров нет в текущей схеме
 	return 0

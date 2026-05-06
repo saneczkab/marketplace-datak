@@ -19,7 +19,6 @@ from schemas.category import (
 )
 from exceptions.category import CategoryHierarchyError, CategoryNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
-from threading import Lock
 
 import crud.category as category_crud
 import crud.product as product_crud
@@ -211,7 +210,9 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 
 
 async def get_category_facets(
-	db: AsyncSession, category_id: uuid.UUID, filters: str | None = None # TODO: Why is it here? # noqa
+	db: AsyncSession,
+	category_id: uuid.UUID,
+	filters: str | None = None,  # TODO: Why is it here? # noqa
 ) -> FacetsResponse:
 	from database.models.catalog.base import FilterTypeEnum
 

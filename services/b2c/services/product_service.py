@@ -84,8 +84,8 @@ async def get_products_list(
 	# Валидация search - минимум 4 символа (после trim)
 	if search and len(search.strip()) > 0 and len(search.strip()) < 4:
 		raise ValueError("Search query must be at least 3 characters")
-	
-	# Экранирование от символов %, _, ' 
+
+	# Экранирование от символов %, _, '
 	if search:
 		search = search.replace("%", "\\%").replace("_", "\\_").replace("'", "''")
 
