@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,7 @@ from schemas.product import (
 	SimilarProductsResponse,
 )
 from schemas.sku import SkuShort
+from schemas.sku import Sku as SkuSchema
 from schemas.image import Image
 
 
@@ -99,12 +100,17 @@ async def get_products_list(
 	items = []
 	for p in products:
 		main_image_url = p.images[0].url if p.images else ""
+
+		# SKU is used to determine price
+		skus: List[SkuSchema] = await product_crud.get_product_skus(db, p.id)
+		price = min((sku.price for sku in skus), default=0.0) if skus else 0.0
+
 		items.append(
 			ProductShort(
 				id=p.id,
 				title=p.title,
 				image=main_image_url,
-				price=float(0.0),
+				price=float(price),
 				in_stock=False,
 				is_in_cart=False,
 			)
