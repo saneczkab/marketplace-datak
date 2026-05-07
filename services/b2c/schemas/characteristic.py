@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from pydantic import BaseModel, StringConstraints, Field
+from pydantic import BaseModel, StringConstraints, Field, ConfigDict
 
 CharacteristicName = Annotated[
 	str,
@@ -16,3 +16,9 @@ class Characteristic(BaseModel):
 	id: uuid.UUID
 	name: CharacteristicName
 	value: str
+
+
+class CharacteristicInFavorite(BaseModel):
+	name: str
+	value: str
+	model_config = ConfigDict(from_attributes=True)
