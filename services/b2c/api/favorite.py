@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db
-from exceptions.favorite import B2BUnavailableError, InvalidParameterError
+from exceptions.favorite import InvalidParameterError
 from exceptions.product import ProductNotFoundError
 from schemas.favorite import FavoriteMutationResponse, FavoritesResponse
 from services import favorite_service
@@ -22,7 +22,7 @@ router = fastapi.APIRouter(prefix="/api/v1/favorites", tags=["Избранное
 async def get_favorites(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	user_id: Annotated[uuid.UUID, fastapi.Query()],
-	limit: Annotated[int, fastapi.Query(ge=1)],
+	limit: Annotated[int, fastapi.Query(ge=1, le=100)] = 20,
 	offset: Annotated[int, fastapi.Query(ge=0)] = 0,
 	authorization: Annotated[Optional[str], fastapi.Header()] = None,
 ) -> FavoritesResponse:
@@ -33,11 +33,6 @@ async def get_favorites(
 		raise fastapi.HTTPException(
 			status_code=400,
 			detail={"code": "INVALID_PARAMETER", "message": str(err)},
-		) from None
-	except B2BUnavailableError as err:
-		raise fastapi.HTTPException(
-			status_code=503,
-			detail={"code": "B2B_UNAVAILABLE", "message": str(err)},
 		) from None
 
 
@@ -85,17 +80,12 @@ async def add_to_favorites(
 			status_code=400,
 			detail={"code": "INVALID_PARAMETER", "message": str(err)},
 		) from None
-	except B2BUnavailableError as err:
-		raise fastapi.HTTPException(
-			status_code=503,
-			detail={"code": "B2B_UNAVAILABLE", "message": str(err)},
-		) from None
 
 
 @router.delete(
 	"/{product_id}",
 	status_code=204,
-	responses={204: {}, 400: {}, 401: {}, 503: {}},
+	responses={204: {}, 400: {}, 401: {}, 404: {}, 503: {}},
 )
 async def remove_from_favorites(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
@@ -106,13 +96,13 @@ async def remove_from_favorites(
 	_ = authorization
 	try:
 		await favorite_service.remove_from_favorites(db, user_id, product_id)
+	except ProductNotFoundError as err:
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "PRODUCT_NOT_FOUND", "message": str(err)},
+		) from None
 	except InvalidParameterError as err:
 		raise fastapi.HTTPException(
 			status_code=400,
 			detail={"code": "INVALID_PARAMETER", "message": str(err)},
-		) from None
-	except B2BUnavailableError as err:
-		raise fastapi.HTTPException(
-			status_code=503,
-			detail={"code": "B2B_UNAVAILABLE", "message": str(err)},
 		) from None

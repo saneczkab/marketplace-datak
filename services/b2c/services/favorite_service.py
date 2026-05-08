@@ -46,5 +46,11 @@ async def add_to_favorites(
 async def remove_from_favorites(
 	db: AsyncSession, user_id: uuid.UUID, product_id: uuid.UUID
 ) -> None:
+	product_exists = await favorite_crud.check_product_exists_and_available(
+		db, product_id
+	)
+	if not product_exists:
+		raise ProductNotFoundError("Товар не найден")
+
 	await favorite_crud.remove_favorite(db, user_id, product_id)
 	await db.commit()

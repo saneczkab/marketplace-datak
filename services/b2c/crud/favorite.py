@@ -21,10 +21,14 @@ async def get_user_favorites(
 		select(Favorite)
 		.where(Favorite.user_id == user_id)
 		.options(
-			selectinload(Favorite.product).selectinload(Product.category),
 			selectinload(Favorite.product).selectinload(Product.images),
 			selectinload(Favorite.product).selectinload(Product.characteristics),
-			selectinload(Favorite.product).selectinload(Product.skus),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.images),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.characteristics),
 		)
 		.order_by(Favorite.added_at.desc())
 		.limit(limit)
@@ -38,8 +42,17 @@ async def add_favorite(
 	db: AsyncSession, user_id: uuid.UUID, product_id: uuid.UUID
 ) -> Favorite:
 	result = await db.execute(
-		select(Favorite).where(
-			Favorite.user_id == user_id, Favorite.product_id == product_id
+		select(Favorite)
+		.where(Favorite.user_id == user_id, Favorite.product_id == product_id)
+		.options(
+			selectinload(Favorite.product).selectinload(Product.images),
+			selectinload(Favorite.product).selectinload(Product.characteristics),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.images),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.characteristics),
 		)
 	)
 	existing = result.scalar_one_or_none()
@@ -49,8 +62,22 @@ async def add_favorite(
 	favorite = Favorite(user_id=user_id, product_id=product_id)
 	db.add(favorite)
 	await db.flush()
-	await db.refresh(favorite)
-	return favorite
+
+	result = await db.execute(
+		select(Favorite)
+		.where(Favorite.user_id == user_id, Favorite.product_id == product_id)
+		.options(
+			selectinload(Favorite.product).selectinload(Product.images),
+			selectinload(Favorite.product).selectinload(Product.characteristics),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.images),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.characteristics),
+		)
+	)
+	return result.scalar_one()
 
 
 async def remove_favorite(
@@ -103,12 +130,14 @@ async def get_available_favorites(
 			Favorite.user_id == user_id, Favorite.product_id.in_(available_product_ids)
 		)
 		.options(
-			selectinload(Favorite.product).selectinload(
-				Product.category
-			),  # <-- Добавлено
 			selectinload(Favorite.product).selectinload(Product.images),
 			selectinload(Favorite.product).selectinload(Product.characteristics),
-			selectinload(Favorite.product).selectinload(Product.skus),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.images),
+			selectinload(Favorite.product)
+			.selectinload(Product.skus)
+			.selectinload(Sku.characteristics),
 		)
 		.order_by(Favorite.added_at.desc())
 		.limit(limit)

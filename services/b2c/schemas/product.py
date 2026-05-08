@@ -43,7 +43,7 @@ class ProductShortListResponse(BaseModel):
 class ProductInFavorite(BaseModel):
 	id: uuid.UUID
 	title: str
-	description: str
+	description: str | None
 	status: str
 	category: CategoryInFavorite
 	images: List[ImageInFavorite]

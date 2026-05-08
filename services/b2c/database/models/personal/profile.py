@@ -1,15 +1,12 @@
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from database.models.catalog.base import Product  # noqa
 
 from database.core import Base
-
-if TYPE_CHECKING:
-	from database.models.catalog.base import Product  # noqa
 
 
 class Favorite(Base):
@@ -27,9 +24,7 @@ class Favorite(Base):
 		DateTime(timezone=True), server_default=func.now()
 	)
 
-	product: Mapped["Product"] = relationship(
-		"Product", foreign_keys=[product_id], lazy="selectin"
-	)
+	product: Mapped["Product"] = relationship("Product", foreign_keys=[product_id])
 
 
 class Subscription(Base):

@@ -16,7 +16,3 @@ class UnauthorizedError(FavoriteError):
 
 class InvalidParameterError(FavoriteError):
 	"""Raised when request parameters are invalid."""
-
-
-class B2BUnavailableError(FavoriteError):
-	"""Raised when B2B service is temporarily unavailable."""
