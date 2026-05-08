@@ -1,9 +1,15 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, text, func, Index, CheckConstraint
+from typing import TYPE_CHECKING
+
+from sqlalchemy import String, Integer, DateTime, text, func, Index, CheckConstraint, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database.core import Base
+
+if TYPE_CHECKING:
+	from database.models.identity.user import User
 
 
 class CartItem(Base):
@@ -36,7 +42,9 @@ class CartItem(Base):
 		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
 	)
 
-	user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+	user_id: Mapped[uuid.UUID | None] = mapped_column(
+		UUID(as_uuid=True), ForeignKey("identity.users.id", ondelete="CASCADE")
+	)
 	session_id: Mapped[str | None] = mapped_column(String(255))
 	sku_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 
@@ -47,3 +55,6 @@ class CartItem(Base):
 	updated_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
+
+	# Relationships
+	user: Mapped["User | None"] = relationship("User", back_populates="cart_items")

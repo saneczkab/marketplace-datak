@@ -1,9 +1,15 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import DateTime, Index, UniqueConstraint, text, func
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, Index, UniqueConstraint, text, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database.core import Base
+
+if TYPE_CHECKING:
+	from database.models.identity.user import User
 
 
 class Favorite(Base):
@@ -13,11 +19,16 @@ class Favorite(Base):
 		{"schema": "personal"},
 	)
 
-	user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+	user_id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), ForeignKey("identity.users.id", ondelete="CASCADE"), primary_key=True
+	)
 	product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
 	added_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
+
+	# Relationships
+	user: Mapped["User"] = relationship("User", back_populates="favorites")
 
 
 class Subscription(Base):
@@ -33,7 +44,9 @@ class Subscription(Base):
 		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
 	)
 
-	user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+	user_id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), ForeignKey("identity.users.id", ondelete="CASCADE")
+	)
 	product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 
 	notify_in_stock: Mapped[bool] = mapped_column(default=False, server_default="false")
@@ -43,3 +56,6 @@ class Subscription(Base):
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
+
+	# Relationships
+	user: Mapped["User"] = relationship("User", back_populates="subscriptions")
