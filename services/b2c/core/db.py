@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from core.config import settings
 
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
-DATABASE_VERBPOSE = settings.DATABASE_VERBPOSE
+DATABASE_VERBPOSE = settings.DATABASE_VERBOSE
 
 
 engine = create_async_engine(
