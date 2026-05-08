@@ -20,7 +20,9 @@ class Favorite(Base):
 	)
 
 	user_id: Mapped[uuid.UUID] = mapped_column(
-		UUID(as_uuid=True), ForeignKey("identity.users.id", ondelete="CASCADE"), primary_key=True
+		UUID(as_uuid=True),
+		ForeignKey("identity.users.id", ondelete="CASCADE"),
+		primary_key=True,
 	)
 	product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
 	added_at: Mapped[datetime] = mapped_column(

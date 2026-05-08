@@ -2,7 +2,16 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Integer, DateTime, text, func, Index, CheckConstraint, ForeignKey
+from sqlalchemy import (
+	String,
+	Integer,
+	DateTime,
+	text,
+	func,
+	Index,
+	CheckConstraint,
+	ForeignKey,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
