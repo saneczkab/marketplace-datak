@@ -33,6 +33,7 @@ class Product(Base):
 	)
 	seller_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 	category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("catalog.categories.id"))
+	category: Mapped["Category"] = relationship("Category")
 	title: Mapped[str] = mapped_column(String(255))
 	slug: Mapped[str] = mapped_column(String(255), unique=True)
 	description: Mapped[str | None] = mapped_column(Text)
