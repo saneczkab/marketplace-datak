@@ -46,6 +46,7 @@ class Product(Base):
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
 
+	category: Mapped["Category"] = relationship("Category", lazy="selectin")
 	images = relationship("Image", back_populates="product")
 	characteristics = relationship("Characteristic", back_populates="product")
 	skus = relationship("Sku", back_populates="product")

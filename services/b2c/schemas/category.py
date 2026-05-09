@@ -2,7 +2,7 @@ import uuid
 
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class CategoryParent(BaseModel):
@@ -111,3 +111,9 @@ class BreadcrumbMeta(BaseModel):
 class BreadcrumbResponse(BaseModel):
 	data: list[BreadcrumbItem]
 	meta: BreadcrumbMeta
+
+
+class CategoryInFavorite(BaseModel):
+	id: uuid.UUID
+	name: str
+	model_config = ConfigDict(from_attributes=True)

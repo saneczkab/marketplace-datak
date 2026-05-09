@@ -4,9 +4,10 @@ from typing import List
 from pydantic import BaseModel, ConfigDict, Field
 
 from database.models import ProductStatusEnum
-from schemas.characteristic import Characteristic
-from schemas.image import Image
-from schemas.sku import Sku
+from schemas.category import CategoryInFavorite
+from schemas.characteristic import Characteristic, CharacteristicInFavorite
+from schemas.image import Image, ImageInFavorite
+from schemas.sku import Sku, SkuInFavorite
 
 
 class ProductShort(BaseModel):
@@ -36,6 +37,18 @@ class ProductShortListResponse(BaseModel):
 	limit: int
 	offset: int
 	items: List[ProductShort]
+	model_config = ConfigDict(from_attributes=True)
+
+
+class ProductInFavorite(BaseModel):
+	id: uuid.UUID
+	title: str
+	description: str | None
+	status: str
+	category: CategoryInFavorite
+	images: List[ImageInFavorite]
+	characteristics: List[CharacteristicInFavorite]
+	skus: List[SkuInFavorite]
 	model_config = ConfigDict(from_attributes=True)
 
 
