@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 
-from tests.integration.conftest import ProductData
+from tests.integration.catalog.conftest import ProductData
 
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")

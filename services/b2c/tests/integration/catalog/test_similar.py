@@ -2,7 +2,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-from tests.integration.conftest import SimilarProductsData
+from tests.integration.catalog.conftest import SimilarProductsData
 
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
