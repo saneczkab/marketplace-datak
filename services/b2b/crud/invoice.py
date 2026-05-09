@@ -81,6 +81,15 @@ async def update_invoice_status(
     return db_invoice
 
 
+async def update_invoice_to_accepted(db: AsyncSession, invoice: Invoice) -> Invoice:
+    invoice.status = "ACCEPTED"
+    invoice.accepted_at = func.now()
+    
+    await db.commit()
+    await db.refresh(invoice)
+    return invoice
+
+
 async def delete_invoice(db: AsyncSession, db_invoice: Invoice) -> None:
     await db.delete(db_invoice)
     await db.commit()

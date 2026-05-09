@@ -37,12 +37,7 @@ async def accept_invoice(db: AsyncSession, invoice_id: UUID):
         if sku:
             sku.active_quantity += item.quantity
 
-    invoice.status = "ACCEPTED"
-    invoice.accepted_at = func.now()
-
-    await db.commit()
-    await db.refresh(invoice)
-    return invoice
+    return await invoice_crud.update_invoice_to_accepted(db, invoice)
 
 
 async def get_all_invoices(db: AsyncSession, skip: int = 0, limit: int = 10):
@@ -56,6 +51,5 @@ async def delete_invoice(db: AsyncSession, invoice_id: UUID):
         
     if invoice.status != "CREATED":
         raise InvalidInvoiceStatusError(invoice.status, "delete")
-        
-    await db.delete(invoice)
-    await db.commit()
+    
+    await invoice_crud.delete_invoice(db, invoice)
