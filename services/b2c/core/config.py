@@ -6,6 +6,11 @@ class Settings(BaseSettings):
 	DEBUG: bool = False
 	DATABASE_VERBOSE: bool
 
+	SESSION_EXPIRE_SECONDS: int
+
+	SECRET_KEY: str
+	ALGORITHM: str
+
 	model_config = SettingsConfigDict(
 		env_file=".env",
 		env_file_encoding="utf-8",

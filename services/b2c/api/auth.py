@@ -15,7 +15,7 @@ async def register(
 	password: str,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> LoginResponse:
-    try:
-        return await auth_service.register(username, email, password, db)
-    except Exception as e: #noqa
-        pass 
+	try:
+		return await auth_service.register(username, email, password, db)
+	except Exception as e:  # noqa
+		pass

@@ -37,3 +37,21 @@ class User(Base):
 	subscriptions: Mapped[list["Subscription"]] = relationship(
 		"Subscription", back_populates="user"
 	)
+
+
+class Session(Base):
+	__tablename__ = "sessions"
+	__table_args__ = {"schema": "identity"}
+
+	session_id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+	token: Mapped[str] = mapped_column(unique=True, nullable=False)
+	refresh_token: Mapped[str] = mapped_column(unique=True, nullable=False)
+	issued_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now()
+	)
+	expires_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False
+	)
