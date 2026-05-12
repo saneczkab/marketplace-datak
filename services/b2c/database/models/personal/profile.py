@@ -21,7 +21,9 @@ class Favorite(Base):
 		{"schema": "personal"},
 	)
 
-	user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+	user_id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), ForeignKey("identity.users.id"), primary_key=True
+	)
 	product_id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), ForeignKey("catalog.products.id"), primary_key=True
 	)

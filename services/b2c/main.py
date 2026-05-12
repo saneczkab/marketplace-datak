@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import category, product, breadcrumbs, cart, catalog, favorite
+from api import category, product, breadcrumbs, cart, catalog, favorite, auth
 from core.config import settings
 from core.db import get_db
 from services import category_service
@@ -22,7 +22,8 @@ if settings.DEBUG:
 async def lifespan(app: FastAPI):  # noqa
 	# Startup: warm up categories tree cache
 	try:
-		db = await anext(get_db())
+		db_gen = get_db()
+		db = await db_gen.__anext__()
 		await category_service.get_categories_tree(db)
 	except Exception:  # noqa
 		pass
@@ -50,3 +51,4 @@ app.include_router(cart.router)
 app.include_router(cart.validate_router)
 app.include_router(favorite.router)
 app.include_router(catalog.router)
+app.include_router(auth.router)
