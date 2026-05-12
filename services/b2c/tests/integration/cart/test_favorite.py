@@ -1,3 +1,4 @@
+import uuid
 from httpx import AsyncClient
 from database.models.catalog.base import ProductStatusEnum
 from tests.integration.cart.conftest import FavoritesData
@@ -61,3 +62,26 @@ async def test_locked_product_excluded_from_list(
 
 async def test_user_id_from_query_is_ignored() -> None:
 	pass
+
+
+async def test_delete_from_favorites_returns_204(
+	client: AsyncClient,
+	favorites_data: FavoritesData,
+) -> None:
+	product = favorites_data.products[0]
+	response = await client.delete(
+		f"/api/v1/favorites/{product.id}",
+		params={"user_id": favorites_data.user.id},
+	)
+	assert response.status_code == 204
+
+
+async def test_delete_non_existent_product_returns_404(
+	client: AsyncClient,
+	favorites_data: FavoritesData,
+) -> None:
+	response = await client.delete(
+		f"/api/v1/favorites/{uuid.uuid4()}",
+		params={"user_id": favorites_data.user.id},
+	)
+	assert response.status_code == 404
