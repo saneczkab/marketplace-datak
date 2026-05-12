@@ -4,9 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import pytest
 from database.models import Category, Product, ProductStatusEnum, Sku
+from database.models.cart.item import CartItem
 from database.models.identity.user import User
 from database.models.personal.profile import Favorite, Subscription
-from tests.factories.catalog import CategoryFactory, ProductFactory, SkuFactory
+from tests.factories.catalog import (
+	CartItemFactory,
+	CategoryFactory,
+	ProductFactory,
+	SkuFactory,
+)
 from tests.factories.user import UserFactory
 from tests.factories.cart import FavoriteFactory, SubscriptionFactory
 
@@ -73,4 +79,69 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 		skus=[sku, sku_blocked],
 		favorites=[favorite, None],
 		subscriptions=[subscription, None],
+	)
+
+
+@dataclass(frozen=True, slots=True)
+class SubscriptionsData:
+	user: User
+	category: Category
+	product: Product
+	subscription: Subscription
+
+
+@pytest.fixture()
+async def empty_subscriptions_data(db_session: AsyncSession) -> SubscriptionsData:
+	user = UserFactory.build()
+	category = CategoryFactory.build()
+	product = ProductFactory.build(category_id=category.id)
+	subscription = SubscriptionFactory.build(user_id=user.id, product_id=product.id)
+	db_session.add_all([user, category, product, subscription])
+	await db_session.commit()
+	return SubscriptionsData(
+		user=user,
+		product=product,
+		subscription=subscription,
+	)
+
+
+@pytest.fixture()
+async def subscriptions_data(db_session: AsyncSession) -> SubscriptionsData:
+	user = UserFactory.build()
+	category = CategoryFactory.build()
+	product = ProductFactory.build(category_id=category.id)
+	subscription = SubscriptionFactory.build(user_id=user.id, product_id=product.id)
+	db_session.add_all([user, category, product, subscription])
+	await db_session.commit()
+	return SubscriptionsData(
+		user=user,
+		product=product,
+		subscription=subscription,
+	)
+
+
+@dataclass(frozen=True, slots=True)
+class CartData:
+	user: User
+	categories: list[Category]
+	products: list[Product]
+	skus: list[Sku]
+	items: list[CartItem | None]
+
+
+@pytest.fixture()
+async def cart_data(db_session: AsyncSession) -> CartData:
+	user = UserFactory.build()
+	category = CategoryFactory.build()
+	products = [ProductFactory.build(category_id=category.id) for _ in range(3)]
+	skus = [SkuFactory.build(product_id=product.id) for product in products]
+	items = [CartItemFactory.build(user_id=user.id, sku_id=sku.id) for sku in skus]
+	db_session.add_all([user, category, *products, *skus, *items])
+	await db_session.commit()
+	return CartData(
+		user=user,
+		categories=[category],
+		products=products,
+		skus=skus,
+		items=items,
 	)
