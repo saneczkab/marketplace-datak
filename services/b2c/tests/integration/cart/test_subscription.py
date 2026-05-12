@@ -17,6 +17,7 @@ async def test_subscribe_returns_201_with_notify_on(
 			"product_id": product.id,
 		},
 		json={"notify_on": ["IN_STOCK"]},
+		headers={"Authorization": f"Bearer test"},
 	)
 	assert response.status_code == 201
 	body = response.json()
@@ -34,6 +35,7 @@ async def test_duplicate_subscription_returns_409(
 			"product_id": product.id,
 		},
 		json={"notify_on": ["IN_STOCK"]},
+		headers={"Authorization": f"Bearer test"},
 	)
 	assert response.status_code == 409
 
@@ -48,6 +50,8 @@ async def test_invalid_notify_on_returns_400(
 		params={
 			"product_id": product.id,
 		},
+		headers={"Authorization": f"Bearer test"},
+		json={"notify_on": ["INVALID"]},
 	)
 	assert response.status_code == 400
 
@@ -61,5 +65,6 @@ async def test_subscribe_to_unknown_product_returns_404(
 			"product_id": uuid.uuid4(),
 		},
 		json={"notify_on": ["IN_STOCK"]},
+		headers={"Authorization": f"Bearer test"},
 	)
 	assert response.status_code == 404

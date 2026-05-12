@@ -85,7 +85,6 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 @dataclass(frozen=True, slots=True)
 class SubscriptionsData:
 	user: User
-	category: Category
 	product: Product
 	subscription: Subscription
 
