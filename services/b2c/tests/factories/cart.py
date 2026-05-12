@@ -2,6 +2,7 @@ import factory
 import uuid
 from datetime import datetime
 from database.models.personal.profile import Favorite, Subscription
+from database.models.storefront.main import Collection, CollectionProduct
 
 
 class FavoriteFactory(factory.Factory):
@@ -22,3 +23,26 @@ class SubscriptionFactory(factory.Factory):
 	notify_in_stock = factory.LazyFunction(bool)
 	notify_price_down = factory.LazyFunction(bool)
 	created_at = factory.LazyFunction(datetime.now)
+
+
+class CollectionFactory(factory.Factory):
+	class Meta:
+		model = Collection
+
+	id = factory.LazyFunction(uuid.uuid4)
+	title = factory.Faker("sentence")
+	description = factory.Faker("text")
+	cover_image_url = factory.Faker("image_url")
+	target_url = factory.Faker("url")
+	priority = factory.Faker("pyint", min_value=0, max_value=100)
+	start_date = factory.LazyFunction(datetime.now)
+	is_active = True
+	created_at = factory.LazyFunction(datetime.now)
+
+
+class CollectionProductFactory(factory.Factory):
+	class Meta:
+		model = CollectionProduct
+
+	product_id = factory.LazyFunction(uuid.uuid4)
+	collection_id = factory.LazyFunction(uuid.uuid4)

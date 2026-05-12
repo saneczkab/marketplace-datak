@@ -89,6 +89,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		catalog,
 		favorite,
 		subscriptions,
+		collections,
 	)
 
 	test_app = FastAPI(debug=False)
@@ -107,6 +108,8 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(favorite.router)
 	test_app.include_router(catalog.router)
 	test_app.include_router(subscriptions.router)
+	test_app.include_router(collections.router_collections)
+	test_app.include_router(collections.router_main)
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 
 	return test_app

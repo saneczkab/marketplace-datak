@@ -7,6 +7,7 @@ from database.models import Category, Product, ProductStatusEnum, Sku
 from database.models.cart.item import CartItem
 from database.models.identity.user import User
 from database.models.personal.profile import Favorite, Subscription
+from database.models.storefront.main import Collection, CollectionProduct
 from tests.factories.catalog import (
 	CartItemFactory,
 	CategoryFactory,
@@ -14,7 +15,12 @@ from tests.factories.catalog import (
 	SkuFactory,
 )
 from tests.factories.user import UserFactory
-from tests.factories.cart import FavoriteFactory, SubscriptionFactory
+from tests.factories.cart import (
+	CollectionFactory,
+	CollectionProductFactory,
+	FavoriteFactory,
+	SubscriptionFactory,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,4 +149,41 @@ async def cart_data(db_session: AsyncSession) -> CartData:
 		products=products,
 		skus=skus,
 		items=items,
+	)
+
+
+@dataclass(frozen=True, slots=True)
+class CollectionsData:
+	categories: list[Category]
+	products: list[Product]
+	skus: list[Sku]
+	collections: list[Collection]
+	collection_products: list[CollectionProduct]
+
+
+@pytest.fixture()
+async def collections_data(db_session: AsyncSession) -> CollectionsData:
+	category = CategoryFactory.build()
+	products = [ProductFactory.build(category_id=category.id) for _ in range(3)]
+	product_blocked = ProductFactory.build(
+		category_id=category.id, status=ProductStatusEnum.BLOCKED
+	)
+	products.append(product_blocked)
+	skus = [SkuFactory.build(product_id=product.id) for product in products]
+	collections = [CollectionFactory.build() for _ in range(3)]
+	collection_products = [
+		CollectionProductFactory.build(
+			product_id=product.id, collection_id=collection.id
+		)
+		for product in products
+		for collection in collections
+	]
+	db_session.add_all([category, *products, *skus, *collections, *collection_products])
+	await db_session.commit()
+	return CollectionsData(
+		categories=[category],
+		products=products,
+		skus=skus,
+		collections=collections,
+		collection_products=collection_products,
 	)
