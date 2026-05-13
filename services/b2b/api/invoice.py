@@ -13,7 +13,7 @@ from exceptions.invoice import (
 from exceptions.sku import SkuNotFoundError
 
 
-router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
+router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
 
 @router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)

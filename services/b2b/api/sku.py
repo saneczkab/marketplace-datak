@@ -9,7 +9,7 @@ from services import sku as sku_service
 from exceptions.sku import SkuNotFoundError
 from exceptions.product import ProductNotFoundError
 
-router = APIRouter(prefix="/api/v1/skus", tags=["SKU"])
+router = APIRouter(prefix="/skus", tags=["SKU"])
 
 
 @router.post("", response_model=SkuResponse, status_code=status.HTTP_201_CREATED)
