@@ -23,3 +23,9 @@ class SessionData(BaseModel):
 	refresh_token: str
 	issued_at: datetime.datetime
 	expires_in: int
+
+
+class LoginRequest(BaseModel):
+	email: EmailStr
+	username: str | None
+	password: str | None

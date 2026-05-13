@@ -3,7 +3,7 @@ from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from services import auth_service
 from core import db
-from schemas.user import LoginResponse, RegisterRequest
+from schemas.user import LoginResponse, RegisterRequest, LoginRequest
 
 router = fastapi.APIRouter(prefix="/api/v1/auth", tags=["Авторизация"])
 
@@ -15,5 +15,28 @@ async def register(
 ) -> LoginResponse:
 	try:
 		return await auth_service.register(data, db)
+	except Exception as e:  # noqa
+		raise fastapi.HTTPException(status_code=404, detail=f"{e}") from e
+
+
+@router.post("/login")
+async def login(
+	data: LoginRequest,
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+) -> LoginResponse:
+	try:
+		return await auth_service.login(data.email, data.password, db)
+	except Exception as e:  # noqa
+		raise fastapi.HTTPException(status_code=404, detail=f"{e}") from e
+
+
+# test token validation
+@router.get("/validate")
+async def validate_token(
+	token: str, db: Annotated[AsyncSession, fastapi.Depends(db.get_db)]
+) -> bool:
+
+	try:
+		return await auth_service.validate_token(token, db)
 	except Exception as e:  # noqa
 		raise fastapi.HTTPException(status_code=404, detail=f"{e}") from e

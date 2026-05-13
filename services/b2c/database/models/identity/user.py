@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -11,6 +12,11 @@ from database.core import Base
 if TYPE_CHECKING:
 	from database.models.cart.item import CartItem
 	from database.models.personal.profile import Favorite, Subscription
+
+
+class TokenStatusEnum(str, enum.Enum):
+	ACTIVE = "active"
+	REVOKED = "revoked"
 
 
 class User(Base):
@@ -54,4 +60,8 @@ class Session(Base):
 	)
 	expires_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), nullable=False
+	)
+	status: Mapped[TokenStatusEnum] = mapped_column(
+		nullable=False,
+		server_default=TokenStatusEnum.ACTIVE,
 	)
