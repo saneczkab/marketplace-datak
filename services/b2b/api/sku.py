@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import List
 
-from database.core import get_db
+from core.db import get_db
 from schemas.sku import SkuCreate, SkuResponse
 from services import sku as sku_service
 from exceptions.sku import SkuNotFoundError

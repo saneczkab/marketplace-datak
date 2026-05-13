@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from database.core import get_db
+from core.db import get_db
 from schemas.invoice import InvoiceCreate, InvoiceResponse, InvoiceListResponse
 from services import invoice as invoice_service
 from exceptions.invoice import (
