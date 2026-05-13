@@ -13,3 +13,29 @@ dependencies = [
     "psycopg2-binary",
     "asyncpg"
 ]
+
+[tool.ruff]
+lint.extend-select = [
+    "FAST",
+    "ANN",
+    "S",
+    "BLE",
+    "B",
+    "C4",
+    "FIX",
+    "LOG",
+    "Q",
+    "ARG",
+    "PTH",
+    "N",
+]
+
+[tool.ruff.format]
+quote-style =  "double"
+indent-style = "tab"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.6",
+]
+
