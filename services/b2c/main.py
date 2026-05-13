@@ -1,6 +1,8 @@
-def main() -> None:
-    print("Hello from b2c!")
+from fastapi import FastAPI
+from api import category, product
 
 
-if __name__ == "__main__":
-    main()
+app = FastAPI()
+
+app.include_router(category.router)
+app.include_router(product.router)

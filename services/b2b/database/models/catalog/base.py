@@ -13,6 +13,7 @@ class ProductStatusEnum(str, enum.Enum):
 	ON_MODERATION = "ON_MODERATION"
 	MODERATED = "MODERATED"
 	BLOCKED = "BLOCKED"
+	DELETED = "DELETED"
 
 
 class Product(Base):
