@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from exceptions.session import SessionNotFoundError
-from exceptions.user import UserAlreadyExistsError, UserInvalidPasswordError, UserLoginConflictError
+from exceptions.user import UserAlreadyExistsError, UserInvalidPasswordError, UserLoginConflictError, UserNotFoundError
 from services import auth_service
 from core import db
 from schemas.user import LoginResponse, RegisterRequest, LoginRequest, SessionInfo
@@ -36,6 +36,8 @@ async def login(
 		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
 	except UserLoginConflictError as e:
 		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
+	except UserNotFoundError as e:
+		raise fastapi.HTTPException(status_code=400, detail="Invalid login data") from e
 	except UserInvalidPasswordError as e:
 		raise fastapi.HTTPException(status_code=400, detail="Password is too weak") from e
 	except Exception as e:
