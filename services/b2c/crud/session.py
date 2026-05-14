@@ -46,12 +46,38 @@ async def check_active_session(token: str, db: AsyncSession) -> bool:
 	return False
 
 
-async def deactivate_session(token: str, db: AsyncSession) -> None:
-	result = await db.execute(select(Session).where(Session.token==token))
+async def deactivate_session(token: str, db: AsyncSession) -> bool:
+	result = await db.execute(select(Session).where(Session.token == token))
 	session = result.scalar_one_or_none()
 
 	if session:
-		session.is_active=False
+		session.is_active = False
 		await db.flush()
-		await db.commit
-	
+		await db.commit()
+		return True
+	return False
+
+
+async def get_session_by_refresh_token(token: str, db: AsyncSession) -> Session | None:
+	result = await db.execute(select(Session).where(Session.refresh_token == token))
+
+	session = result.scalar_one_or_none()
+
+	return session
+
+
+async def update_session_token(
+	session: Session, new_token: str, db: AsyncSession
+) -> Session:
+	id = session.session_id
+	db.add(session)
+	session.token = new_token
+	session.issued_at = datetime.datetime.now(datetime.timezone.utc)
+	session.expires_at = session.issued_at + datetime.timedelta(
+		seconds=settings.SESSION_EXPIRE_SECONDS
+	)
+	await db.commit()
+	await db.refresh(session)
+
+	print(id == session.session_id)
+	return session

@@ -2,6 +2,8 @@ import fastapi
 from typing import Annotated
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
+from exceptions.session import SessionNotFoundError
+from exceptions.user import UserAlreadyExistsError, UserLoginConflictError
 from services import auth_service
 from core import db
 from schemas.user import LoginResponse, RegisterRequest, LoginRequest, SessionInfo
@@ -17,8 +19,10 @@ async def register(
 ) -> LoginResponse:
 	try:
 		return await auth_service.register(data, db)
-	except Exception as e:  # noqa
-		raise fastapi.HTTPException(status_code=404, detail=f"{e}") from e
+	except UserAlreadyExistsError as e:  # noqa
+		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
 
 
 @router.post("/login")
@@ -28,8 +32,12 @@ async def login(
 ) -> LoginResponse:
 	try:
 		return await auth_service.login(data, db)
-	except Exception as e:  # noqa
-		raise fastapi.HTTPException(status_code=404, detail=f"{e}") from e
+	except ValueError as e:  # noqa
+		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
+	except UserLoginConflictError as e:
+		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=f"{e}") from e
 
 
 @router.get("/me")
@@ -40,8 +48,8 @@ async def get_session_info(
 	token = credentials.credentials
 	try:
 		return await auth_service.get_session_info(token, db)
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=417, detail=f"{e}") from e
+	except SessionNotFoundError as e:
+		raise fastapi.HTTPException(status_code=401, detail=f"{e}") from e
 
 
 @router.post("/logout")
@@ -52,5 +60,17 @@ async def logout(
 	token = credentials.credentials
 	try:
 		await auth_service.logout(token, db)
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=418, detail=f"{e}") from e
+	except SessionNotFoundError as e:
+		raise fastapi.HTTPException(status_code=401, detail=f"{e}") from e
+
+
+@router.post("/refresh")
+async def refresh(
+	refresh_token: str, db: Annotated[AsyncSession, fastapi.Depends(db.get_db)]
+) -> LoginResponse:
+	try:
+		return await auth_service.refresh_session(refresh_token, db)
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
+	except SessionNotFoundError as e:
+		raise fastapi.HTTPException(status_code=401, detail=f"{e}") from e

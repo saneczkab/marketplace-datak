@@ -2,9 +2,10 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, text, func
-from sqlalchemy.dialects.postgresql import UUID, BOOLEAN
+from sqlalchemy import DateTime, text, func, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 
 from database.core import Base
 
@@ -55,4 +56,4 @@ class Session(Base):
 	expires_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), nullable=False
 	)
-	is_active = mapped_column(BOOLEAN, server_default=True)
+	is_active: Mapped[bool] = mapped_column(Boolean, default=True)

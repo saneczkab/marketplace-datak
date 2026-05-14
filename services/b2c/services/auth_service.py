@@ -4,6 +4,7 @@ import crud.session as session_crud
 import uuid
 import secrets
 
+from exceptions.session import SessionNotFoundError
 from schemas.user import (
 	LoginRequest,
 	LoginResponse,
@@ -88,8 +89,30 @@ async def generate_session(user_id: uuid.UUID, db: AsyncSession) -> SessionData:
 	)
 
 
-async def refresh_session() -> None:
-	pass
+async def refresh_session(refresh_token: str, db: AsyncSession) -> LoginResponse:
+	session: Session = await session_crud.get_session_by_refresh_token(
+		refresh_token, db
+	)
+	if not session:
+		raise SessionNotFoundError()
+
+	user: User | None = await user_crud.get_user_by_id(session.user_id, db)
+
+	if not user:
+		raise UserNotFoundError()  # How
+
+	new_token: str = security.create_access_token(user.id)
+
+	session = await session_crud.update_session_token(session, new_token, db)
+
+	respone: LoginResponse = LoginResponse(
+		access_token=session.token,
+		refresh_token=session.refresh_token,
+		expires_in=settings.SESSION_EXPIRE_SECONDS,
+		token_type="bearer",  # noqa
+	)
+
+	return respone
 
 
 async def login(data: LoginRequest, db: AsyncSession) -> LoginResponse:
@@ -128,7 +151,8 @@ async def login(data: LoginRequest, db: AsyncSession) -> LoginResponse:
 
 async def get_session_info(token: str, db: AsyncSession) -> SessionInfo:
 	session: Session = await session_crud.get_session_by_token(token, db)
-
+	if not session:
+		raise SessionNotFoundError
 	user: User = await user_crud.get_user_by_id(session.user_id, db)
 
 	result = SessionInfo(
@@ -144,4 +168,7 @@ async def get_session_info(token: str, db: AsyncSession) -> SessionInfo:
 
 
 async def logout(token: str, db: AsyncSession) -> None:
-	
+	if await session_crud.deactivate_session(token, db):
+		return
+
+	raise SessionNotFoundError

@@ -1,5 +1,4 @@
-# middlewares/verify_token.py
-from typing import Callable
+from typing import AsyncGenerator, Callable
 from fastapi import Request, HTTPException
 from fastapi.responses import Response
 from core.security import decode_access_token
@@ -12,7 +11,7 @@ PRIVATE_PATHS = ["/api/v1/auth/me", "/api/v1/auth/logout"]
 
 
 async def verify_token(request: Request, call_next: Callable) -> Response:
-	# 1. Если путь не в списке приватных → сразу пропускаем запрос
+	print(f"Middleware running on {request.url.path}")
 	if request.url.path not in PRIVATE_PATHS:
 		return await call_next(request)
 
@@ -24,7 +23,6 @@ async def verify_token(request: Request, call_next: Callable) -> Response:
 
 	token = auth_header.split(" ", 1)[1]
 	try:
-		# decode_access_token — синхронная функция, await не нужен
 		decoded = decode_access_token(token)
 		request.state.user_id = decoded.get("user_id")
 	except JWTError as e:
@@ -32,10 +30,12 @@ async def verify_token(request: Request, call_next: Callable) -> Response:
 	except ValueError as e:
 		raise HTTPException(status_code=401, detail=str(e)) from e
 
-	db_gen = get_db()
+	db_gen: AsyncGenerator[AsyncSession] = get_db()
 	db: AsyncSession = await db_gen.__anext__()
-	if not session_crud.check_active_session(token, db):
-		raise HTTPException(status_code=401, detail="Token invalidated in db")
-
+	try:
+		if not await session_crud.check_active_session(token, db):
+			raise HTTPException(status_code=401, detail="Token invalidated in db")
+	finally:
+		await db_gen.aclose()
 	response = await call_next(request)
 	return response
