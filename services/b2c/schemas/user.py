@@ -12,7 +12,7 @@ class LoginResponse(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-	username: Annotated[str, Field(min_lenght=3,max_length=10)]
+	username: Annotated[str, Field(min_lenght=3, max_length=10)]
 	email: EmailStr
 	password: str
 
