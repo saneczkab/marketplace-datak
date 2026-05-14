@@ -12,6 +12,7 @@ from exceptions.user import (
 from services import auth_service
 from core import db
 from schemas.user import LoginResponse, RegisterRequest, LoginRequest, SessionInfo
+from pydantic import ValidationError
 
 router = fastapi.APIRouter(prefix="/api/v1/auth", tags=["Авторизация"])
 security = HTTPBearer()
@@ -37,7 +38,7 @@ async def login(
 ) -> LoginResponse:
 	try:
 		return await auth_service.login(data, db)
-	except ValueError as e:  # noqa
+	except ValidationError as e:  # noqa
 		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
 	except UserLoginConflictError as e:
 		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
