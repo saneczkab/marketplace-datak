@@ -69,7 +69,7 @@ async def get_session_by_refresh_token(token: str, db: AsyncSession) -> Session 
 async def update_session_token(
 	session: Session, new_token: str, db: AsyncSession
 ) -> Session:
-	id = session.session_id
+
 	db.add(session)
 	session.token = new_token
 	session.issued_at = datetime.datetime.now(datetime.timezone.utc)
@@ -79,5 +79,4 @@ async def update_session_token(
 	await db.commit()
 	await db.refresh(session)
 
-	print(id == session.session_id)
 	return session
