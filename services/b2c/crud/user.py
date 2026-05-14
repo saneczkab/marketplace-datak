@@ -20,6 +20,11 @@ async def get_user_by_email(email: str, db: AsyncSession) -> User | None:
 	return result.scalar_one_or_none()
 
 
+async def get_user_by_id(id: str, db: AsyncSession) -> User | None:
+	result: Result[Tuple[User]] = await db.execute(select(User).where(User.id == id))
+	return result.scalar_one_or_none()
+
+
 async def create_user(user: User, db: AsyncSession) -> User:
 	db.add(user)
 	await db.commit()

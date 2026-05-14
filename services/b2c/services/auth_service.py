@@ -4,9 +4,15 @@ import crud.session as session_crud
 import uuid
 import secrets
 
-from schemas.user import LoginRequest, LoginResponse, RegisterRequest, SessionData
+from schemas.user import (
+	LoginRequest,
+	LoginResponse,
+	RegisterRequest,
+	SessionData,
+	SessionInfo,
+)
 
-from database.models import User
+from database.models import User, Session
 
 from exceptions.user import (
 	UserAlreadyExistsError,
@@ -41,7 +47,7 @@ async def register(
 			"Password does not meet the required complexity."
 		)
 
-	password_hash = await security.get_password_hash(data.password)
+	password_hash = security.get_password_hash(data.password)
 
 	user: User = User(
 		username=data.username, email=data.email, password_hash=password_hash
@@ -63,16 +69,20 @@ async def password_difficulty(password: str) -> bool:
 
 
 async def generate_session(user_id: uuid.UUID, db: AsyncSession) -> SessionData:
-	token = await security.create_access_token(user_id)
+	token = security.create_access_token(user_id)
 
 	refresh_token = secrets.token_urlsafe(32)
 
-	
-	await session_crud.create_session(user_id, token, refresh_token, db)
+	session: Session = await session_crud.create_session(
+		user_id, token, refresh_token, db
+	)
 
 	return SessionData(
+		session_id=session.session_id,
+		user_id=session.user_id,
 		token=token,
 		refresh_token=refresh_token,
+		issued_at=session.issued_at,
 		expires_in=settings.SESSION_EXPIRE_SECONDS,
 		token_type="Bearer",  # noqa
 	)
@@ -103,14 +113,35 @@ async def login(data: LoginRequest, db: AsyncSession) -> LoginResponse:
 	if not user:
 		raise UserNotFoundError("User not found with the provided credentials.")
 
-	if not await security.verify_password(data.password, user.password_hash):
+	if not security.verify_password(data.password, user.password_hash):
 		raise UserInvalidPasswordError("Incorrect password provided.")
 
 	session: SessionData = await generate_session(user.id, db)
 
 	return LoginResponse(
-		access_token=session.access_token,
+		access_token=session.token,
 		refresh_token=session.refresh_token,
 		expires_in=session.expires_in,
 		token_type="Bearer",  # noqa
 	)
+
+
+async def get_session_info(token: str, db: AsyncSession) -> SessionInfo:
+	session: Session = await session_crud.get_session_by_token(token, db)
+
+	user: User = await user_crud.get_user_by_id(session.user_id, db)
+
+	result = SessionInfo(
+		user_id=str(user.id),
+		username=user.username,
+		email=user.email,
+		session_id=str(session.session_id),
+		issued_at=session.issued_at,
+		expires_at=session.expires_at,
+	)
+
+	return result
+
+
+async def logout(token: str, db: AsyncSession) -> None:
+	

@@ -26,6 +26,18 @@ class SessionData(BaseModel):
 
 
 class LoginRequest(BaseModel):
-	email: EmailStr
+	email: (
+		str | None
+	)  # EmailStr could be used but it causes ValidationError when no email is provided
+	# Solution is custom validation
 	username: str | None
 	password: str | None
+
+
+class SessionInfo(BaseModel):
+	user_id: uuid.UUID
+	username: str
+	email: EmailStr
+	session_id: str
+	issued_at: datetime.datetime
+	expires_at: datetime.datetime

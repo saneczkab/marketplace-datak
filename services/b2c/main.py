@@ -6,6 +6,7 @@ from api import category, product, breadcrumbs, cart, catalog, favorite, auth
 from core.config import settings
 from core.db import get_db
 from services import category_service
+from middlewares.token_verification import verify_token
 
 # Configure logging
 if settings.DEBUG:
@@ -43,6 +44,8 @@ app.add_middleware(
 	allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
 	allow_headers=["*"],  # Allow all headers
 )
+
+app.middleware("http")(verify_token)
 
 app.include_router(category.router)
 app.include_router(product.router)
