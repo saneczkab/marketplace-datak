@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 import datetime
 import uuid
+from typing import Annotated
 
 
 class LoginResponse(BaseModel):
@@ -11,7 +12,7 @@ class LoginResponse(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-	username: str
+	username: Annotated[str, Field(min_lenght=3,max_length=10)]
 	email: EmailStr
 	password: str
 
