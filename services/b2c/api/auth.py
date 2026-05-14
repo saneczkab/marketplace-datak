@@ -8,6 +8,7 @@ from exceptions.user import (
 	UserInvalidPasswordError,
 	UserLoginConflictError,
 	UserNotFoundError,
+	UserPasswordTooWeakError,
 )
 from services import auth_service
 from core import db
@@ -27,6 +28,10 @@ async def register(
 		return await auth_service.register(data, db)
 	except UserAlreadyExistsError as e:  # noqa
 		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
+	except UserPasswordTooWeakError as e:
+		raise fastapi.HTTPException(
+			status_code=400, detail="Password is too weak"
+		) from e
 	except ValueError as e:
 		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
 
