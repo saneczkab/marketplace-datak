@@ -59,7 +59,7 @@ async def register(
 
 	return LoginResponse(
 		access_token=session.token,
-		refresh_token="refresh_token",  # noqa
+		refresh_token=session.refresh_token,  # noqa
 		expires_in=settings.SESSION_EXPIRE_SECONDS,
 		token_type="bearer",  # noqa
 	)
