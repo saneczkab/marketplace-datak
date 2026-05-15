@@ -3,11 +3,11 @@ from database.models.catalog.base import Product, Category
 from database.models.catalog.inventory import Invoice, InvoiceItem
 
 __all__ = [
-    "Sku",
-    "Characteristic",
-    "Image",
-    "Product",
-    "Category",
-    "Invoice",
-    "InvoiceItem",
+	"Sku",
+	"Characteristic",
+	"Image",
+	"Product",
+	"Category",
+	"Invoice",
+	"InvoiceItem",
 ]

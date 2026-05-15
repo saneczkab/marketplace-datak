@@ -25,5 +25,3 @@ format:
 check:
 	uv run ruff check .
 
-seed:
-	docker-compose exec b2b-backend uv run python ./scripts/seed.py
