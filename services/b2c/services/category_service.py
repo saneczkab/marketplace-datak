@@ -16,6 +16,7 @@ from schemas.category import (
 	FacetValue,
 	FilterResponse,
 	ResolveViaEnum,
+	Filter,
 )
 from exceptions.category import CategoryHierarchyError, CategoryNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -193,7 +194,7 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 	filters = await category_crud.get_category_filters(db, id)
 
 	filters_schemas = [
-		FilterResponse(
+		Filter(
 			id=filter.id,
 			name=filter.name,
 			type=filter.type,
