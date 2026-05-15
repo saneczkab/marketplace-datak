@@ -31,7 +31,7 @@ async def create_session(
 	return session
 
 
-async def get_session_by_token(token: str, db: AsyncSession) -> Session:
+async def get_session_by_token(token: str, db: AsyncSession) -> Session | None:
 	result: Result[Tuple[Session]] = await db.execute(
 		select(Session).where(Session.token == token)
 	)
