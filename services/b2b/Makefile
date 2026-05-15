@@ -5,11 +5,11 @@ down:
 	docker-compose down
 
 build:
-	docker-compose build --no-cache
+	docker-compose build 
 
 rebuild:
 	docker-compose down
-	docker-compose build --no-cache
+	docker-compose build 
 	docker-compose up -d
 
 migrate:
