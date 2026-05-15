@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 
-from tests.integration.conftest import (
+from tests.integration.catalog.conftest import (
 	CategoriesTreeData,
 	CategoryWithProductsData,
 	VisibilityProductsData,

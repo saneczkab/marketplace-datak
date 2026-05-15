@@ -2,7 +2,17 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import category, product, breadcrumbs, cart, catalog, favorite, auth
+from api import (
+	category,
+	product,
+	breadcrumbs,
+	cart,
+	catalog,
+	favorite,
+	collections,
+	subscriptions,
+	auth,
+)
 from core.config import settings
 from core.db import get_db
 from services import category_service
@@ -55,3 +65,6 @@ app.include_router(cart.validate_router)
 app.include_router(favorite.router)
 app.include_router(catalog.router)
 app.include_router(auth.router)
+app.include_router(collections.router_main)
+app.include_router(collections.router_collections)
+app.include_router(subscriptions.router)
