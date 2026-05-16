@@ -10,6 +10,8 @@ from database.models import Sku
 from database.models.catalog.base import Category, Product
 from exceptions.product import ProductNotFoundError
 from schemas.sku import Sku as SkuSchema
+from database.models.catalog.base import ProductStatusEnum
+from sqlalchemy import func as sql_func
 
 
 async def get_category_descendants(
@@ -71,9 +73,6 @@ async def get_products_list(
 	sort: str,
 	search: Optional[str],
 ) -> Tuple[List[Product], int]:
-	from database.models.catalog.base import ProductStatusEnum
-	from sqlalchemy import func as sql_func
-
 	query = select(Product).options(selectinload(Product.images))
 	count_query = select(func.count(func.distinct(Product.id)))
 
@@ -112,26 +111,32 @@ async def get_products_list(
 			or_(Product.title.ilike(term), Product.description.ilike(term))
 		)
 
-	if sort in ("price_asc", "price_desc"):
-		min_price_subquery = (
-			select(Sku.product_id, sql_func.min(Sku.price).label("min_price"))
-			.group_by(Sku.product_id)
-			.subquery()
-		)
-
-		query = query.outerjoin(
-			min_price_subquery, Product.id == min_price_subquery.c.product_id
-		)
-		sort_column = (
-			min_price_subquery.c.min_price.asc()
-			if sort == "price_asc"
-			else min_price_subquery.c.min_price.desc()
-		)
-		query = query.order_by(sort_column)
-	elif sort == "date_desc":
-		query = query.order_by(Product.created_at.desc())
-	else:
-		query = query.order_by(Product.created_at.desc())
+	match sort:
+		case "price_asc" | "price_desc":
+			min_price_subquery = (
+				select(Sku.product_id, sql_func.min(Sku.price).label("min_price"))
+				.group_by(Sku.product_id)
+				.subquery()
+			)
+			query = query.outerjoin(
+				min_price_subquery, Product.id == min_price_subquery.c.product_id
+			)
+			sort_column = (
+				min_price_subquery.c.min_price.asc()
+				if sort == "price_asc"
+				else min_price_subquery.c.min_price.desc()
+			)
+			query = query.order_by(sort_column)
+		case "date_desc":
+			query = query.order_by(Product.created_at.desc())
+		case "rating":
+			query = query.order_by(Product.rating.desc())
+		case "popularity":
+			query = query.order_by(Product.popularity.desc())
+		case "discount_desc":
+			query = query.order_by(Product.discount.desc())
+		case _:
+			query = query.order_by(Product.created_at.desc())
 
 	query = query.offset(offset).limit(limit)
 
@@ -195,28 +200,76 @@ async def count_products_by_filter(
 	category_id: uuid.UUID,
 	filter_id: uuid.UUID,
 	filter_value: str,
+	applied_filters: dict | None = None,
 ) -> int:
 	"""
-	Подсчитывает количество видимых товаров в категории с определенным значением фильтра.
+	Подсчитывает количество видимых товаров в категории с определённым значением фильтра.
+
+	applied_filters — словарь текущих применённых фильтров (ключи — id или slug фильтра, значения — строка или список значений).
+	При подсчёте для конкретного фильтра мы учитываем все остальные applied_filters (AND), но НЕ учитываем сам текущий фильтр.
 	"""
 	from database.models.catalog.base import (
 		ProductStatusEnum,
 		ProductFilterValue,
 		FilterValues,
+		CategoryFilters,
 	)
 
 	category_ids = await get_category_descendants(db, category_id)
 
 	filter_value_result = await db.execute(
 		select(FilterValues.id).where(
-			FilterValues.filter_id == filter_id,
-			FilterValues.value == filter_value,
+			FilterValues.filter_id == filter_id, FilterValues.value == filter_value
 		)
 	)
 	filter_value_id = filter_value_result.scalar()
 
 	if not filter_value_id:
 		return 0
+
+	extra_conditions = []
+	if applied_filters:
+		for key, val in applied_filters.items():
+			if val is None or (isinstance(val, (list, str)) and val == ""):
+				continue
+
+			try:
+				other_filter_id = uuid.UUID(key)
+			except Exception:
+				other = await db.execute(
+					select(CategoryFilters.id).where(
+						CategoryFilters.slug == str(key),
+						CategoryFilters.category_id == category_id,
+					)
+				)
+				other_filter_id = other.scalar()
+
+			if not other_filter_id:
+				continue
+
+			if str(other_filter_id) == str(filter_id):
+				continue
+
+			values = val if isinstance(val, list) else [val]
+
+			res = await db.execute(
+				select(FilterValues.id).where(
+					FilterValues.filter_id == other_filter_id,
+					FilterValues.value.in_(values),
+				)
+			)
+			fv_ids = res.scalars().all()
+
+			if not fv_ids:
+				return 0
+
+			extra_conditions.append(
+				Product.id.in_(
+					select(ProductFilterValue.product_id).where(
+						ProductFilterValue.filter_value_id.in_(fv_ids)
+					)
+				)
+			)
 
 	result = await db.execute(
 		select(func.count(func.distinct(Product.id))).where(
@@ -229,6 +282,7 @@ async def count_products_by_filter(
 					ProductFilterValue.filter_value_id == filter_value_id
 				)
 			),
+			*extra_conditions,
 		)
 	)
 	return result.scalar() or 0

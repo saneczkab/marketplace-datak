@@ -50,6 +50,7 @@ async def get_category_info(
 	if not category:
 		raise CategoryNotFoundError(f"Category with id {id} not found")
 
+	parent_info = None
 	if category.parent_id:
 		parent_category = await category_crud.get_category_by_id(db, category.parent_id)
 		parent_info = CategoryParent(

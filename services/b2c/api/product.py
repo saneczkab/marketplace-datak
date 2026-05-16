@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import Annotated, Optional
 
@@ -68,13 +69,23 @@ async def get_product_list_api(
 	sort: str = "rating",
 	search: str = "",
 ) -> ProductShortListResponse:
+	filters_param = None
+	if filters:
+		try:
+			filters_obj = json.loads(filters)
+			filters_param = json.dumps(filters_obj, ensure_ascii=False)
+		except json.JSONDecodeError as e:
+			raise fastapi.HTTPException(
+				status_code=400, detail="Invalid JSON in filters parameter"
+			) from e
+
 	try:
 		return await product_service.get_products_list(
 			db,
 			limit,
 			offset,
 			str(category_id) if category_id else None,
-			filters,
+			filters_param,
 			sort,
 			search,
 		)

@@ -41,6 +41,9 @@ class Product(Base):
 		default=ProductStatusEnum.CREATED, server_default="CREATED"
 	)
 	deleted: Mapped[bool] = mapped_column(default=False, server_default="false")
+	rating: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
+	popularity: Mapped[int] = mapped_column(default=0, server_default="0")
+	discount: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
