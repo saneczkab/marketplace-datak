@@ -2,11 +2,13 @@ from typing import Callable
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from core.security import decode_access_token
-from core.db import get_db
 from jose import JWTError
+from core import db as core_db
 import crud.session as session_crud
 
-PRIVATE_PATHS = ["Yet to be filled"]
+PRIVATE_PATHS = [
+	"/api/v1/auth/logout",
+]
 
 
 async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
@@ -31,7 +33,8 @@ async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
 		)
 	except ValueError as e:
 		return JSONResponse(status_code=401, content={"detail": str(e)})
-	async for db in get_db():
+	get_db_dep = request.app.dependency_overrides.get(core_db.get_db, core_db.get_db)
+	async for db in get_db_dep():
 		try:
 			is_active = await session_crud.check_active_session(token, db)
 			if not is_active:
