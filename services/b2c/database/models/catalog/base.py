@@ -40,6 +40,10 @@ class Product(Base):
 	status: Mapped[ProductStatusEnum] = mapped_column(
 		default=ProductStatusEnum.CREATED, server_default="CREATED"
 	)
+	deleted: Mapped[bool] = mapped_column(default=False, server_default="false")
+	rating: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
+	popularity: Mapped[int] = mapped_column(default=0, server_default="0")
+	discount: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
@@ -108,3 +112,24 @@ class FilterValues(Base):
 		ForeignKey("catalog.category_filters.id", ondelete="CASCADE")
 	)
 	value: Mapped[str] = mapped_column(String(255))
+
+
+class ProductFilterValue(Base):
+	__tablename__ = "product_filter_values"
+	__table_args__ = (
+		Index("idx_product_filter_value", "product_id", "filter_value_id"),
+		{"schema": "catalog"},
+	)
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	product_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("catalog.products.id", ondelete="CASCADE")
+	)
+	filter_value_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("catalog.filter_values.id", ondelete="CASCADE")
+	)
+	created_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now()
+	)

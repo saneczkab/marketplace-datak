@@ -8,8 +8,10 @@ from sqlalchemy.orm import selectinload
 
 from database.models import Sku
 from database.models.catalog.base import Category, Product
-from schemas.sku import Sku as SkuSchema
 from exceptions.product import ProductNotFoundError
+from schemas.sku import Sku as SkuSchema
+from database.models.catalog.base import ProductStatusEnum
+from sqlalchemy import func as sql_func
 
 
 async def get_category_descendants(
@@ -71,8 +73,6 @@ async def get_products_list(
 	sort: str,
 	search: Optional[str],
 ) -> Tuple[List[Product], int]:
-	from database.models.catalog.base import ProductStatusEnum
-
 	query = select(Product).options(selectinload(Product.images))
 	count_query = select(func.count(func.distinct(Product.id)))
 
@@ -80,11 +80,13 @@ async def get_products_list(
 	# Используем exists() чтобы избежать дубликатов продуктов
 	query = query.where(
 		Product.status == ProductStatusEnum.MODERATED,
+		Product.deleted == False,  # noqa
 		Product.id.in_(select(Sku.product_id).where(Sku.active_quantity > 0)),
 	)
 
 	count_query = count_query.where(
 		Product.status == ProductStatusEnum.MODERATED,
+		Product.deleted == False,  # noqa
 		Product.id.in_(select(Sku.product_id).where(Sku.active_quantity > 0)),
 	)
 
@@ -109,15 +111,32 @@ async def get_products_list(
 			or_(Product.title.ilike(term), Product.description.ilike(term))
 		)
 
-	sort_map = {
-		"rating": Product.created_at.desc(),  # TODO: добавить поле rating когда будет # noqa
-		"popularity": Product.created_at.desc(),  # TODO: добавить поле popularity когда будет # noqa
-		"price_asc": Product.created_at.desc(),  # TODO: сортировка по цене SKU # noqa
-		"price_desc": Product.created_at.desc(),  # TODO: сортировка по цене SKU # noqa
-		"date_desc": Product.created_at.desc(),
-		"discount_desc": Product.created_at.desc(),  # TODO: добавить поле discount когда будет # noqa
-	}
-	query = query.order_by(sort_map.get(sort, Product.created_at.desc()))
+	match sort:
+		case "price_asc" | "price_desc":
+			min_price_subquery = (
+				select(Sku.product_id, sql_func.min(Sku.price).label("min_price"))
+				.group_by(Sku.product_id)
+				.subquery()
+			)
+			query = query.outerjoin(
+				min_price_subquery, Product.id == min_price_subquery.c.product_id
+			)
+			sort_column = (
+				min_price_subquery.c.min_price.asc()
+				if sort == "price_asc"
+				else min_price_subquery.c.min_price.desc()
+			)
+			query = query.order_by(sort_column)
+		case "date_desc":
+			query = query.order_by(Product.created_at.desc())
+		case "rating":
+			query = query.order_by(Product.rating.desc())
+		case "popularity":
+			query = query.order_by(Product.popularity.desc())
+		case "discount_desc":
+			query = query.order_by(Product.discount.desc())
+		case _:
+			query = query.order_by(Product.created_at.desc())
 
 	query = query.offset(offset).limit(limit)
 
@@ -179,15 +198,91 @@ async def get_product_category_id(db: AsyncSession, product_id: uuid.UUID) -> uu
 async def count_products_by_filter(
 	db: AsyncSession,
 	category_id: uuid.UUID,
-	filter_id: uuid.UUID,  # noqa
-	filter_value: str,  # noqa
+	filter_id: uuid.UUID,
+	filter_value: str,
+	applied_filters: dict | None = None,
 ) -> int:
 	"""
-	Подсчитывает количество видимых товаров в категории с определенным значением фильтра.
+	Подсчитывает количество видимых товаров в категории с определённым значением фильтра.
+
+	applied_filters — словарь текущих применённых фильтров (ключи — id или slug фильтра, значения — строка или список значений).
+	При подсчёте для конкретного фильтра мы учитываем все остальные applied_filters (AND), но НЕ учитываем сам текущий фильтр.
 	"""
+	from database.models.catalog.base import (
+		ProductStatusEnum,
+		ProductFilterValue,
+		FilterValues,
+		CategoryFilters,
+	)
 
-	category_ids = await get_category_descendants(db, category_id)  # noqa
+	category_ids = await get_category_descendants(db, category_id)
 
-	# TODO: Реализовать подсчет по фильтрам когда будет связь Product <-> FilterValues # noqa
-	# Пока возвращаем 0, так как связи между товарами и значениями фильтров нет в текущей схеме
-	return 0
+	filter_value_result = await db.execute(
+		select(FilterValues.id).where(
+			FilterValues.filter_id == filter_id, FilterValues.value == filter_value
+		)
+	)
+	filter_value_id = filter_value_result.scalar()
+
+	if not filter_value_id:
+		return 0
+
+	extra_conditions = []
+	if applied_filters:
+		for key, val in applied_filters.items():
+			if val is None or (isinstance(val, (list, str)) and val == ""):
+				continue
+
+			try:
+				other_filter_id = uuid.UUID(key)
+			except Exception:
+				other = await db.execute(
+					select(CategoryFilters.id).where(
+						CategoryFilters.slug == str(key),
+						CategoryFilters.category_id == category_id,
+					)
+				)
+				other_filter_id = other.scalar()
+
+			if not other_filter_id:
+				continue
+
+			if str(other_filter_id) == str(filter_id):
+				continue
+
+			values = val if isinstance(val, list) else [val]
+
+			res = await db.execute(
+				select(FilterValues.id).where(
+					FilterValues.filter_id == other_filter_id,
+					FilterValues.value.in_(values),
+				)
+			)
+			fv_ids = res.scalars().all()
+
+			if not fv_ids:
+				return 0
+
+			extra_conditions.append(
+				Product.id.in_(
+					select(ProductFilterValue.product_id).where(
+						ProductFilterValue.filter_value_id.in_(fv_ids)
+					)
+				)
+			)
+
+	result = await db.execute(
+		select(func.count(func.distinct(Product.id))).where(
+			Product.status == ProductStatusEnum.MODERATED,
+			Product.deleted == False,  # noqa
+			Product.category_id.in_(category_ids),
+			Product.id.in_(select(Sku.product_id).where(Sku.active_quantity > 0)),
+			Product.id.in_(
+				select(ProductFilterValue.product_id).where(
+					ProductFilterValue.filter_value_id == filter_value_id
+				)
+			),
+			*extra_conditions,
+		)
+	)
+	return result.scalar() or 0

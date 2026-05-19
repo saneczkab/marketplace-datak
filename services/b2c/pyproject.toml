@@ -13,9 +13,11 @@ dependencies = [
     "python-dotenv",
     "psycopg2-binary",
     "asyncpg",
-    "pydantic>=2.12.5",
+    "pydantic[email]>=2.12.5",
     "openpyxl>=3.1.5",
     "deep-translator>=1.11.4",
+    "passlib>=1.7.4",
+    "python-jose>=3.5.0",
 ]
 
 [tool.ruff]

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 
 from enum import Enum
@@ -32,14 +34,11 @@ class CategoryInfoResponse(BaseModel):
 	parent: CategoryParent | None
 	product_count: int | None
 	seo: Seo | None
-	meta: CategoryMeta | None
+	meta_tags: CategoryMeta | None
 	image_url: str | None
 	is_active: bool
 	created_at: str
 	updated_at: str
-
-
-# Tree response models
 
 
 class CategoryTreeResponse(BaseModel):
@@ -54,16 +53,16 @@ class CategoryNode(BaseModel):
 
 
 class FilterTypesEnum(str, Enum):
-	LIST = "LIST"
-	RANGE = "RANGE"
-	SWITCH = "SWITCH"
+	list = "list"
+	range = "range"
+	switch = "switch"
 
 
 class Filter(BaseModel):
-	id: uuid.UUID
+	slug: str
 	name: str
 	type: FilterTypesEnum
-	value: list[str] | None
+	value: str | float
 	min: float | None
 	max: float | None
 
