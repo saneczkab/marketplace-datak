@@ -1,8 +1,11 @@
+import uuid
 from dataclasses import dataclass
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+import crud.session as session_crud
+from core.security import create_access_token
 from database.models import Category, Product, ProductStatusEnum, Sku
 from database.models.cart.item import CartItem
 from database.models.identity.user import User
@@ -21,6 +24,13 @@ from tests.factories.cart import (
 	FavoriteFactory,
 	SubscriptionFactory,
 )
+
+
+async def auth_headers(user_id: uuid.UUID, db: AsyncSession) -> dict[str, str]:
+	token = create_access_token(user_id)
+	if not await session_crud.check_active_session(token, db):
+		await session_crud.create_session(user_id, token, str(uuid.uuid4()), db)
+	return {"Authorization": f"Bearer {token}"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +75,9 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 	sku_blocked = SkuFactory.build(product_id=product_blocked.id)
 	subscription = SubscriptionFactory.build(user_id=user.id, product_id=product.id)
 	favorite = FavoriteFactory.build(user_id=user.id, product_id=product.id)
+	favorite_blocked = FavoriteFactory.build(
+		user_id=user.id, product_id=product_blocked.id
+	)
 	db_session.add_all(
 		[
 			user,
@@ -75,6 +88,7 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 			sku_blocked,
 			subscription,
 			favorite,
+			favorite_blocked,
 		]
 	)
 	await db_session.commit()
@@ -83,7 +97,7 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 		categories=[category, category],
 		products=[product, product_blocked],
 		skus=[sku, sku_blocked],
-		favorites=[favorite, None],
+		favorites=[favorite, favorite_blocked],
 		subscriptions=[subscription, None],
 	)
 
@@ -92,7 +106,7 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 class SubscriptionsData:
 	user: User
 	product: Product
-	subscription: Subscription
+	subscription: Subscription | None
 
 
 @pytest.fixture()
@@ -100,13 +114,12 @@ async def empty_subscriptions_data(db_session: AsyncSession) -> SubscriptionsDat
 	user = UserFactory.build()
 	category = CategoryFactory.build()
 	product = ProductFactory.build(category_id=category.id)
-	subscription = SubscriptionFactory.build(user_id=user.id, product_id=product.id)
-	db_session.add_all([user, category, product, subscription])
+	db_session.add_all([user, category, product])
 	await db_session.commit()
 	return SubscriptionsData(
 		user=user,
 		product=product,
-		subscription=subscription,
+		subscription=None,
 	)
 
 

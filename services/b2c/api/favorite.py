@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 import fastapi
 from fastapi.responses import JSONResponse
@@ -10,8 +10,15 @@ from exceptions.favorite import InvalidParameterError
 from exceptions.product import ProductNotFoundError
 from schemas.favorite import FavoriteMutationResponse, FavoritesResponse
 from services import favorite_service
+from fastapi.security import HTTPBearer
 
-router = fastapi.APIRouter(prefix="/api/v1/favorites", tags=["Избранное"])
+security = HTTPBearer()
+
+router = fastapi.APIRouter(
+	prefix="/api/v1/favorites",
+	tags=["Избранное"],
+	dependencies=[fastapi.Depends(security)],
+)
 
 
 @router.get(
@@ -20,13 +27,12 @@ router = fastapi.APIRouter(prefix="/api/v1/favorites", tags=["Избранное
 	responses={200: {}, 400: {}, 401: {}, 503: {}},
 )
 async def get_favorites(
+	request: fastapi.Request,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	user_id: Annotated[uuid.UUID, fastapi.Query()],
 	limit: Annotated[int, fastapi.Query(ge=1, le=100)] = 20,
 	offset: Annotated[int, fastapi.Query(ge=0)] = 0,
-	authorization: Annotated[Optional[str], fastapi.Header()] = None,
 ) -> FavoritesResponse:
-	_ = authorization
+	user_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
 		return await favorite_service.get_favorites_list(db, user_id, limit, offset)
 	except InvalidParameterError as err:
@@ -48,12 +54,11 @@ async def get_favorites(
 	},
 )
 async def add_to_favorites(
+	request: fastapi.Request,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	product_id: Annotated[uuid.UUID, fastapi.Path()],
-	user_id: Annotated[uuid.UUID, fastapi.Query()],
-	authorization: Annotated[Optional[str], fastapi.Header()] = None,
 ) -> JSONResponse:
-	_ = authorization
+	user_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
 		result = await favorite_service.add_to_favorites(db, user_id, product_id)
 
@@ -88,12 +93,11 @@ async def add_to_favorites(
 	responses={204: {}, 400: {}, 401: {}, 404: {}, 503: {}},
 )
 async def remove_from_favorites(
+	request: fastapi.Request,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	product_id: Annotated[uuid.UUID, fastapi.Path()],
-	user_id: Annotated[uuid.UUID, fastapi.Query()],
-	authorization: Annotated[Optional[str], fastapi.Header()] = None,
 ) -> None:
-	_ = authorization
+	user_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
 		await favorite_service.remove_from_favorites(db, user_id, product_id)
 	except ProductNotFoundError as err:

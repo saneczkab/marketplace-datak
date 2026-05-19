@@ -4,7 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.subscription as sub_crud
 from schemas.subscription import SubscribeRequest, SubscriptionResponse
 from schemas.collection import ProductSchema, Category, Characteristic, SKU
-from exceptions.subscription import SubscriptionNotFoundError, SubscriptionAlreadyExistsError, InvalidSubscriptionTypeError
+from exceptions.subscription import (
+	SubscriptionNotFoundError,
+	SubscriptionAlreadyExistsError,
+	InvalidSubscriptionTypeError,
+)
 from exceptions.product import ProductNotFoundError
 
 
@@ -46,8 +50,7 @@ async def subscribe_to_product(
 
 	if product_db.category:
 		category_schema = Category(
-			id=product_db.category.id,
-			name=product_db.category.name
+			id=product_db.category.id, name=product_db.category.name
 		)
 	else:
 		category_schema = Category(id=uuid.uuid4(), name="Без категории")

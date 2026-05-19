@@ -91,8 +91,10 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		subscriptions,
 		collections,
 	)
+	from middlewares.token_verification import verify_token
 
 	test_app = FastAPI(debug=False)
+	test_app.middleware("http")(verify_token)
 	test_app.add_middleware(
 		CORSMiddleware,
 		allow_origins=["http://localhost:5173", "http://localhost:3000"],
