@@ -1,7 +1,6 @@
 import json
 import uuid
 from typing import Optional, List
-from fastapi import HTTPException, status
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,10 +10,10 @@ from database.models import Sku
 from exceptions.category import CategoryNotFoundError
 from exceptions.product import ProductNotFoundError
 from schemas.product import (
-    ProductShort,
-    Product,
-    ProductShortListResponse,
-    SimilarProductsResponse,
+	ProductShort,
+	Product,
+	ProductShortListResponse,
+	SimilarProductsResponse,
 )
 from schemas.sku import SkuShort
 from schemas.sku import Sku as SkuSchema
@@ -22,127 +21,139 @@ from schemas.image import Image
 
 
 async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]:
-    """
-    Gets a SKU by its ID
-    :param db: database session
-    :param product_id: SKU ID
-    :return: SKU or None if not found
-    :raises ProductNotFoundError: if product not found
-    """
-    skus = await product_crud.get_product_skus(db, product_id)
+	"""
+	Gets a SKU by its ID
+	:param db: database session
+	:param product_id: SKU ID
+	:return: SKU or None if not found
+	:raises ProductNotFoundError: if product not found
+	"""
+	skus = await product_crud.get_product_skus(db, product_id)
 
-    if not skus:
-        raise ProductNotFoundError
+	if not skus:
+		raise ProductNotFoundError
 
-    return skus
+	return skus
 
 
-async def get_product_skus_short(db: AsyncSession, product_id: uuid.UUID) -> list[SkuShort]:
-    """
-    Gets SKUs in short format by product ID
-    :param db: database session
-    :param product_id: Product ID
-    :return: List of SKUs in short format
-    :raises ProductNotFoundError: if product not found
-    """
-    skus = await product_crud.get_product_skus(db, product_id)
+async def get_product_skus_short(
+	db: AsyncSession, product_id: uuid.UUID
+) -> list[SkuShort]:
+	"""
+	Gets SKUs in short format by product ID
+	:param db: database session
+	:param product_id: Product ID
+	:return: List of SKUs in short format
+	:raises ProductNotFoundError: if product not found
+	"""
+	skus = await product_crud.get_product_skus(db, product_id)
 
-    if not skus:
-        raise ProductNotFoundError
+	if not skus:
+		raise ProductNotFoundError
 
-    return [
-        SkuShort(
-            name=sku.name,
-            price=sku.price,
-            image=sku.images[0] if sku.images else Image(url="", order=0),
-        )
-        for sku in skus
-    ]
+	return [
+		SkuShort(
+			name=sku.name,
+			price=sku.price,
+			image=sku.images[0] if sku.images else Image(url="", order=0),
+		)
+		for sku in skus
+	]
 
 
 async def get_products_list(
-    db: AsyncSession,
-    limit: int,
-    offset: int,
-    category_id: Optional[str],
-    filters_json: Optional[str],
-    sort: str,
-    search: Optional[str],
+	db: AsyncSession,
+	limit: int,
+	offset: int,
+	category_id: Optional[str],
+	filters_json: Optional[str],
+	sort: str,
+	search: Optional[str],
 ) -> ProductShortListResponse:
-    # Валидация sort согласно спецификации
-    valid_sorts = [
-        "rating",
-        "popularity",
-        "price_asc",
-        "price_desc",
-        "date_desc",
-        "discount_desc",
-    ]
-    if sort not in valid_sorts:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}")
+	# Валидация sort согласно спецификации
+	valid_sorts = [
+		"rating",
+		"popularity",
+		"price_asc",
+		"price_desc",
+		"date_desc",
+		"discount_desc",
+	]
+	if sort not in valid_sorts:
+		raise ValueError(f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}")
 
-    if search:
-        search_stripped = search.strip()
+	if search:
+		search_stripped = search.strip()
 
-        if len(search_stripped) > 0 and len(search_stripped) < 3:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Search query must be at least 3 characters")
+		if len(search_stripped) > 0 and len(search_stripped) < 3:
+			raise ValueError("Search query must be at least 3 characters")
 
-        if len(search_stripped) > 255:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Search query must be at most 255 characters")
+		if len(search_stripped) > 255:
+			raise ValueError("Search query must be at most 255 characters")
 
-    cat_uuid = uuid.UUID(category_id) if category_id else None
-    filters = json.loads(filters_json) if filters_json else {}
+	cat_uuid = uuid.UUID(category_id) if category_id else None
+	filters = json.loads(filters_json) if filters_json else {}
 
-    products, total_count = await product_crud.get_products_list(db, limit, offset, cat_uuid, filters, sort, search)
+	products, total_count = await product_crud.get_products_list(
+		db, limit, offset, cat_uuid, filters, sort, search
+	)
 
-    items = []
-    for p in products:
-        main_image_url = p.images[0].url if p.images else ""
+	items = []
+	for p in products:
+		main_image_url = p.images[0].url if p.images else ""
 
-        # SKU is used to determine price
-        skus: List[SkuSchema] = await product_crud.get_product_skus(db, p.id)
-        price = min((sku.price for sku in skus), default=0.0) if skus else 0.0
+		# SKU is used to determine price
+		skus: List[SkuSchema] = await product_crud.get_product_skus(db, p.id)
+		price = min((sku.price for sku in skus), default=0.0) if skus else 0.0
 
-        items.append(
-            ProductShort(
-                id=p.id,
-                title=p.title,
-                image=main_image_url,
-                price=float(price),
-                in_stock=False,
-                is_in_cart=False,
-            )
-        )
+		items.append(
+			ProductShort(
+				id=p.id,
+				title=p.title,
+				image=main_image_url,
+				price=float(price),
+				in_stock=False,
+				is_in_cart=False,
+			)
+		)
 
-    return ProductShortListResponse(items=items, total_count=total_count, limit=limit, offset=offset)
+	return ProductShortListResponse(
+		items=items, total_count=total_count, limit=limit, offset=offset
+	)
 
 
 async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:
-    product = await product_crud.get_product_full(db, id)
-    if not product:
-        raise ProductNotFoundError("Product not found")
-    return Product.model_validate(product)
+	product = await product_crud.get_product_full(db, id)
+	if not product:
+		raise ProductNotFoundError("Product not found")
+	return Product.model_validate(product)
 
 
-async def get_similar_products(db: AsyncSession, id: uuid.UUID, category_id: uuid.UUID, limit: int, offset: int) -> SimilarProductsResponse:
-    if not await product_crud.get_product_full(db, id):
-        raise ProductNotFoundError("Product not found")
+async def get_similar_products(
+	db: AsyncSession, id: uuid.UUID, category_id: uuid.UUID, limit: int, offset: int
+) -> SimilarProductsResponse:
+	if not await product_crud.get_product_full(db, id):
+		raise ProductNotFoundError("Product not found")
 
-    if not await category_crud.get_category_by_id(db, category_id):
-        raise CategoryNotFoundError("Unknown category")
+	if not await category_crud.get_category_by_id(db, category_id):
+		raise CategoryNotFoundError("Unknown category")
 
-    products, total_count = await product_crud.get_similar_products(db, category_id, id, limit, offset)
+	products, total_count = await product_crud.get_similar_products(
+		db, category_id, id, limit, offset
+	)
 
-    items = [
-        ProductShort(
-            id=p.id,
-            title=p.title,
-            image="",
-            price=float(0.0),
-            in_stock=False,
-            is_in_cart=False,
-        )
-        for p in products
-    ]
+	items = [
+		ProductShort(
+			id=p.id,
+			title=p.title,
+			image="",
+			price=float(0.0),
+			in_stock=False,
+			is_in_cart=False,
+		)
+		for p in products
+	]
 
-    return SimilarProductsResponse(items=items, total_count=total_count, limit=limit, offset=offset)
+	return SimilarProductsResponse(
+		items=items, total_count=total_count, limit=limit, offset=offset
+	)

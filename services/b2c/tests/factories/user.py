@@ -5,8 +5,8 @@ from datetime import datetime
 
 
 class UserFactory(factory.Factory):
-    class Meta:
-        model = User
+	class Meta:
+		model = User
 
-    id = factory.LazyFunction(uuid.uuid4)
-    created_at = factory.LazyFunction(datetime.now)
+	id = factory.LazyFunction(uuid.uuid4)
+	created_at = factory.LazyFunction(datetime.now)
