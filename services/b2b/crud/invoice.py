@@ -45,7 +45,9 @@ async def get_invoice_by_id(db: AsyncSession, invoice_id: UUID) -> Invoice | Non
 	return result.unique().scalar_one_or_none()
 
 
-async def get_all_invoices(db: AsyncSession, skip: int = 0, limit: int = 100):
+async def get_all_invoices(
+	db: AsyncSession, skip: int = 0, limit: int = 100
+) -> tuple[int, list[Invoice]]:
 	"""Gets a list of all invoices with pagination."""
 	total_result = await db.execute(select(func.count(Invoice.id)))
 	total = total_result.scalar_one()
@@ -59,7 +61,7 @@ async def get_all_invoices(db: AsyncSession, skip: int = 0, limit: int = 100):
 
 async def update_invoice_status(
 	db: AsyncSession, invoice_id: UUID, status: str
-) -> Invoice:
+) -> Invoice | None:
 	"""Updates the status of the invoice and sets the acceptance date."""
 	result = await db.execute(select(Invoice).filter(Invoice.id == invoice_id))
 	db_invoice = result.scalar_one_or_none()
