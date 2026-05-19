@@ -51,6 +51,7 @@ async def get_product_for_subscription(
 		.options(
 			selectinload(Product.images),
 			selectinload(Product.characteristics),
+			selectinload(Product.category),
 			selectinload(Product.skus).selectinload(Sku.characteristics),
 		)
 	)
