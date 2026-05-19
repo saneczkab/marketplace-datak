@@ -43,16 +43,10 @@ async def login(
 ) -> LoginResponse:
 	try:
 		return await auth_service.login(data, db)
-	except ValidationError as e:  # noqa
-		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
+	except (ValidationError, UserNotFoundError, UserInvalidPasswordError) as e:  # noqa
+		raise fastapi.HTTPException(status_code=400, detail="Invalid login data") from e
 	except UserLoginConflictError as e:
 		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
-	except UserNotFoundError as e:
-		raise fastapi.HTTPException(status_code=400, detail="Invalid login data") from e
-	except UserInvalidPasswordError as e:
-		raise fastapi.HTTPException(
-			status_code=400, detail="Password is too weak"
-		) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=f"{e}") from e
 

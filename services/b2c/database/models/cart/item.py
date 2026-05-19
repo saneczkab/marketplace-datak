@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
 	String,
@@ -17,8 +16,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.core import Base
 
-if TYPE_CHECKING:
-	from database.models.identity.user import User
+
+from database.models import User
 
 
 class CartItem(Base):
