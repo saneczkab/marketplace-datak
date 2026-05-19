@@ -64,13 +64,16 @@ async def product_no_skus(
 	await db_session.commit()
 	return CategoryWithProductsData(categories, products, skus)
 
+
 @pytest.fixture()
 async def hard_blocked_product(
 	db_session: AsyncSession,
 ) -> CategoryWithProductsData:
-    category = CategoryFactory.build()
-    product = ProductFactory.build(category_id=category.id, status=ProductStatusEnum.BLOCKED)
-    sku = SkuFactory.build(product_id=product.id)
-    db_session.add_all([category, product, sku])
-    await db_session.commit()
-    return CategoryWithProductsData([category], [product], [sku])
+	category = CategoryFactory.build()
+	product = ProductFactory.build(
+		category_id=category.id, status=ProductStatusEnum.BLOCKED
+	)
+	sku = SkuFactory.build(product_id=product.id)
+	db_session.add_all([category, product, sku])
+	await db_session.commit()
+	return CategoryWithProductsData([category], [product], [sku])
