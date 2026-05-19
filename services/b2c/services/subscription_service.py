@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.subscription as sub_crud
 from schemas.subscription import SubscribeRequest, SubscriptionResponse
 from schemas.collection import ProductSchema, Category, Characteristic, SKU
+from exceptions.subscription import SubscriptionNotFoundError, SubscriptionAlreadyExistsError, InvalidSubscriptionTypeError
+from exceptions.product import ProductNotFoundError
 
 
 async def subscribe_to_product(
@@ -12,26 +14,22 @@ async def subscribe_to_product(
 	product_id: uuid.UUID,
 	request: SubscribeRequest,
 ) -> SubscriptionResponse:
-	# 1. Валидация типов уведомлений
 	valid_types = {"IN_STOCK", "PRICE_DOWN"}
 	invalid_types = set(request.notify_on) - valid_types
 	if invalid_types:
-		raise ValueError("INVALID_NOTIFY_ON: Допустимые типы IN_STOCK, PRICE_DOWN")
+		raise InvalidSubscriptionTypeError("Допустимые типы IN_STOCK, PRICE_DOWN")
 
 	notify_in_stock = "IN_STOCK" in request.notify_on
 	notify_price_down = "PRICE_DOWN" in request.notify_on
 
-	# 2. Проверяем, существует ли товар вообще
 	product_db = await sub_crud.get_product_for_subscription(db, product_id)
 	if not product_db:
-		raise ValueError("PRODUCT_NOT_FOUND: Товар не найден")
+		raise ProductNotFoundError("Товар не найден")
 
-	# 3. Проверяем, нет ли уже такой подписки
 	existing_sub = await sub_crud.get_subscription(db, user_id, product_id)
 	if existing_sub:
-		raise ValueError("SUBSCRIPTION_ALREADY_EXISTS: Вы уже подписаны на этот товар")
+		raise SubscriptionAlreadyExistsError("Вы уже подписаны на этот товар")
 
-	# 4. Создаем подписку
 	subscription = await sub_crud.create_subscription(
 		db=db,
 		user_id=user_id,
@@ -40,17 +38,19 @@ async def subscribe_to_product(
 		notify_price_down=notify_price_down,
 	)
 
-	# 5. Собираем массив notify_on обратно для ответа
 	saved_notify_on = []
 	if subscription.notify_in_stock:
 		saved_notify_on.append("IN_STOCK")
 	if subscription.notify_price_down:
 		saved_notify_on.append("PRICE_DOWN")
 
-	# 6. Маппим Product в Pydantic схему (точно так же, как делали в подборках)
-	# Если Product.category не подгружается, используем безопасный фолбэк:
-	cat_id = getattr(product_db, "category_id", uuid.uuid4())
-	category_schema = Category(id=cat_id, name="Электроника")
+	if product_db.category:
+		category_schema = Category(
+			id=product_db.category.id,
+			name=product_db.category.name
+		)
+	else:
+		category_schema = Category(id=uuid.uuid4(), name="Без категории")
 
 	skus_schema = []
 	for sku in product_db.skus:
@@ -93,6 +93,6 @@ async def unsubscribe_from_product(
 ) -> None:
 	existing_sub = await sub_crud.get_subscription(db, user_id, product_id)
 	if not existing_sub:
-		raise ValueError("SUBSCRIPTION_NOT_FOUND: Вы не подписаны на этот товар")
+		raise SubscriptionNotFoundError("Вы не подписаны на этот товар")
 
 	await sub_crud.delete_subscription(db, existing_sub)

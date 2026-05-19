@@ -1,8 +1,9 @@
 import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
 import crud.collection as collection_crud
+from exceptions.collection import CollectionNotFoundError
 from schemas.collection import (
 	CollectionsResponse,
 	CollectionMetadata,
@@ -48,7 +49,7 @@ async def get_collection_products(
 ) -> CollectionProductsResponse:
 	collection = await collection_crud.get_collection_by_id(db, collection_id)
 	if not collection:
-		raise HTTPException(status_code=404, detail="Подборка не найдена")
+		raise CollectionNotFoundError("Подборка не найдена")
 
 	all_product_ids = await collection_crud.get_collection_product_ids(
 		db, collection_id
