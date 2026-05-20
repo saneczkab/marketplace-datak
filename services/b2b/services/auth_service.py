@@ -84,21 +84,25 @@ async def logout(refresh_token: str, db: AsyncSession) -> None:
 	raise SessionNotFoundError
 
 
-async def refresh(data: RefreshRequest, db: AsyncSession) -> TokenResponse:
+async def refresh(refresh_token: RefreshRequest, db: AsyncSession) -> TokenResponse:
 	session: Session | None = await session_crud.get_session_by_refresh_token(
-		data.refresh_token, db
+		refresh_token, db
 	)
 
 	if not session:
-		raise SessionNotFoundError
+		raise SessionNotFoundError("session not found 1")
 
 	new_token = security.create_access_token(session.user_id)
 
 	session = await session_crud.update_session_access_token(session, new_token, db)
 
+	if not session:
+		raise SessionNotFoundError("session not found 2")
+
 	return TokenResponse(
 		user_id=session.user_id,
 		access_token=session.access_token,
 		refresh_token=session.refresh_token,
-		expires_in=session.expires_in,
+		token_type="Bearer",  # noqa
+		expires_in=settings.SESSION_EXPIRE_SECONDS,
 	)

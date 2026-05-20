@@ -7,7 +7,7 @@ from exceptions.seller import (
 	SellerAlreadyExistsError,
 	SellerNotFoundError,
 )
-from schemas.auth import LoginRequest, SellerCreate, TokenResponse, RefreshRequest
+from schemas.auth import LoginRequest, SellerCreate, TokenResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from core import db
 from typing import Annotated
@@ -58,10 +58,10 @@ async def logout(
 
 @router.post("/refresh")
 async def refresh(
-	data: RefreshRequest,
+	refresh_token: str,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> TokenResponse:
 	try:
-		return await auth_service.refresh(data, db)
+		return await auth_service.refresh(refresh_token, db)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=f"Internal error - {e}") from e

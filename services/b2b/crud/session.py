@@ -38,8 +38,8 @@ async def update_session_access_token(
 	session.acccess_token = new_token
 	session.issued_at = datetime.now(timezone.utc)
 
-	db.flush()
+	await db.flush()
 
-	session = db.refresh(session)
+	await db.refresh(session)
 
 	return session
