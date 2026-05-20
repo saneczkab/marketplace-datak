@@ -13,10 +13,10 @@ rebuild:
 	docker-compose up -d
 
 migrate:
-	docker-compose exec b2c-backend uv run alembic -c /app/database/alembic.ini upgrade head
+	docker-compose exec b2b-backend uv run alembic -c /app/database/alembic.ini upgrade head
 
 migration:
-	docker-compose exec b2c-backend uv run alembic -c /app/database/alembic.ini revision --autogenerate -m "$(name)"
+	docker-compose exec b2b-backend uv run alembic -c /app/database/alembic.ini revision --autogenerate -m "$(name)"
 
 format:
 	uv run ruff format .
