@@ -15,6 +15,7 @@ from tests.factories.catalog import (
 	CartItemFactory,
 	CategoryFactory,
 	ProductFactory,
+	ReviewFactory,
 	SkuFactory,
 )
 from tests.factories.user import UserFactory
@@ -78,9 +79,15 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 	favorite_blocked = FavoriteFactory.build(
 		user_id=user.id, product_id=product_blocked.id
 	)
+	reviewer = UserFactory.build()
+	reviews = [
+		ReviewFactory.build(product_id=product.id, user_id=reviewer.id, rating=4),
+		ReviewFactory.build(product_id=product.id, user_id=user.id, rating=5),
+	]
 	db_session.add_all(
 		[
 			user,
+			reviewer,
 			category,
 			product,
 			sku,
@@ -89,6 +96,7 @@ async def favorites_data(db_session: AsyncSession) -> FavoritesData:
 			subscription,
 			favorite,
 			favorite_blocked,
+			*reviews,
 		]
 	)
 	await db_session.commit()

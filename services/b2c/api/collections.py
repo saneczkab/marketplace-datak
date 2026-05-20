@@ -15,31 +15,32 @@ router_collections = fastapi.APIRouter(prefix="/api/v1/collections", tags=["По
 
 @router_main.get("/collections", response_model=CollectionsResponse)
 async def get_collections(
-    db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-    limit: int = fastapi.Query(10, ge=1, le=50),
-    offset: int = fastapi.Query(0, ge=0),
+	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	limit: int = fastapi.Query(10, ge=1, le=50),
+	offset: int = fastapi.Query(0, ge=0),
 ):
-    try:
-        return await collection_service.get_collections_list(db_session, limit, offset)
-    except Exception as e:
-        raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+	try:
+		return await collection_service.get_collections_list(db_session, limit, offset)
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router_collections.get("/{collection_id}/products", response_model=CollectionProductsResponse)
+@router_collections.get(
+	"/{collection_id}/products", response_model=CollectionProductsResponse
+)
 async def get_collection_products(
-    collection_id: uuid.UUID,
-    db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-    limit: int = fastapi.Query(20, ge=1, le=100),
-    offset: int = fastapi.Query(0, ge=0),
+	collection_id: uuid.UUID,
+	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	limit: int = fastapi.Query(20, ge=1, le=100),
+	offset: int = fastapi.Query(0, ge=0),
 ):
-    try:
-        return await collection_service.get_collection_products(
-            db_session, collection_id, limit, offset
-        )
-    except CollectionNotFoundError as e:
-        raise fastapi.HTTPException(
-            status_code=404,
-            detail={"code": "COLLECTION_NOT_FOUND", "message": str(e)}
-        ) from e
-    except Exception as e:
-        raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+	try:
+		return await collection_service.get_collection_products(
+			db_session, collection_id, limit, offset
+		)
+	except CollectionNotFoundError as e:
+		raise fastapi.HTTPException(
+			status_code=404, detail={"code": "COLLECTION_NOT_FOUND", "message": str(e)}
+		) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e

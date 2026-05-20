@@ -49,10 +49,14 @@ async def test_locked_product_excluded_from_list(
 	favorites_data: FavoritesData,
 ) -> None:
 	moderated_product = next(
-		product for product in favorites_data.products if product.status == ProductStatusEnum.MODERATED
+		product
+		for product in favorites_data.products
+		if product.status == ProductStatusEnum.MODERATED
 	)
 	blocked_product = next(
-		product for product in favorites_data.products if product.status == ProductStatusEnum.BLOCKED
+		product
+		for product in favorites_data.products
+		if product.status == ProductStatusEnum.BLOCKED
 	)
 	response = await client.get(
 		"/api/v1/favorites",
@@ -61,11 +65,20 @@ async def test_locked_product_excluded_from_list(
 	assert response.status_code == 200
 	body = response.json()
 
-	returned_product_ids = {item["product"]["id"] for item in body["items"]}
+	returned_product_ids = {item["id"] for item in body["items"]}
 	assert str(moderated_product.id) in returned_product_ids
 	assert str(blocked_product.id) not in returned_product_ids
 	assert len(body["items"]) == 1
-	assert body["total"] == 1
+	assert body["total_count"] == 1
+	assert body["limit"] == 20
+	assert body["offset"] == 0
+	item = body["items"][0]
+	assert item["name"] == moderated_product.title
+	assert item["slug"] == moderated_product.slug
+	assert item["reviews_count"] == 2
+	assert item["rating"] == 4.5
+	assert "category" in item
+	assert "seller" in item
 
 
 async def test_user_id_from_query_is_ignored(

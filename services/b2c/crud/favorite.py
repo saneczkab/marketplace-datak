@@ -21,14 +21,9 @@ async def get_user_favorites(
 		select(Favorite)
 		.where(Favorite.user_id == user_id)
 		.options(
+			selectinload(Favorite.product).selectinload(Product.category),
 			selectinload(Favorite.product).selectinload(Product.images),
-			selectinload(Favorite.product).selectinload(Product.characteristics),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.images),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.characteristics),
+			selectinload(Favorite.product).selectinload(Product.skus),
 		)
 		.order_by(Favorite.added_at.desc())
 		.limit(limit)
@@ -45,14 +40,9 @@ async def add_favorite(
 		select(Favorite)
 		.where(Favorite.user_id == user_id, Favorite.product_id == product_id)
 		.options(
+			selectinload(Favorite.product).selectinload(Product.category),
 			selectinload(Favorite.product).selectinload(Product.images),
-			selectinload(Favorite.product).selectinload(Product.characteristics),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.images),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.characteristics),
+			selectinload(Favorite.product).selectinload(Product.skus),
 		)
 	)
 	existing = result.scalar_one_or_none()
@@ -67,14 +57,9 @@ async def add_favorite(
 		select(Favorite)
 		.where(Favorite.user_id == user_id, Favorite.product_id == product_id)
 		.options(
+			selectinload(Favorite.product).selectinload(Product.category),
 			selectinload(Favorite.product).selectinload(Product.images),
-			selectinload(Favorite.product).selectinload(Product.characteristics),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.images),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.characteristics),
+			selectinload(Favorite.product).selectinload(Product.skus),
 		)
 	)
 	return result.scalar_one()
@@ -130,14 +115,9 @@ async def get_available_favorites(
 			Favorite.user_id == user_id, Favorite.product_id.in_(available_product_ids)
 		)
 		.options(
+			selectinload(Favorite.product).selectinload(Product.category),
 			selectinload(Favorite.product).selectinload(Product.images),
-			selectinload(Favorite.product).selectinload(Product.characteristics),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.images),
-			selectinload(Favorite.product)
-			.selectinload(Product.skus)
-			.selectinload(Sku.characteristics),
+			selectinload(Favorite.product).selectinload(Product.skus),
 		)
 		.order_by(Favorite.added_at.desc())
 		.limit(limit)
