@@ -1,25 +1,18 @@
-import uuid
-from datetime import datetime
+from enum import Enum
 from typing import List
+
 from pydantic import BaseModel, Field
 
-from schemas.collection import ProductSchema
+
+class SubscriptionEvent(str, Enum):
+	BACK_IN_STOCK = "BACK_IN_STOCK"
+	PRICE_DROP = "PRICE_DROP"
 
 
 class SubscribeRequest(BaseModel):
-	"""Тело запроса для создания подписки"""
-
-	notify_on: List[str] = Field(
-		description="Список событий: IN_STOCK, PRICE_DOWN",
-		min_length=1,
-		example=["IN_STOCK", "PRICE_DOWN"],
+	events: List[SubscriptionEvent] = Field(
+		default_factory=lambda: [
+			SubscriptionEvent.BACK_IN_STOCK,
+			SubscriptionEvent.PRICE_DROP,
+		],
 	)
-
-
-class SubscriptionResponse(BaseModel):
-	"""Ответ с данными о подписке и товаре"""
-
-	id: uuid.UUID
-	product: ProductSchema
-	notify_on: List[str]
-	created_at: datetime

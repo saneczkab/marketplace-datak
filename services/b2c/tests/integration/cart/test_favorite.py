@@ -11,36 +11,30 @@ from tests.integration.cart.conftest import FavoritesData, auth_headers
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-async def test_add_to_favorites_returns_201(
+async def test_add_to_favorites_returns_204(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	empty_favorites_data: FavoritesData,
 ) -> None:
 	product = empty_favorites_data.products[0]
-	response = await client.post(
+	response = await client.put(
 		f"/api/v1/favorites/{product.id}",
 		headers=await auth_headers(empty_favorites_data.user.id, db_session),
 	)
-	assert response.status_code == 201
-	body = response.json()
-	assert body["product_id"] == str(product.id)
-	assert body["user_id"] == str(empty_favorites_data.user.id)
+	assert response.status_code == 204
 
 
-async def test_repeat_add_returns_200_not_duplicate(
+async def test_repeat_add_returns_204(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	favorites_data: FavoritesData,
 ) -> None:
 	product = favorites_data.products[0]
-	response = await client.post(
+	response = await client.put(
 		f"/api/v1/favorites/{product.id}",
 		headers=await auth_headers(favorites_data.user.id, db_session),
 	)
-	assert response.status_code == 200
-	body = response.json()
-	assert body["product_id"] == str(product.id)
-	assert body["user_id"] == str(favorites_data.user.id)
+	assert response.status_code == 204
 
 
 async def test_locked_product_excluded_from_list(
@@ -118,7 +112,7 @@ async def test_delete_from_favorites_returns_204(
 	assert response.status_code == 204
 
 
-async def test_delete_non_existent_product_returns_404(
+async def test_delete_non_existent_product_returns_204(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	favorites_data: FavoritesData,
@@ -127,7 +121,7 @@ async def test_delete_non_existent_product_returns_404(
 		f"/api/v1/favorites/{uuid.uuid4()}",
 		headers=await auth_headers(favorites_data.user.id, db_session),
 	)
-	assert response.status_code == 404
+	assert response.status_code == 204
 
 
 async def test_favorites_requires_authorization(
@@ -138,7 +132,7 @@ async def test_favorites_requires_authorization(
 	response = await client.get("/api/v1/favorites")
 	assert response.status_code == 401
 
-	response = await client.post(f"/api/v1/favorites/{product.id}")
+	response = await client.put(f"/api/v1/favorites/{product.id}")
 	assert response.status_code == 401
 
 	response = await client.delete(f"/api/v1/favorites/{product.id}")
