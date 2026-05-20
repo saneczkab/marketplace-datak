@@ -24,7 +24,6 @@ async def clear_db(db_session: AsyncSession) -> True:
 
 
 async def add_root_category(db_session: AsyncGenerator) -> None:
-
 	root_category: Category = Category(
 		name="Все товары",
 		slug="all",
@@ -55,7 +54,6 @@ async def slug_generator(slug: str, db_session: AsyncGenerator) -> str:
 
 
 async def add_category_in_db(path: list, slug: str, db_session: AsyncSession) -> bool:
-
 	parent_id = None
 
 	for parent_name in path[0 : len(path) - 1]:
@@ -92,7 +90,6 @@ def open_xlsx_file(file_path: str) -> Generator:
 
 
 async def category_parser(db_session: AsyncSession, file_path: str) -> bool:
-
 	await add_root_category(db_session)
 	p = 0
 	wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
@@ -110,7 +107,6 @@ async def category_parser(db_session: AsyncSession, file_path: str) -> bool:
 
 
 async def main() -> None:
-
 	db_gen: AsyncGenerator[AsyncSession, None] = get_db()
 	db_session: AsyncSession = await db_gen.__anext__()
 	await clear_db(db_session)

@@ -82,13 +82,14 @@ async def get_products_list(
 	if sort not in valid_sorts:
 		raise ValueError(f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}")
 
-	# Валидация search - минимум 4 символа (после trim)
-	if search and len(search.strip()) > 0 and len(search.strip()) < 4:
-		raise ValueError("Search query must be at least 3 characters")
-
-	# Экранирование от символов %, _, '
 	if search:
-		search = search.replace("%", "\\%").replace("_", "\\_").replace("'", "''")
+		search_stripped = search.strip()
+
+		if len(search_stripped) > 0 and len(search_stripped) < 3:
+			raise ValueError("Search query must be at least 3 characters")
+
+		if len(search_stripped) > 255:
+			raise ValueError("Search query must be at most 255 characters")
 
 	cat_uuid = uuid.UUID(category_id) if category_id else None
 	filters = json.loads(filters_json) if filters_json else {}
