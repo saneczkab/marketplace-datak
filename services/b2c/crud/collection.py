@@ -20,7 +20,7 @@ async def get_active_collections(
 	query = (
 		select(Collection)
 		.where(
-			Collection.is_active == True,
+			Collection.is_active == True,  # noqa
 			(Collection.start_date <= today) | (Collection.start_date.is_(None)),
 		)
 		.order_by(Collection.priority)
@@ -36,7 +36,7 @@ async def count_active_collections(db: AsyncSession) -> int:
 	today = date.today()
 
 	query = select(func.count(Collection.id)).where(
-		Collection.is_active == True,
+		Collection.is_active == True,  # noqa
 		(Collection.start_date <= today) | (Collection.start_date.is_(None)),
 	)
 	result = await db.execute(query)

@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.core import Base
+from database.models import User
 
 
 class CartItem(Base):
