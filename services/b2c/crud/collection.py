@@ -6,9 +6,9 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models.storefront import Collection, CollectionProduct
-from database.models.catalog.base import Product
-from database.models.catalog.variants import Sku
+from database.models import Collection, CollectionProduct
+from database.models import Product
+from database.models import Sku
 
 
 async def get_active_collections(
@@ -20,7 +20,7 @@ async def get_active_collections(
 	query = (
 		select(Collection)
 		.where(
-			Collection.is_active == True,
+			Collection.is_active == True,  # noqa
 			(Collection.start_date <= today) | (Collection.start_date.is_(None)),
 		)
 		.order_by(Collection.priority)
@@ -36,7 +36,7 @@ async def count_active_collections(db: AsyncSession) -> int:
 	today = date.today()
 
 	query = select(func.count(Collection.id)).where(
-		Collection.is_active == True,
+		Collection.is_active == True,  # noqa
 		(Collection.start_date <= today) | (Collection.start_date.is_(None)),
 	)
 	result = await db.execute(query)

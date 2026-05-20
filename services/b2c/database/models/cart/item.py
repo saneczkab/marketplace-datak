@@ -62,4 +62,4 @@ class CartItem(Base):
 	)
 
 	# Relationships
-	user: Mapped["User | None"] = relationship("User", back_populates="cart_items")
+	user = relationship("User", back_populates="cart_items")

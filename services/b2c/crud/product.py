@@ -242,7 +242,7 @@ async def count_products_by_filter(
 
 			try:
 				other_filter_id = uuid.UUID(key)
-			except Exception:
+			except Exception:  # noqa
 				other = await db.execute(
 					select(CategoryFilters.id).where(
 						CategoryFilters.slug == str(key),
