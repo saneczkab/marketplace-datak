@@ -50,7 +50,5 @@ async def unsubscribe(
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> fastapi.Response:
 	user_id = uuid.UUID(str(getattr(http_request.state, "user_id", None)))
-	await subscription_service.unsubscribe_from_product(
-		db_session, user_id, product_id
-	)
+	await subscription_service.unsubscribe_from_product(db_session, user_id, product_id)
 	return fastapi.Response(status_code=204)

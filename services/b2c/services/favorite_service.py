@@ -119,9 +119,7 @@ def _build_catalog_product_cards(
 async def get_favorites_list(
 	db: AsyncSession, user_id: uuid.UUID, limit: int, offset: int
 ) -> PaginatedCatalogProducts:
-	data = await favorite_crud.get_available_favorites_data(
-		db, user_id, limit, offset
-	)
+	data = await favorite_crud.get_available_favorites_data(db, user_id, limit, offset)
 	items = _build_catalog_product_cards(
 		data.products, data.categories_map, data.review_stats_by_product
 	)
