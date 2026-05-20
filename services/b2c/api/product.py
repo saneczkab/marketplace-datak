@@ -23,7 +23,7 @@ router = fastapi.APIRouter(prefix="/api/v1/products")
 @router.get("/{product_id}/skus/{sku_id}", response_model=SkuSchema)
 async def get_sku_by_id_api(
 	sku_id: uuid.UUID,
-	product_id: uuid.UUID,  # noqa
+	product_id: uuid.UUID,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> SkuSchema:
 	"""
@@ -67,7 +67,7 @@ async def get_product_list_api(
 	offset: int = 0,
 	filters: Optional[str] = None,
 	sort: str = "rating",
-	search: str = "",
+	search: Optional[str] = None,
 ) -> ProductShortListResponse:
 	filters_param = None
 	if filters:
@@ -103,8 +103,6 @@ async def get_product_api(
 		return await product_service.get_product_by_id(db, id)
 	except ProductNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
@@ -121,9 +119,9 @@ async def get_similar_product_api(
 		return await product_service.get_similar_products(
 			db, id, category, limit, offset
 		)
-	except ProductNotFoundError as err:
+	except (ProductNotFoundError, CategoryNotFoundError) as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	except (ValueError, CategoryNotFoundError) as e:
+	except ValueError as e:
 		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e

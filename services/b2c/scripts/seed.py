@@ -23,7 +23,6 @@ db_session: AsyncSession = get_db()
 
 
 async def clear_db(db_session: AsyncSession) -> None:
-
 	await db_session.execute(delete(Product))
 	await db_session.execute(delete(Category))
 	await db_session.commit()

@@ -77,7 +77,6 @@ async def get_products_list(
 	count_query = select(func.count(func.distinct(Product.id)))
 
 	# Условие видимости: status = MODERATED AND active_quantity > 0
-	# Используем exists() чтобы избежать дубликатов продуктов
 	query = query.where(
 		Product.status == ProductStatusEnum.MODERATED,
 		Product.deleted == False,  # noqa
@@ -102,14 +101,22 @@ async def get_products_list(
 				query = query.where(column == value)
 				count_query = count_query.where(column == value)
 
-	if search and len(search.strip()) >= 3:
-		term = f"%{search.strip()}%"
-		query = query.where(
-			or_(Product.title.ilike(term), Product.description.ilike(term))
-		)
-		count_query = count_query.where(
-			or_(Product.title.ilike(term), Product.description.ilike(term))
-		)
+	if search:
+		search_val = search.strip()
+		if len(search_val) >= 3:
+			escaped_search = (
+				search_val.replace("/", "//").replace("%", "/%").replace("_", "/_")
+			)
+
+			term = f"%{escaped_search}%"
+
+			search_condition = or_(
+				Product.title.ilike(term, escape="/"),
+				Product.description.ilike(term, escape="/"),
+			)
+
+			query = query.where(search_condition)
+			count_query = count_query.where(search_condition)
 
 	match sort:
 		case "price_asc" | "price_desc":
