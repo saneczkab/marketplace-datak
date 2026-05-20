@@ -11,7 +11,10 @@ dependencies = [
     "pydantic-settings",
     "sqlalchemy",
     "psycopg2-binary",
-    "asyncpg"
+    "asyncpg",
+    "python-jose>=3.5.0",
+    "passlib>=1.7.4",
+    "pydantic[email]>=2.12.5",
 ]
 
 [tool.ruff]
