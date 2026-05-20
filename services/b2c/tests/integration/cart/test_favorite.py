@@ -24,7 +24,7 @@ async def test_add_to_favorites_returns_204(
 	assert response.status_code == 204
 
 
-async def test_repeat_add_returns_204(
+async def repeat_add_returns_204_not_duplicate(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	favorites_data: FavoritesData,
@@ -37,7 +37,7 @@ async def test_repeat_add_returns_204(
 	assert response.status_code == 204
 
 
-async def test_locked_product_excluded_from_list(
+async def test_blocked_product_excluded_from_list(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	favorites_data: FavoritesData,
