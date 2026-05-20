@@ -17,8 +17,8 @@ router_collections = fastapi.APIRouter(prefix="/api/v1/collections", tags=["По
 @router_main.get("/collections", response_model=CollectionsResponse)
 async def get_collections(
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	limit: Annotated[int, Query(default=20, ge=1, le=100)],
-	offset: Annotated[int, Query(default=0, ge=0)],
+	limit: Annotated[int, Query(ge=1, le=100)] = 10,
+	offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CollectionsResponse:
 	try:
 		return await collection_service.get_collections_list(db_session, limit, offset)
@@ -32,8 +32,8 @@ async def get_collections(
 async def get_collection_products(
 	collection_id: uuid.UUID,
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	limit: Annotated[int, Query(default=20, ge=1, le=100)],
-	offset: Annotated[int, Query(default=0, ge=0)],
+	limit: Annotated[int, Query(ge=1, le=100)] = 10,
+	offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CollectionProductsResponse:
 	try:
 		return await collection_service.get_collection_products(

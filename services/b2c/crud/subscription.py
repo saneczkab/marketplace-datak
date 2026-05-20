@@ -4,8 +4,8 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models.personal import Subscription
-from database.models.catalog.base import Product
+from database.models import Subscription
+from database.models import Product
 
 
 async def get_subscription(
