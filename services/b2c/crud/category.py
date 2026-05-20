@@ -7,6 +7,13 @@ from database.models.catalog.base import Category, FilterValues
 from exceptions.category import CategoryNotFoundError
 
 
+async def get_all_categories_map(
+	db: AsyncSession,
+) -> dict[uuid.UUID, Category]:
+	result = await db.execute(select(Category))
+	return {category.id: category for category in result.scalars().all()}
+
+
 async def get_category_by_id(
 	db: AsyncSession, category_id: uuid.UUID
 ) -> Category | None:

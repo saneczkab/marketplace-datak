@@ -7,10 +7,13 @@ from jose import JWTError
 import crud.session as session_crud
 
 PRIVATE_PATHS = ["/api/v1/auth/me", "/api/v1/auth/logout"]
+PRIVATE_PATHS_PREFIXES = ["/api/v1/favorites"]
 
 
 async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
-	if request.url.path not in PRIVATE_PATHS:
+	if request.url.path not in PRIVATE_PATHS and not any(
+		request.url.path.startswith(prefix) for prefix in PRIVATE_PATHS_PREFIXES
+	):
 		return await call_next(request)
 
 	auth_header = request.headers.get("Authorization")
@@ -31,15 +34,13 @@ async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
 		)
 	except ValueError as e:
 		return JSONResponse(status_code=401, content={"detail": str(e)})
-	async for db in get_db():
-		try:
-			is_active = await session_crud.check_active_session(token, db)
-			if not is_active:
-				return JSONResponse(
-					status_code=401, content={"detail": "Token invalidated in db"}
-				)
-		finally:
-			await db.close()
+	get_db_dep = request.app.dependency_overrides.get(get_db, get_db)
+	async for db in get_db_dep():
+		is_active = await session_crud.check_active_session(token, db)
+		if not is_active:
+			return JSONResponse(
+				status_code=401, content={"detail": "Token invalidated in db"}
+			)
 		break
 
 	return await call_next(request)

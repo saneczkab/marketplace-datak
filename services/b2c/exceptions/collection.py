@@ -1,2 +1,2 @@
-﻿class CollectionNotFoundError(Exception):
-    pass
+class CollectionNotFoundError(Exception):
+	pass

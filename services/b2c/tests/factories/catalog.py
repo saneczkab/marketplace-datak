@@ -11,6 +11,7 @@ from database.models.catalog.base import (
 	FilterValues,
 	Product,
 	ProductStatusEnum,
+	Review,
 )
 
 
@@ -73,6 +74,17 @@ class SkuFactory(factory.Factory):
 	name = factory.Faker("sentence", nb_words=2)
 	price = factory.Faker("pyint", min_value=100, max_value=10000)
 	active_quantity = factory.Faker("pyint", min_value=0, max_value=100)
+
+
+class ReviewFactory(factory.Factory):
+	class Meta:
+		model = Review
+
+	id = factory.LazyFunction(uuid.uuid4)
+	product_id = factory.LazyFunction(uuid.uuid4)
+	user_id = factory.LazyFunction(uuid.uuid4)
+	rating = factory.Faker("pyint", min_value=1, max_value=5)
+	comment = factory.Faker("sentence", nb_words=8)
 
 
 class CartItemFactory(factory.Factory):

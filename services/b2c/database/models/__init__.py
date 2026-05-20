@@ -5,6 +5,7 @@ from database.models.catalog.base import (
 	ProductStatusEnum,
 	ProductFilterValue,
 	FilterValues,
+	Review,
 )
 from database.models.catalog.inventory import Invoice, InvoiceItem, InvoiceStatusEnum
 from database.models.catalog.variants import Characteristic, Image, Sku
@@ -20,6 +21,7 @@ __all__ = [
 	"ProductStatusEnum",
 	"ProductFilterValue",
 	"FilterValues",
+	"Review",
 	"Invoice",
 	"InvoiceItem",
 	"InvoiceStatusEnum",

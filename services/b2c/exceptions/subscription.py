@@ -1,8 +1,10 @@
-﻿class SubscriptionAlreadyExistsError(Exception):
-    pass
+class SubscriptionAlreadyExistsError(Exception):
+	pass
+
 
 class SubscriptionNotFoundError(Exception):
-    pass
+	pass
+
 
 class InvalidSubscriptionTypeError(Exception):
-    pass
+	pass

@@ -9,4 +9,7 @@ class UserFactory(factory.Factory):
 		model = User
 
 	id = factory.LazyFunction(uuid.uuid4)
+	username = factory.Sequence(lambda n: f"user_{n}")
+	email = factory.LazyAttribute(lambda obj: f"{obj.username}@example.com")
+	password_hash = factory.Faker("password")
 	created_at = factory.LazyFunction(datetime.now)
