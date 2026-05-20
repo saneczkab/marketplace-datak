@@ -6,9 +6,9 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models.storefront import Collection, CollectionProduct
-from database.models.catalog.base import Product
-from database.models.catalog.variants import Sku
+from database.models import Collection, CollectionProduct
+from database.models import Product
+from database.models import Sku
 
 
 async def get_active_collections(

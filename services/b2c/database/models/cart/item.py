@@ -15,7 +15,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.core import Base
-from database.models import User
 
 
 class CartItem(Base):
@@ -63,4 +62,4 @@ class CartItem(Base):
 	)
 
 	# Relationships
-	user: Mapped["User | None"] = relationship("User", back_populates="cart_items")
+	user = relationship("User", back_populates="cart_items")
