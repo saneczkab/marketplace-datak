@@ -10,13 +10,25 @@ class MissingCartIdentityError(CartError):
 	pass
 
 
-class BothIdentitiesProvidedError(CartError):
-	"""Raised when both X-User-Id and X-Session-Id are provided"""
+class InvalidSessionIdError(CartError):
+	"""Raised when the session ID is invalid"""
 
 	pass
 
 
 class CartItemNotFoundError(CartError):
-	"""Raised when cart item is not found"""
+	"""Raised when a cart item is not found"""
+
+	pass
+
+
+class InsufficientStockError(CartError):
+	"""Raised when the requested quantity is not available"""
+
+	pass
+
+
+class SkuUnavailableError(CartError):
+	"""Raised when the SKU is unavailable"""
 
 	pass

@@ -26,6 +26,7 @@ from exceptions.user import (
 from core.config import settings
 
 import core.security as security
+from services import cart_service
 
 
 async def register(
@@ -115,7 +116,11 @@ async def refresh_session(refresh_token: str, db: AsyncSession) -> LoginResponse
 	return respone
 
 
-async def login(data: LoginRequest, db: AsyncSession) -> LoginResponse:
+async def login(
+	data: LoginRequest,
+	db: AsyncSession,
+	guest_session_id: str | None = None,
+) -> LoginResponse:
 	if data.email and data.username:
 		raise UserLoginConflictError(
 			"Both email and username provided for login, which is not allowed."
@@ -140,6 +145,9 @@ async def login(data: LoginRequest, db: AsyncSession) -> LoginResponse:
 		raise UserInvalidPasswordError("Incorrect password provided.")
 
 	session: SessionData = await generate_session(user.id, db)
+
+	if guest_session_id:
+		await cart_service.merge_guest_cart(db, user.id, guest_session_id)
 
 	return LoginResponse(
 		access_token=session.token,
