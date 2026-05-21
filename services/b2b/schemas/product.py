@@ -1,9 +1,9 @@
-from typing import Optional
-
+from typing import Optional, List
 from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
-from database.models.catalog.base import ProductStatusEnum
+from database.models import ProductStatusEnum
+from schemas.sku import SkuResponse
 
 
 class ProductCreate(BaseModel):
@@ -11,6 +11,8 @@ class ProductCreate(BaseModel):
 	description: str | None = None
 	category_id: UUID
 	slug: str
+	images: List[ProductImageCreate]
+	characteristics: List[Characteristic] | None
 
 
 class ProductUpdate(BaseModel):
@@ -33,3 +35,43 @@ class ProductSellerRead(BaseModel):
 
 	class Config:
 		from_attributes = True
+
+
+class Characteristic(BaseModel):
+	name: str
+	value: str
+
+
+class ProductImageCreate(BaseModel):
+	url: str
+	ordering: int
+
+
+class ProductResponse(BaseModel):
+	id: UUID
+	seller_id: UUID
+	category_id: UUID
+	title: str
+	slug: str
+	description: str
+	status: ProductStatusEnum
+	deleted: bool
+	blocking_reason_id: UUID | None
+	moderator_comment: str | None
+	images: List[ProductImageResponse]
+	characteristics: List[CharacteristicsResponse]
+	skus: List[SkuResponse]
+	created_at: datetime
+	updated_at: datetime
+
+
+class ProductImageResponse(BaseModel):
+	id: UUID
+	url: str
+	ordering: int
+
+
+class CharacteristicsResponse(BaseModel):
+	name: str
+	value: str
+	id: UUID

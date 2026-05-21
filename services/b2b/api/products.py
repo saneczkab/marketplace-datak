@@ -1,22 +1,30 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
 from schemas.product import ProductCreate, ProductUpdate, ProductSellerRead
 from services import product_service
 from uuid import UUID
-
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 router = APIRouter(prefix="/products", tags=["B2B Products"])
+security = HTTPBearer()
 
 
 @router.post("/", response_model=ProductSellerRead, status_code=status.HTTP_201_CREATED)
 async def create_product(
 	product_in: ProductCreate,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
+	credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> ProductSellerRead:
-	return await product_service.create_new_product(db, product_in, seller_id)
+	seller_id = credentials.credentials
+	try:
+		return await product_service.create_new_product(db, product_in, seller_id)
+	except ValidationError as e:
+		raise HTTPException(status_code=422, detail=f"{e}") from e
+	except Exception as e:
+		raise HTTPException(status_code=418, detail=f"{e}") from e
 
 
 @router.get("/", response_model=list[ProductSellerRead])

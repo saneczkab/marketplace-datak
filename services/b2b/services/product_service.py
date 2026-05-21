@@ -3,13 +3,32 @@ from crud import product as product_crud
 from database.models.catalog.base import Product
 from exceptions.product import ProductNotFoundError
 from uuid import UUID
-from schemas.product import ProductCreate, ProductUpdate
+from schemas.product import ProductCreate, ProductUpdate, ProductResponse
 
 
 async def create_new_product(
 	db: AsyncSession, product_in: ProductCreate, seller_id: UUID
-) -> Product:
-	return await product_crud.create_product(db, product_in, seller_id)
+) -> ProductResponse:
+	product: Product = await product_crud.create_product(db, product_in, seller_id)
+	response = ProductResponse(
+		id=product.id,
+		seller_id=seller_id,
+		category_id=product.category_id,
+		title=product.title,
+		slug=product.slug,
+		description=product.description,
+		status=product.status,
+		deleted=product.deleted,
+		blocking_reason_id=product.blocked_reason_id,
+		moderator_comment=product.moderator_comment,
+		images=[],  # TODO Add images,
+		characteristics=[],  # TODO Add characteristics
+		skus=[],  # TODO Add skus
+		created_at=product.created_at,
+		updated_at=product.updated_at,
+	)
+
+	return response
 
 
 async def get_product_for_seller(
