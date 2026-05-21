@@ -1,6 +1,7 @@
 import factory
 import uuid
 from datetime import datetime
+from database.models import CartItem
 from database.models.personal.profile import Favorite, Subscription
 from database.models.storefront.main import Collection, CollectionProduct
 
@@ -46,3 +47,16 @@ class CollectionProductFactory(factory.Factory):
 
 	product_id = factory.LazyFunction(uuid.uuid4)
 	collection_id = factory.LazyFunction(uuid.uuid4)
+
+
+class CartItemFactory(factory.Factory):
+	class Meta:
+		model = CartItem
+
+	id = factory.LazyFunction(uuid.uuid4)
+	user_id = factory.LazyFunction(uuid.uuid4)
+	session_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
+	sku_id = factory.LazyFunction(uuid.uuid4)
+	quantity = factory.Faker("pyint", min_value=100, max_value=1000)
+	created_at = factory.LazyFunction(datetime.now)
+	updated_at = factory.LazyFunction(datetime.now)

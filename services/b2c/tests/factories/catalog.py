@@ -13,6 +13,7 @@ from database.models.catalog.base import (
 	ProductStatusEnum,
 	Review,
 )
+from database.models.catalog.variants import Image
 
 
 class CategoryFactory(factory.Factory):
@@ -65,6 +66,17 @@ class ProductFactory(factory.Factory):
 	status = ProductStatusEnum.MODERATED
 
 
+class ImageFactory(factory.Factory):
+	class Meta:
+		model = Image
+
+	id = factory.LazyFunction(uuid.uuid4)
+	product_id = factory.LazyFunction(uuid.uuid4)
+	sku_id = factory.LazyFunction(uuid.uuid4)
+	url = factory.Faker("image_url")
+	ordering = 0
+
+
 class SkuFactory(factory.Factory):
 	class Meta:
 		model = Sku
@@ -73,7 +85,7 @@ class SkuFactory(factory.Factory):
 	product_id = factory.LazyFunction(uuid.uuid4)
 	name = factory.Faker("sentence", nb_words=2)
 	price = factory.Faker("pyint", min_value=100, max_value=10000)
-	active_quantity = factory.Faker("pyint", min_value=0, max_value=100)
+	active_quantity = factory.Faker("pyint", min_value=10, max_value=100)
 
 
 class ReviewFactory(factory.Factory):
@@ -94,4 +106,4 @@ class CartItemFactory(factory.Factory):
 	id = factory.LazyFunction(uuid.uuid4)
 	user_id = factory.LazyFunction(uuid.uuid4)
 	sku_id = factory.LazyFunction(uuid.uuid4)
-	quantity = factory.Faker("pyint", min_value=1, max_value=10)
+	quantity = factory.Faker("pyint", min_value=5, max_value=10)
