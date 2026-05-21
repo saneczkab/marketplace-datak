@@ -106,7 +106,6 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(product.router)
 	test_app.include_router(breadcrumbs.router)
 	test_app.include_router(cart.router)
-	test_app.include_router(cart.validate_router)
 	test_app.include_router(favorite.router)
 	test_app.include_router(catalog.router)
 	test_app.include_router(subscriptions.router)

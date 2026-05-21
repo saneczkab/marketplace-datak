@@ -14,6 +14,7 @@ from database.models.storefront.main import Collection, CollectionProduct
 from tests.factories.catalog import (
 	CartItemFactory,
 	CategoryFactory,
+	ImageFactory,
 	ProductFactory,
 	ReviewFactory,
 	SkuFactory,
@@ -207,4 +208,98 @@ async def collections_data(db_session: AsyncSession) -> CollectionsData:
 		skus=skus,
 		collections=collections,
 		collection_products=collection_products,
+	)
+
+
+@dataclass(frozen=True, slots=True)
+class CartItemsData:
+	user: User | None
+	session_id: str | None
+	product: Product
+	sku: Sku
+	items: list[CartItem]
+
+
+@pytest.fixture()
+async def cart_user_data(db_session: AsyncSession) -> CartItemsData:
+	user = UserFactory.build()
+	category = CategoryFactory.build()
+	product = ProductFactory.build(category_id=category.id)
+	image = ImageFactory.build(product_id=product.id)
+	sku = SkuFactory.build(product_id=product.id, images=[image])
+	items = [CartItemFactory.build(user_id=user.id, sku_id=sku.id, session_id=None)]
+	db_session.add_all([user, category, product, image, sku, *items])
+	await db_session.commit()
+	return CartItemsData(
+		user=user, session_id=None, product=product, sku=sku, items=items
+	)
+
+
+@pytest.fixture()
+async def cart_session_data(db_session: AsyncSession) -> CartItemsData:
+	session_id = str(uuid.uuid4())
+	category = CategoryFactory.build()
+	products = [ProductFactory.build(category_id=category.id) for _ in range(3)]
+	image = ImageFactory.build(product_id=products[0].id)
+	sku = SkuFactory.build(product_id=products[0].id, images=[image])
+	items = [CartItemFactory.build(session_id=session_id, sku_id=sku.id, user_id=None)]
+	db_session.add_all([category, *products, image, sku, *items])
+	await db_session.commit()
+	return CartItemsData(
+		user=None,
+		session_id=session_id,
+		product=products[0],
+		sku=sku,
+		items=items,
+	)
+
+
+@pytest.fixture()
+async def unavailable_sku_in_cart_data(db_session: AsyncSession) -> CartItemsData:
+	user = UserFactory.build()
+	category = CategoryFactory.build()
+	product = ProductFactory.build(category_id=category.id)
+	image = ImageFactory.build(product_id=product.id)
+	sku = SkuFactory.build(product_id=product.id, images=[image], active_quantity=0)
+	items = [CartItemFactory.build(user_id=user.id, sku_id=sku.id, session_id=None)]
+	db_session.add_all([user, category, product, image, sku, *items])
+	await db_session.commit()
+	return CartItemsData(
+		user=user, session_id=None, product=product, sku=sku, items=items
+	)
+
+
+@pytest.fixture()
+async def cart_user_data_with_conflict(
+	db_session: AsyncSession,
+) -> tuple[CartItemsData, CartItemsData]:
+	user = UserFactory.build()
+	session_id = str(uuid.uuid4())
+	category = CategoryFactory.build()
+	product = ProductFactory.build(category_id=category.id)
+	image = ImageFactory.build(product_id=product.id)
+	sku = SkuFactory.build(product_id=product.id, images=[image], active_quantity=0)
+	items_user = [
+		CartItemFactory.build(
+			user_id=user.id, sku_id=sku.id, session_id=None, quantity=1
+		)
+	]
+	items_guest = [
+		CartItemFactory.build(
+			session_id=session_id, sku_id=sku.id, user_id=None, quantity=2
+		)
+	]
+	db_session.add_all([user, category, product, image, sku, *items_user, *items_guest])
+	await db_session.commit()
+	return (
+		CartItemsData(
+			user=user, session_id=None, product=product, sku=sku, items=items_user
+		),
+		CartItemsData(
+			user=None,
+			session_id=session_id,
+			product=product,
+			sku=sku,
+			items=items_guest,
+		),
 	)

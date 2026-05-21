@@ -1,3 +1,5 @@
+import uuid
+
 import fastapi
 from typing import Annotated
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -40,9 +42,21 @@ async def register(
 async def login(
 	data: LoginRequest,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	x_session_id: Annotated[str | None, fastapi.Header(alias="X-Session-Id")] = None,
 ) -> LoginResponse:
+	if x_session_id:
+		try:
+			uuid.UUID(x_session_id)
+		except ValueError as err:
+			raise fastapi.HTTPException(
+				status_code=400,
+				detail={
+					"code": "INVALID_SESSION_ID",
+					"message": "X-Session-Id must be a valid UUID",
+				},
+			) from err
 	try:
-		return await auth_service.login(data, db)
+		return await auth_service.login(data, db, x_session_id)
 	except (ValidationError, UserNotFoundError, UserInvalidPasswordError) as e:  # noqa
 		raise fastapi.HTTPException(status_code=400, detail="Invalid login data") from e
 	except UserLoginConflictError as e:
