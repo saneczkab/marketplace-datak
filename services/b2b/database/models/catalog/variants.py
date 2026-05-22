@@ -1,3 +1,4 @@
+from enum import Enum
 import uuid
 from datetime import datetime
 
@@ -45,9 +46,6 @@ class Sku(Base):
 	characteristics: Mapped[list["Characteristic"]] = relationship(
 		"Characteristic", back_populates="sku", cascade="all, delete-orphan"
 	)
-	images: Mapped[list["Image"]] = relationship(
-		"Image", back_populates="sku", cascade="all, delete-orphan"
-	)
 	product: Mapped["Product"] = relationship("Product")
 
 
@@ -78,6 +76,11 @@ class Characteristic(Base):
 	sku: Mapped["Sku"] = relationship("Sku", back_populates="characteristics")
 
 
+class ImageEntityTypeEnum(str, Enum):
+	PRODUCT = "PRODUCT"
+	SKU = "SKU"
+
+
 class Image(Base):
 	"""Model representing images for products or SKUs."""
 
@@ -87,13 +90,7 @@ class Image(Base):
 	id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
 	)
-	product_id: Mapped[uuid.UUID] = mapped_column(
-		ForeignKey("catalog.products.id", ondelete="CASCADE")
-	)
-	sku_id: Mapped[uuid.UUID | None] = mapped_column(
-		ForeignKey("catalog.skus.id", ondelete="CASCADE")
-	)
+	entity_type: Mapped[ImageEntityTypeEnum] = mapped_column()
+	entity_id: Mapped[uuid.UUID] = mapped_column(UUID)
 	url: Mapped[str] = mapped_column(String(512))
 	ordering: Mapped[int] = mapped_column(default=0, server_default="0")
-
-	sku: Mapped["Sku"] = relationship("Sku", back_populates="images")

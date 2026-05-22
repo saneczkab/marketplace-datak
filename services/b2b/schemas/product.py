@@ -10,9 +10,9 @@ class ProductCreate(BaseModel):
 	title: str = Field(..., min_length=5, max_length=255)
 	description: str | None = None
 	category_id: UUID
-	slug: str
-	images: List[ProductImageCreate]
-	characteristics: List[Characteristic] | None
+	slug: Optional[str]
+	images: Optional[List[ProductImageCreate]]
+	characteristics: Optional[List[Characteristic]]
 
 
 class ProductUpdate(BaseModel):
@@ -66,7 +66,6 @@ class ProductResponse(BaseModel):
 
 
 class ProductImageResponse(BaseModel):
-	id: UUID
 	url: str
 	ordering: int
 

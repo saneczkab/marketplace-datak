@@ -14,7 +14,7 @@ class ImageUploadResponse(BaseModel):
 	url: str
 	ordering: int
 	entity_type: ImageEntityTypeEnum
-	entry_id: UUID
+	entity_id: UUID
 
 
 class ImageUploadRequest(BaseModel):
