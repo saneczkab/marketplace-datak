@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,15 +31,15 @@ class CatalogProductSeller(BaseModel):
 class CatalogProductCard(BaseModel):
 	id: uuid.UUID
 	name: str
-	slug: str
-	category: CategoryRef
 	min_price: int
-	old_price: Optional[int] = None
+	old_price: int | None = None
+	slug: str | None = None
+	category: CategoryRef | None = None
 	has_stock: bool
-	rating: Optional[float] = Field(default=None, ge=0, le=5)
-	reviews_count: int = Field(ge=0)
+	rating: float | None = Field(default=None, ge=0, le=5)
+	reviews_count: int = Field(default=0, ge=0)
 	images: List[ImageRef]
-	seller: CatalogProductSeller
+	seller: CatalogProductSeller | None = None
 	model_config = ConfigDict(from_attributes=True)
 
 

@@ -65,7 +65,8 @@ async def db_session(
 		finally:
 			await session.execute(
 				text(
-					"TRUNCATE TABLE catalog.categories, "
+					"TRUNCATE TABLE storefront.collection_products, "
+					"storefront.collections, catalog.categories, "
 					"storefront.banner_events, storefront.banners CASCADE"
 				)
 			)
@@ -94,7 +95,6 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		catalog,
 		favorite,
 		subscriptions,
-		collections,
 	)
 	from middlewares.token_verification import verify_token
 
@@ -114,8 +114,6 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(favorite.router)
 	test_app.include_router(catalog.router)
 	test_app.include_router(subscriptions.router)
-	test_app.include_router(collections.router_collections)
-	test_app.include_router(collections.router_main)
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 
 	return test_app

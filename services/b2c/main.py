@@ -9,7 +9,6 @@ from api import (
 	cart,
 	catalog,
 	favorite,
-	collections,
 	subscriptions,
 	auth,
 )
@@ -64,6 +63,4 @@ app.include_router(cart.router)
 app.include_router(favorite.router)
 app.include_router(catalog.router)
 app.include_router(auth.router)
-app.include_router(collections.router_main)
-app.include_router(collections.router_collections)
 app.include_router(subscriptions.router)
