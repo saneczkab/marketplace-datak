@@ -2,6 +2,7 @@ import uuid
 from typing import Annotated
 
 import fastapi
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db
@@ -36,10 +37,10 @@ async def subscribe_to_product(
 			db_session, user_id, product_id, request_body
 		)
 	except ProductNotFoundError as err:
-		raise fastapi.HTTPException(
+		return JSONResponse(
 			status_code=404,
-			detail={"code": "NOT_FOUND", "message": str(err)},
-		) from err
+			content={"code": "NOT_FOUND", "message": str(err)},
+		)
 	return fastapi.Response(status_code=204)
 
 
