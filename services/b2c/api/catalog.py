@@ -85,7 +85,7 @@ async def post_banner_events(
 		) from e
 	except BannerNotFoundError as e:
 		raise fastapi.HTTPException(
-			status_code=404,
+			status_code=400,
 			detail={"code": "BANNER_NOT_FOUND", "message": str(e)},
 		) from e
 	return fastapi.Response(status_code=204)
