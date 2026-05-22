@@ -9,7 +9,7 @@ from database.models.catalog.base import (
 )
 from database.models.catalog.inventory import Invoice, InvoiceItem, InvoiceStatusEnum
 from database.models.catalog.variants import Characteristic, Image, Sku
-from database.models.identity.user import User
+from database.models.identity.user import Seller, User
 from database.models.personal.profile import Favorite, Subscription
 from database.models.storefront.main import (
 	Banner,
@@ -33,6 +33,7 @@ __all__ = [
 	"Characteristic",
 	"Image",
 	"Sku",
+	"Seller",
 	"User",
 	"Favorite",
 	"Subscription",

@@ -132,6 +132,7 @@ async def get_available_favorites(
 			selectinload(Favorite.product).selectinload(Product.category),
 			selectinload(Favorite.product).selectinload(Product.images),
 			selectinload(Favorite.product).selectinload(Product.skus),
+			selectinload(Favorite.product).selectinload(Product.seller),
 		)
 		.order_by(Favorite.added_at.desc())
 		.limit(limit)

@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, Text, DateTime, ForeignKey, Index, text,
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.core import Base
+from database.models.identity.user import Seller
 
 
 class ProductStatusEnum(str, enum.Enum):
@@ -31,9 +32,10 @@ class Product(Base):
 	id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
 	)
-	seller_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+	seller_id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), ForeignKey("identity.sellers.id")
+	)
 	category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("catalog.categories.id"))
-	category: Mapped["Category"] = relationship("Category")
 	title: Mapped[str] = mapped_column(String(255))
 	slug: Mapped[str] = mapped_column(String(255), unique=True)
 	description: Mapped[str | None] = mapped_column(Text)
@@ -51,6 +53,9 @@ class Product(Base):
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
 
+	seller: Mapped["Seller"] = relationship(
+		"Seller", lazy="selectin", cascade="save-update"
+	)
 	category: Mapped["Category"] = relationship("Category", lazy="selectin")
 	images = relationship("Image", back_populates="product")
 	characteristics = relationship("Characteristic", back_populates="product")

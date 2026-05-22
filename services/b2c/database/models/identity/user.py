@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, text, func, Boolean
+from sqlalchemy import DateTime, String, text, func, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -57,3 +57,25 @@ class Session(Base):
 		DateTime(timezone=True), nullable=False
 	)
 	is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Seller(Base):
+	__tablename__ = "sellers"
+	__table_args__ = {"schema": "identity"}
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+	password_hash: Mapped[str] = mapped_column(unique=True, nullable=False)
+	first_name: Mapped[str] = mapped_column(nullable=False)
+	last_name: Mapped[str] = mapped_column(nullable=False)
+	middle_name: Mapped[str] = mapped_column()  # Can be empty
+	company_name: Mapped[str] = mapped_column(nullable=False)
+	phone: Mapped[str] = mapped_column(unique=True)
+	created_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now()
+	)
+	updated_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now()
+	)

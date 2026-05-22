@@ -24,7 +24,9 @@ class Invoice(Base):
 	id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
 	)
-	seller_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+	seller_id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), ForeignKey("identity.sellers.id")
+	)
 	status: Mapped[InvoiceStatusEnum] = mapped_column(
 		default=InvoiceStatusEnum.DRAFT, server_default="DRAFT"
 	)
