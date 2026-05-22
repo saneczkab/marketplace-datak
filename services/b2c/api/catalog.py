@@ -13,7 +13,8 @@ from exceptions.category import CategoryNotFoundError
 from core import db
 
 
-from services import category_service, banner_service
+from schemas.collection import Collection
+from services import banner_service, category_service, collection_service
 from core.db import get_db
 
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
@@ -52,6 +53,13 @@ async def get_facets(
 
 		traceback.print_exc()
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.get("/collections", response_model=list[Collection])
+async def get_collections(
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+) -> list[Collection]:
+	return await collection_service.get_catalog_collections(db)
 
 
 @router.get("/banners")

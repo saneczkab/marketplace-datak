@@ -217,6 +217,69 @@ async def collections_data(db_session: AsyncSession) -> CollectionsData:
 	)
 
 
+@pytest.fixture()
+async def blocked_collections_data(db_session: AsyncSession) -> CollectionsData:
+	category = CategoryFactory.build()
+	blocked_product = ProductFactory.build(
+		category_id=category.id, status=ProductStatusEnum.BLOCKED
+	)
+	blocked_sku = SkuFactory.build(product_id=blocked_product.id)
+	moderated_product = ProductFactory.build(
+		category_id=category.id, status=ProductStatusEnum.MODERATED
+	)
+	moderated_sku = SkuFactory.build(product_id=moderated_product.id)
+	collection = CollectionFactory.build()
+	collection_products = [
+		CollectionProductFactory.build(
+			product_id=blocked_product.id, collection_id=collection.id
+		),
+		CollectionProductFactory.build(
+			product_id=moderated_product.id, collection_id=collection.id
+		),
+	]
+	db_session.add_all(
+		[
+			category,
+			blocked_product,
+			blocked_sku,
+			moderated_product,
+			moderated_sku,
+			collection,
+			*collection_products,
+		]
+	)
+	await db_session.commit()
+	return CollectionsData(
+		categories=[category],
+		products=[blocked_product, moderated_product],
+		skus=[blocked_sku, moderated_sku],
+		collections=[collection],
+		collection_products=collection_products,
+	)
+
+
+@pytest.fixture()
+async def out_of_stock_collections_data(db_session: AsyncSession) -> CollectionsData:
+	category = CategoryFactory.build()
+	product = ProductFactory.build(category_id=category.id)
+	sku = SkuFactory.build(product_id=product.id, active_quantity=0)
+	collection = CollectionFactory.build()
+	collection_products = [
+		CollectionProductFactory.build(
+			product_id=product.id, collection_id=collection.id
+		),
+	]
+	db_session.add_all([category, product, sku, collection, *collection_products])
+	await db_session.commit()
+	return CollectionsData(
+		categories=[category],
+		products=[product],
+		skus=[sku],
+		collections=[collection],
+		collection_products=collection_products,
+	)
+
+
 @dataclass(frozen=True, slots=True)
 class CartItemsData:
 	user: User | None

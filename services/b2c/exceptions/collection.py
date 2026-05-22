@@ -1,2 +1,0 @@
-class CollectionNotFoundError(Exception):
-	pass
