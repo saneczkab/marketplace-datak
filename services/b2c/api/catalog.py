@@ -6,10 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
 import json
 
+from schemas.banner import Banner
 from schemas.category import FacetsResponse
 from exceptions.category import CategoryNotFoundError
-import services.category_service as category_service
 from core import db
+
+
+from services import category_service, banner_service
+from core.db import get_db
 
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
 
@@ -47,3 +51,18 @@ async def get_facets(
 
 		traceback.print_exc()
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.get("/banners")
+async def get_banners(
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+) -> list[Banner]:
+	"""Get active banners
+
+	Args:
+	    db (Annotated[AsyncSession, fastapi.Depends]): Database session
+
+	Returns:
+	    list[Banner]: List of active banners
+	"""
+	return await banner_service.get_active_banners(db)
