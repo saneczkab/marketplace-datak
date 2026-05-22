@@ -24,7 +24,7 @@ async def test_add_to_favorites_returns_204(
 	assert response.status_code == 204
 
 
-async def repeat_add_returns_204_not_duplicate(
+async def test_repeat_add_returns_204_not_duplicate(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	favorites_data: FavoritesData,
@@ -137,3 +137,19 @@ async def test_favorites_requires_authorization(
 
 	response = await client.delete(f"/api/v1/favorites/{product.id}")
 	assert response.status_code == 401
+
+
+async def test_seller_name_is_returned(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	favorites_data: FavoritesData,
+) -> None:
+	response = await client.get(
+		"/api/v1/favorites",
+		headers=await auth_headers(favorites_data.user.id, db_session),
+	)
+	assert response.status_code == 200
+	assert (
+		response.json()["items"][0]["seller"]["display_name"]
+		== favorites_data.products[0].seller.company_name
+	)

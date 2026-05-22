@@ -93,7 +93,7 @@ def _build_catalog_product_card(
 		images=_product_images(product),
 		seller=CatalogProductSeller(
 			id=product.seller_id,
-			display_name=str(product.seller_id),
+			display_name=product.seller.company_name,
 		),
 	)
 

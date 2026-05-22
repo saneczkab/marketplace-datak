@@ -50,7 +50,7 @@ async def add_to_favorites(
 	except ProductNotFoundError as err:
 		raise fastapi.HTTPException(
 			status_code=404,
-			detail={"code": "NOT_FOUND", "message": str(err)},
+			content={"code": "NOT_FOUND", "message": str(err)},
 		) from None
 	return fastapi.Response(status_code=204)
 

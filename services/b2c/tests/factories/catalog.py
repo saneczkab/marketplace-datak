@@ -14,6 +14,7 @@ from database.models.catalog.base import (
 	Review,
 )
 from database.models.catalog.variants import Image
+from tests.factories.user import SellerFactory
 
 
 class CategoryFactory(factory.Factory):
@@ -58,7 +59,8 @@ class ProductFactory(factory.Factory):
 		model = Product
 
 	id = factory.LazyFunction(uuid.uuid4)
-	seller_id = factory.LazyFunction(uuid.uuid4)
+	seller = factory.SubFactory(SellerFactory)
+	seller_id = factory.LazyAttribute(lambda obj: obj.seller.id)
 	category_id = factory.LazyFunction(uuid.uuid4)
 	title = factory.Faker("sentence", nb_words=3)
 	slug = factory.Faker("slug")
