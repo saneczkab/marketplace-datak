@@ -3,7 +3,11 @@ import uuid
 from datetime import datetime
 from database.models import CartItem
 from database.models.personal.profile import Favorite, Subscription
-from database.models.storefront.main import Collection, CollectionProduct
+from database.models.storefront.main import (
+	Banner,
+	Collection,
+	CollectionProduct,
+)
 
 
 class FavoriteFactory(factory.Factory):
@@ -60,3 +64,18 @@ class CartItemFactory(factory.Factory):
 	quantity = factory.Faker("pyint", min_value=100, max_value=1000)
 	created_at = factory.LazyFunction(datetime.now)
 	updated_at = factory.LazyFunction(datetime.now)
+
+
+class BannerFactory(factory.Factory):
+	class Meta:
+		model = Banner
+
+	id = factory.LazyFunction(uuid.uuid4)
+	title = factory.Faker("sentence")
+	image_url = factory.Faker("image_url")
+	link = factory.Faker("url")
+	priority = factory.Faker("pyint", min_value=0, max_value=100)
+	is_active = True
+	start_at = factory.LazyFunction(datetime.now)
+	end_at = factory.LazyFunction(datetime.now)
+	created_at = factory.LazyFunction(datetime.now)

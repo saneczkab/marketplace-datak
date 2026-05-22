@@ -63,7 +63,12 @@ async def db_session(
 		try:
 			yield session
 		finally:
-			await session.execute(text("TRUNCATE TABLE catalog.categories CASCADE"))
+			await session.execute(
+				text(
+					"TRUNCATE TABLE catalog.categories, "
+					"storefront.banner_events, storefront.banners CASCADE"
+				)
+			)
 			await session.commit()
 
 

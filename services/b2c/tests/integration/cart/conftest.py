@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import uuid
 from dataclasses import dataclass
 
@@ -10,7 +11,11 @@ from database.models import Category, Product, ProductStatusEnum, Sku
 from database.models.cart.item import CartItem
 from database.models.identity.user import User
 from database.models.personal.profile import Favorite, Subscription
-from database.models.storefront.main import Collection, CollectionProduct
+from database.models.storefront.main import (
+	Banner,
+	Collection,
+	CollectionProduct,
+)
 from tests.factories.catalog import (
 	CartItemFactory,
 	CategoryFactory,
@@ -21,6 +26,7 @@ from tests.factories.catalog import (
 )
 from tests.factories.user import UserFactory
 from tests.factories.cart import (
+	BannerFactory,
 	CollectionFactory,
 	CollectionProductFactory,
 	FavoriteFactory,
@@ -303,3 +309,38 @@ async def cart_user_data_with_conflict(
 			items=items_guest,
 		),
 	)
+
+
+@dataclass(frozen=True, slots=True)
+class BannersData:
+	banners: list[Banner]
+
+
+@pytest.fixture()
+async def banners_data(db_session: AsyncSession) -> BannersData:
+	banners = [
+		BannerFactory.build(
+			start_at=datetime.now() - timedelta(days=1),
+			end_at=datetime.now() + timedelta(days=1),
+		)
+		for _ in range(3)
+	]
+	db_session.add_all([*banners])
+	await db_session.commit()
+	return BannersData(
+		banners=banners,
+	)
+
+
+@pytest.fixture()
+async def no_active_banners_data(db_session: AsyncSession) -> BannersData:
+	banners = [
+		BannerFactory.build(
+			start_at=datetime.now() + timedelta(days=1),
+			end_at=datetime.now() + timedelta(days=2),
+		)
+		for _ in range(3)
+	]
+	db_session.add_all([*banners])
+	await db_session.commit()
+	return BannersData(banners=banners)
