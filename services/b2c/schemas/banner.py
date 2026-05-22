@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Literal
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Banner(BaseModel):
@@ -10,5 +11,15 @@ class Banner(BaseModel):
 	image_url: str
 	link: str
 	ordering: int
-	active_from: datetime
-	active_to: datetime
+	active_from: datetime | None = None
+	active_to: datetime | None = None
+
+
+class BannerEventItem(BaseModel):
+	banner_id: uuid.UUID
+	event: Literal["impression", "click"]
+	timestamp: datetime
+
+
+class BannerEventsRequest(BaseModel):
+	events: list[BannerEventItem] = Field(min_length=1)

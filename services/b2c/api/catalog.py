@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
 import json
 
-from schemas.banner import Banner
+from exceptions.banner import BannerNotFoundError, EmptyEventsError
+from schemas.banner import Banner, BannerEventsRequest
 from schemas.category import FacetsResponse
 from exceptions.category import CategoryNotFoundError
 from core import db
@@ -66,3 +67,25 @@ async def get_banners(
 	    list[Banner]: List of active banners
 	"""
 	return await banner_service.get_active_banners(db)
+
+
+@router.post("/banner-events", status_code=204)
+async def post_banner_events(
+	request: Request,
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+	body: BannerEventsRequest,
+) -> fastapi.Response:
+	user_id = getattr(request.state, "user_id", None)
+	try:
+		await banner_service.record_banner_events(db, body, user_id)
+	except EmptyEventsError as e:
+		raise fastapi.HTTPException(
+			status_code=400,
+			detail={"code": "EMPTY_EVENTS", "message": str(e)},
+		) from e
+	except BannerNotFoundError as e:
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "BANNER_NOT_FOUND", "message": str(e)},
+		) from e
+	return fastapi.Response(status_code=204)
