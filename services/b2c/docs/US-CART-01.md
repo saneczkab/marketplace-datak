@@ -72,4 +72,4 @@ make test
 
 - `tests/integration/cart/test_favorite.py`
     - Задание требует тест `add_to_favorites_returns_201`, однако в спецификации указан код 204, автотест изменён на `test_add_to_favorites_returns_204`
-    - Задание требует тест `repeat_add_returns_200_not_duplicate`, однако в спецификации для повторного добавления соответствует код 204, так что проверяется сценарий `repeat_add_returns_204_not_duplicate`
+    - Задание требует тест `repeat_add_returns_200_not_duplicate`, однако в спецификации для повторного добавления соответствует код 204, так что проверяется сценарий `test_repeat_add_returns_204_not_duplicate`
