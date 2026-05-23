@@ -74,9 +74,14 @@ async def _resolve_cart_identity(request: Request) -> Optional[JSONResponse]:
 	if path == CART_MERGE_PATH:
 		auth_error = await _authenticate_bearer(request)
 		if auth_error is not None:
+			return auth_error
+		if not getattr(request.state, "user_id", None):
 			return JSONResponse(
 				status_code=401,
-				content={"code": "UNAUTHORIZED", "message": "Auth needed"},
+				content={
+					"code": "UNAUTHORIZED",
+					"message": "Missing or invalid Authorization header",
+				},
 			)
 		if not x_session_id:
 			return JSONResponse(

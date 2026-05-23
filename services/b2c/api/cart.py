@@ -156,7 +156,7 @@ async def validate_cart(
 	return await cart_service.validate_cart(db, user_id, session_id)
 
 
-@router.post("/merge", response_model=CartResponse)
+@router.post("/merge", response_model=CartResponse, responses={401: {}})
 async def merge_cart(
 	request: fastapi.Request,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],

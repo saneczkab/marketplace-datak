@@ -190,6 +190,18 @@ async def test_update_cart_item_quantity_returns_updated_cart(
 	assert response.json()["items"][0]["quantity"] == new_quantity
 
 
+async def test_merge_without_auth_returns_401(
+	client: AsyncClient,
+	cart_session_data: CartItemsData,
+) -> None:
+	response = await client.post(
+		"/api/v1/cart/merge",
+		headers={"X-Session-Id": cart_session_data.session_id},
+	)
+	assert response.status_code == 401
+	assert response.json()["code"] == "UNAUTHORIZED"
+
+
 async def test_guest_cart_merged_on_login(
 	client: AsyncClient,
 	db_session: AsyncSession,
