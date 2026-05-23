@@ -68,7 +68,7 @@ async def get_products_list(
 	category_id: Optional[str],
 	filters_json: Optional[str],
 	sort: str,
-	search: Optional[str],
+	q: Optional[str],
 ) -> ProductShortListResponse:
 	# Валидация sort согласно спецификации
 	valid_sorts = [
@@ -82,8 +82,8 @@ async def get_products_list(
 	if sort not in valid_sorts:
 		raise ValueError(f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}")
 
-	if search:
-		search_stripped = search.strip()
+	if q:
+		search_stripped = q.strip()
 
 		if len(search_stripped) > 0 and len(search_stripped) < 3:
 			raise ValueError("Search query must be at least 3 characters")
@@ -92,10 +92,10 @@ async def get_products_list(
 			raise ValueError("Search query must be at most 255 characters")
 
 	cat_uuid = uuid.UUID(category_id) if category_id else None
-	filters = json.loads(filters_json) if filters_json else {}
+	filter = json.loads(filters_json) if filters_json else {}
 
 	products, total_count = await product_crud.get_products_list(
-		db, limit, offset, cat_uuid, filters, sort, search
+		db, limit, offset, cat_uuid, filter, sort, q
 	)
 
 	items = []
