@@ -1,6 +1,5 @@
-import json
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +10,6 @@ from exceptions.product import ProductNotFoundError
 from exceptions.sku import SkuNotFoundError
 from schemas.product import (
 	Product,
-	ProductShortListResponse,
 	SimilarProductsResponse,
 )
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
@@ -57,42 +55,6 @@ async def get_product_skus_short_api(
 		return list(skus_validated)
 	except ProductNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-
-
-@router.get("", response_model=ProductShortListResponse)
-async def get_product_list_api(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	category_id: Optional[uuid.UUID] = None,
-	limit: int = 20,
-	offset: int = 0,
-	filters: Optional[str] = None,
-	sort: str = "rating",
-	search: Optional[str] = None,
-) -> ProductShortListResponse:
-	filters_param = None
-	if filters:
-		try:
-			filters_obj = json.loads(filters)
-			filters_param = json.dumps(filters_obj, ensure_ascii=False)
-		except json.JSONDecodeError as e:
-			raise fastapi.HTTPException(
-				status_code=400, detail="Invalid JSON in filters parameter"
-			) from e
-
-	try:
-		return await product_service.get_products_list(
-			db,
-			limit,
-			offset,
-			str(category_id) if category_id else None,
-			filters_param,
-			sort,
-			search,
-		)
-	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{id}", response_model=Product)

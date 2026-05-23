@@ -69,9 +69,9 @@ async def get_products_list(
 	limit: int,
 	offset: int,
 	category_id: Optional[uuid.UUID],
-	filters: Optional[dict],
+	filter: Optional[dict],
 	sort: str,
-	search: Optional[str],
+	q: Optional[str],
 ) -> Tuple[List[Product], int]:
 	query = select(Product).options(selectinload(Product.images))
 	count_query = select(func.count(func.distinct(Product.id)))
@@ -94,15 +94,15 @@ async def get_products_list(
 		query = query.where(Product.category_id.in_(category_ids))
 		count_query = count_query.where(Product.category_id.in_(category_ids))
 
-	if filters:
-		for key, value in filters.items():
+	if filter:
+		for key, value in filter.items():
 			column = getattr(Product, key, None)
 			if column is not None:
 				query = query.where(column == value)
 				count_query = count_query.where(column == value)
 
-	if search:
-		search_val = search.strip()
+	if q:
+		search_val = q.strip()
 		if len(search_val) >= 3:
 			escaped_search = (
 				search_val.replace("/", "//").replace("%", "/%").replace("_", "/_")

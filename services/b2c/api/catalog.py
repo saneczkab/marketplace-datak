@@ -1,7 +1,7 @@
 import fastapi
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
 import json
@@ -14,7 +14,13 @@ from core import db
 
 
 from schemas.collection import Collection
-from services import banner_service, category_service, collection_service
+from schemas.product import ProductShortListResponse
+from services import (
+	banner_service,
+	category_service,
+	collection_service,
+	product_service,
+)
 from core.db import get_db
 
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
@@ -97,3 +103,39 @@ async def post_banner_events(
 			detail={"code": "BANNER_NOT_FOUND", "message": str(e)},
 		) from e
 	return fastapi.Response(status_code=204)
+
+
+@router.get("/products", response_model=ProductShortListResponse)
+async def get_product_list_api(
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	category_id: Optional[uuid.UUID] = None,
+	limit: int = 20,
+	offset: int = 0,
+	filter: Optional[str] = None,
+	sort: str = "popularity",
+	q: str = None,
+) -> ProductShortListResponse:
+	filters_param = None
+	if filter:
+		try:
+			filters_obj = json.loads(filter)
+			filters_param = json.dumps(filters_obj, ensure_ascii=False)
+		except json.JSONDecodeError as e:
+			raise fastapi.HTTPException(
+				status_code=400, detail="Invalid JSON in filters parameter"
+			) from e
+
+	try:
+		return await product_service.get_products_list(
+			db,
+			limit,
+			offset,
+			str(category_id) if category_id else None,
+			filters_param,
+			sort,
+			q,
+		)
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
