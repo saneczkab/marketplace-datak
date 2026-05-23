@@ -15,7 +15,12 @@ from core import db
 
 from schemas.collection import Collection
 from schemas.product import ProductShortListResponse
-from services import banner_service, category_service, collection_service, product_service
+from services import (
+	banner_service,
+	category_service,
+	collection_service,
+	product_service,
+)
 from core.db import get_db
 
 router = fastapi.APIRouter(prefix="/api/v1/catalog")

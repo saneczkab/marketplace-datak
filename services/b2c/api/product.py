@@ -1,6 +1,5 @@
-import json
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +10,6 @@ from exceptions.product import ProductNotFoundError
 from exceptions.sku import SkuNotFoundError
 from schemas.product import (
 	Product,
-	ProductShortListResponse,
 	SimilarProductsResponse,
 )
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
