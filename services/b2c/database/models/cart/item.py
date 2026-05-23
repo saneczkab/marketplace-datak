@@ -54,6 +54,7 @@ class CartItem(Base):
 	sku_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 
 	quantity: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+	unit_price_at_add: Mapped[int | None] = mapped_column(Integer, nullable=True)
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)

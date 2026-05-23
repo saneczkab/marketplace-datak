@@ -87,9 +87,14 @@ async def create_cart_item(
 	session_id: Optional[str],
 	sku_id: uuid.UUID,
 	quantity: int,
+	unit_price_at_add: int,
 ) -> CartItem:
 	cart_item = CartItem(
-		user_id=user_id, session_id=session_id, sku_id=sku_id, quantity=quantity
+		user_id=user_id,
+		session_id=session_id,
+		sku_id=sku_id,
+		quantity=quantity,
+		unit_price_at_add=unit_price_at_add,
 	)
 	db.add(cart_item)
 	await db.commit()

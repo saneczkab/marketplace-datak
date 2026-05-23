@@ -55,8 +55,9 @@ make test
   - `test_test_get_cart_enriched_with_b2b_data_user` / `_session` - обогащение при GET
   - `test_add_sku_increments_quantity_if_already_in_cart` - добавление в корзину товара, который уже есть в ней
   - `test_update_cart_item_quantity_returns_updated_cart` - изменения количества товара в корзине
-  - `test_unavailable_sku_shown_with_reason`,  `test_success_cart_validation` - тесты валидации
+  - `test_unavailable_sku_shown_with_reason`, `test_validate_reports_price_changed`,  `test_success_cart_validation` - тесты валидации
   - `test_guest_cart_merged_on_login` - merge гостевой и пользовательской корзин с конфликтом
+  - `test_merge_without_auth_returns_401` - merge корзин без авторизации
   - `test_clear_cart_returns_204`, `test_delete_cart_item_returns_updated_cart` - удаление товаров из корзины
 
 ## ADR

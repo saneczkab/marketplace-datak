@@ -27,6 +27,10 @@ async def test_test_get_cart_enriched_with_b2b_data_user(
 	assert body["items"][0]["sku_code"] == str(cart_user_data.sku.id)
 	assert body["items"][0]["unit_price"] == cart_user_data.sku.price
 	assert (
+		body["items"][0]["unit_price_at_add"]
+		== cart_user_data.items[0].unit_price_at_add
+	)
+	assert (
 		body["items"][0]["line_total"]
 		== cart_user_data.sku.price * cart_user_data.items[0].quantity
 	)
@@ -54,6 +58,10 @@ async def test_test_get_cart_enriched_with_b2b_data_session(
 	assert body["items"][0]["sku_code"] == str(cart_session_data.sku.id)
 	assert body["items"][0]["unit_price"] == cart_session_data.sku.price
 	assert (
+		body["items"][0]["unit_price_at_add"]
+		== cart_session_data.items[0].unit_price_at_add
+	)
+	assert (
 		body["items"][0]["line_total"]
 		== cart_session_data.sku.price * cart_session_data.items[0].quantity
 	)
@@ -75,6 +83,32 @@ async def test_success_cart_validation(
 	assert response.status_code == 200
 	assert response.json()["is_valid"]
 	assert response.json()["issues"] == []
+
+
+async def test_validate_reports_price_changed(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	cart_user_data: CartItemsData,
+) -> None:
+	sku = cart_user_data.sku
+	sku.price = sku.price + 500
+	await db_session.commit()
+
+	response = await client.post(
+		"/api/v1/cart/validate",
+		headers=await auth_headers(cart_user_data.user.id, db_session),
+	)
+	assert response.status_code == 200
+	body = response.json()
+	assert not body["is_valid"]
+	assert body["issues"][0]["type"] == "PRICE_CHANGED"
+	assert body["issues"][0]["old_value"] == cart_user_data.items[0].unit_price_at_add
+	assert body["issues"][0]["new_value"] == sku.price
+	assert (
+		body["cart"]["items"][0]["unit_price_at_add"]
+		== cart_user_data.items[0].unit_price_at_add
+	)
+	assert body["cart"]["items"][0]["unit_price"] == sku.price
 
 
 async def test_unavailable_sku_shown_with_reason(
@@ -154,6 +188,18 @@ async def test_update_cart_item_quantity_returns_updated_cart(
 	)
 	assert response.status_code == 200
 	assert response.json()["items"][0]["quantity"] == new_quantity
+
+
+async def test_merge_without_auth_returns_401(
+	client: AsyncClient,
+	cart_session_data: CartItemsData,
+) -> None:
+	response = await client.post(
+		"/api/v1/cart/merge",
+		headers={"X-Session-Id": cart_session_data.session_id},
+	)
+	assert response.status_code == 401
+	assert response.json()["code"] == "UNAUTHORIZED"
 
 
 async def test_guest_cart_merged_on_login(
