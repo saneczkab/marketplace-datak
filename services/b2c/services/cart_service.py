@@ -57,7 +57,7 @@ def _build_cart_item(
 		sku_code=str(sku.id),
 		quantity=cart_item.quantity,
 		unit_price=unit_price,
-		unit_price_at_add=None,
+		unit_price_at_add=cart_item.unit_price_at_add,
 		line_total=line_total,
 		available_quantity=sku.active_quantity,
 		is_available=is_available,
@@ -165,7 +165,9 @@ async def add_cart_item(
 	if existing_item:
 		await cart_crud.update_cart_item_quantity(db, existing_item, new_quantity)
 	else:
-		await cart_crud.create_cart_item(db, user_id, session_id, sku_id, quantity)
+		await cart_crud.create_cart_item(
+			db, user_id, session_id, sku_id, quantity, sku.price
+		)
 
 	return await get_cart(db, user_id, session_id)
 
@@ -250,6 +252,19 @@ async def validate_cart(
 					sku_id=sku.id,
 					type="OUT_OF_STOCK",
 					message="Product out of stock",
+				)
+			)
+		elif (
+			cart_item.unit_price_at_add is not None
+			and sku.price != cart_item.unit_price_at_add
+		):
+			issues.append(
+				CartValidationIssue(
+					sku_id=sku.id,
+					type="PRICE_CHANGED",
+					message="Price changed",
+					old_value=cart_item.unit_price_at_add,
+					new_value=sku.price,
 				)
 			)
 		elif cart_item.quantity > sku.active_quantity:

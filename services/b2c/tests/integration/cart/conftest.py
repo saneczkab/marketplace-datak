@@ -296,7 +296,14 @@ async def cart_user_data(db_session: AsyncSession) -> CartItemsData:
 	product = ProductFactory.build(category_id=category.id)
 	image = ImageFactory.build(product_id=product.id)
 	sku = SkuFactory.build(product_id=product.id, images=[image])
-	items = [CartItemFactory.build(user_id=user.id, sku_id=sku.id, session_id=None)]
+	items = [
+		CartItemFactory.build(
+			user_id=user.id,
+			sku_id=sku.id,
+			session_id=None,
+			unit_price_at_add=sku.price,
+		)
+	]
 	db_session.add_all([user, category, product, image, sku, *items])
 	await db_session.commit()
 	return CartItemsData(
@@ -311,7 +318,14 @@ async def cart_session_data(db_session: AsyncSession) -> CartItemsData:
 	products = [ProductFactory.build(category_id=category.id) for _ in range(3)]
 	image = ImageFactory.build(product_id=products[0].id)
 	sku = SkuFactory.build(product_id=products[0].id, images=[image])
-	items = [CartItemFactory.build(session_id=session_id, sku_id=sku.id, user_id=None)]
+	items = [
+		CartItemFactory.build(
+			session_id=session_id,
+			sku_id=sku.id,
+			user_id=None,
+			unit_price_at_add=sku.price,
+		)
+	]
 	db_session.add_all([category, *products, image, sku, *items])
 	await db_session.commit()
 	return CartItemsData(
