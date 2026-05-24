@@ -6,7 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db
 from exceptions.product import ProductNotFoundError
-from exceptions.subscription import SubscriptionAlreadyExistsError
+from exceptions.subscription import (
+	InvalidSubscriptionTypeError,
+	SubscriptionAlreadyExistsError,
+)
 from schemas.subscription import SubscribeRequest
 from services import subscription_service
 from fastapi.security import HTTPBearer
@@ -45,6 +48,11 @@ async def subscribe_to_product(
 		raise fastapi.HTTPException(
 			status_code=409,
 			detail={"code": "SUBSCRIPTION_ALREADY_EXISTS", "message": str(err)},
+		) from err
+	except InvalidSubscriptionTypeError as err:
+		raise fastapi.HTTPException(
+			status_code=400,
+			detail={"code": "INVALID_NOTIFY_ON", "message": str(err)},
 		) from err
 	return fastapi.Response(status_code=204)
 

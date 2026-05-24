@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud.subscription as sub_crud
 from exceptions.product import ProductNotFoundError
+from exceptions.subscription import InvalidSubscriptionTypeError
 from schemas.subscription import SubscribeRequest, SubscriptionEvent
 
 
@@ -13,6 +14,9 @@ async def subscribe_to_product(
 	product_id: uuid.UUID,
 	request: SubscribeRequest,
 ) -> None:
+	if not request.events:
+		raise InvalidSubscriptionTypeError("Events are required")
+
 	if not await sub_crud.product_exists(db, product_id):
 		raise ProductNotFoundError("Товар не найден")
 
