@@ -27,7 +27,7 @@ async def test_subscribe_returns_204(
 	assert response.content == b""
 
 
-async def test_duplicate_subscription_returns_204(
+async def test_duplicate_subscription_returns_409(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	subscriptions_data: SubscriptionsData,
@@ -38,14 +38,25 @@ async def test_duplicate_subscription_returns_204(
 		json={"events": ["BACK_IN_STOCK"]},
 		headers=await auth_headers(subscriptions_data.user.id, db_session),
 	)
-	assert response.status_code == 204
-	subscription = await db_session.execute(
-		select(Subscription).where(
-			Subscription.user_id == subscriptions_data.user.id,
-			Subscription.product_id == product.id,
-		)
+	assert response.status_code == 409
+	assert response.json()["code"] == "SUBSCRIPTION_ALREADY_EXISTS"
+	assert response.json()["message"] == "Подписка на этот товар уже существует"
+
+
+async def test_empty_events_returns_400(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	empty_subscriptions_data: SubscriptionsData,
+) -> None:
+	product = empty_subscriptions_data.product
+	response = await client.post(
+		f"/api/v1/favorites/{product.id}/subscribe",
+		headers=await auth_headers(empty_subscriptions_data.user.id, db_session),
+		json={"events": []},
 	)
-	assert subscription.scalar_one_or_none() is not None
+	assert response.status_code == 400
+	assert response.json()["code"] == "INVALID_NOTIFY_ON"
+	assert response.json()["message"] == "Events are required"
 
 
 async def test_invalid_events_returns_422(
@@ -60,6 +71,9 @@ async def test_invalid_events_returns_422(
 		json={"events": ["INVALID"]},
 	)
 	assert response.status_code == 422
+	assert response.json()["code"] == "VALIDATION_ERROR"
+	assert response.json()["message"] == "Request validation failed"
+	assert len(response.json()["details"]) >= 1
 
 
 async def test_subscribe_to_unknown_product_returns_404(

@@ -71,5 +71,4 @@ make test
 - `tests/integration/cart/test_subscription.py`
 Тесты сделаны в соответствии с требованиями спецификации и расходятся с канон флоу:
 - Тест из канон флоу `subscribe_returns_201_with_notify_on` заменён на `test_subscribe_returns_204`
-- `duplicate_subscription_returns_409` заменён на `test_duplicate_subscription_returns_204`
 - `invalid_notify_on_returns_400` заменён на `test_invalid_events_returns_422`
