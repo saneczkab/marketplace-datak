@@ -27,7 +27,7 @@ async def test_subscribe_returns_204(
 	assert response.content == b""
 
 
-async def test_duplicate_subscription_returns_204(
+async def test_duplicate_subscription_returns_409(
 	client: AsyncClient,
 	db_session: AsyncSession,
 	subscriptions_data: SubscriptionsData,
@@ -38,14 +38,9 @@ async def test_duplicate_subscription_returns_204(
 		json={"events": ["BACK_IN_STOCK"]},
 		headers=await auth_headers(subscriptions_data.user.id, db_session),
 	)
-	assert response.status_code == 204
-	subscription = await db_session.execute(
-		select(Subscription).where(
-			Subscription.user_id == subscriptions_data.user.id,
-			Subscription.product_id == product.id,
-		)
-	)
-	assert subscription.scalar_one_or_none() is not None
+	assert response.status_code == 409
+	assert response.json()["code"] == "SUBSCRIPTION_ALREADY_EXISTS"
+	assert response.json()["message"] == "Подписка на этот товар уже существует"
 
 
 async def test_invalid_events_returns_422(

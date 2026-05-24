@@ -2,7 +2,10 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from exceptions.subscription import SubscriptionAlreadyExistsError
 
 from database.models import Subscription
 from database.models import Product
@@ -23,27 +26,28 @@ async def product_exists(db: AsyncSession, product_id: uuid.UUID) -> bool:
 	return result.scalar_one_or_none() is not None
 
 
-async def upsert_subscription(
+async def create_subscription(
 	db: AsyncSession,
 	user_id: uuid.UUID,
 	product_id: uuid.UUID,
 	notify_in_stock: bool,
 	notify_price_down: bool,
 ) -> None:
-	existing = await get_subscription(db, user_id, product_id)
-	if existing:
-		existing.notify_in_stock = notify_in_stock
-		existing.notify_price_down = notify_price_down
-	else:
-		db.add(
-			Subscription(
-				user_id=user_id,
-				product_id=product_id,
-				notify_in_stock=notify_in_stock,
-				notify_price_down=notify_price_down,
-			)
+	db.add(
+		Subscription(
+			user_id=user_id,
+			product_id=product_id,
+			notify_in_stock=notify_in_stock,
+			notify_price_down=notify_price_down,
 		)
-	await db.commit()
+	)
+	try:
+		await db.commit()
+	except IntegrityError as err:
+		await db.rollback()
+		raise SubscriptionAlreadyExistsError(
+			"Подписка на этот товар уже существует"
+		) from err
 
 
 async def delete_subscription_by_product(
