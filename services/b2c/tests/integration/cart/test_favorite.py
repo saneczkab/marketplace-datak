@@ -153,3 +153,17 @@ async def test_seller_name_is_returned(
 		response.json()["items"][0]["seller"]["display_name"]
 		== favorites_data.products[0].seller.company_name
 	)
+
+
+async def test_add_to_favorites_unknown_product(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	favorites_data: FavoritesData,
+) -> None:
+	response = await client.put(
+		f"/api/v1/favorites/{uuid.uuid4()}",
+		headers=await auth_headers(favorites_data.user.id, db_session),
+	)
+	assert response.status_code == 404
+	assert response.json()["code"] == "NOT_FOUND"
+	assert response.json()["message"] == "Товар не найден"
