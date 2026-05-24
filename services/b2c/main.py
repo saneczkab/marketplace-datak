@@ -1,7 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from api import (
 	category,
 	product,
@@ -44,6 +45,23 @@ async def lifespan(app: FastAPI):  # noqa
 
 
 app = FastAPI(debug=settings.DEBUG, lifespan=lifespan)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
+	detail = exc.detail
+	if isinstance(detail, dict) and "code" in detail and "message" in detail:
+		return JSONResponse(
+			status_code=exc.status_code,
+			content={"code": detail["code"], "message": detail["message"]},
+			headers=exc.headers,
+		)
+	return JSONResponse(
+		status_code=exc.status_code,
+		content={"detail": detail},
+		headers=exc.headers,
+	)
+
 
 # Configure CORS
 app.add_middleware(
