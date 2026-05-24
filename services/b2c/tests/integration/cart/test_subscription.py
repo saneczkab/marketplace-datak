@@ -71,6 +71,9 @@ async def test_invalid_events_returns_422(
 		json={"events": ["INVALID"]},
 	)
 	assert response.status_code == 422
+	assert response.json()["code"] == "VALIDATION_ERROR"
+	assert response.json()["message"] == "Request validation failed"
+	assert len(response.json()["details"]) >= 1
 
 
 async def test_subscribe_to_unknown_product_returns_404(

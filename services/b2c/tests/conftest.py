@@ -16,7 +16,7 @@ from testcontainers.postgres import PostgresContainer
 
 from core import db as core_db
 from main import app as fastapi_app
-from main import http_exception_handler
+from main import http_exception_handler, request_validation_exception_handler
 
 
 @pytest.fixture(scope="session")
@@ -87,6 +87,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	fastapi_app.dependency_overrides[core_db.get_db] = override_get_db
 
 	from fastapi import FastAPI, HTTPException
+	from fastapi.exceptions import RequestValidationError
 	from fastapi.middleware.cors import CORSMiddleware
 	from api import (
 		category,
@@ -101,6 +102,9 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 
 	test_app = FastAPI(debug=False)
 	test_app.add_exception_handler(HTTPException, http_exception_handler)
+	test_app.add_exception_handler(
+		RequestValidationError, request_validation_exception_handler
+	)
 	test_app.middleware("http")(verify_token)
 	test_app.add_middleware(
 		CORSMiddleware,
