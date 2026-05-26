@@ -6,15 +6,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud.product as product_crud
 import crud.category as category_crud
+import crud.review as review_crud
 from database.models import Sku
-from exceptions.category import CategoryNotFoundError
 from exceptions.product import ProductNotFoundError
+from schemas.catalog import CatalogProductCard
 from schemas.product import (
 	ProductShort,
 	Product,
 	ProductShortListResponse,
-	SimilarProductsResponse,
 )
+from services.schemas_builder import build_catalog_product_cards
 from schemas.sku import SkuShort
 from schemas.sku import Sku as SkuSchema
 from schemas.image import Image
@@ -130,30 +131,19 @@ async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:
 
 
 async def get_similar_products(
-	db: AsyncSession, id: uuid.UUID, category_id: uuid.UUID, limit: int, offset: int
-) -> SimilarProductsResponse:
-	if not await product_crud.get_product_full(db, id):
-		raise ProductNotFoundError("Product not found")
-
-	if not await category_crud.get_category_by_id(db, category_id):
-		raise CategoryNotFoundError("Unknown category")
-
-	products, total_count = await product_crud.get_similar_products(
-		db, category_id, id, limit, offset
+	db: AsyncSession, product_id: uuid.UUID, limit: int
+) -> list[CatalogProductCard]:
+	category_id = await product_crud.get_product_category_id(db, product_id)
+	products = await product_crud.get_similar_products(
+		db, category_id, product_id, limit
 	)
+	if not products:
+		return []
 
-	items = [
-		ProductShort(
-			id=p.id,
-			title=p.title,
-			image="",
-			price=float(0.0),
-			in_stock=False,
-			is_in_cart=False,
-		)
-		for p in products
-	]
-
-	return SimilarProductsResponse(
-		items=items, total_count=total_count, limit=limit, offset=offset
+	categories_map = await category_crud.get_all_categories_map(db)
+	review_stats_by_product = await review_crud.get_reviews_stats_by_product_ids(
+		db, [product.id for product in products]
+	)
+	return build_catalog_product_cards(
+		products, categories_map, review_stats_by_product
 	)

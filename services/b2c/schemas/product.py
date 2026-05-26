@@ -50,6 +50,3 @@ class ProductInFavorite(BaseModel):
 	characteristics: List[CharacteristicInFavorite]
 	skus: List[SkuInFavorite]
 	model_config = ConfigDict(from_attributes=True)
-
-
-SimilarProductsResponse = ProductShortListResponse

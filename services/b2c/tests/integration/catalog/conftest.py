@@ -21,6 +21,7 @@ from tests.factories.catalog import (
 	CategoryFiltersFactory,
 	FilterValuesFactory,
 	ProductFactory,
+	SkuFactory,
 )
 
 
@@ -245,6 +246,26 @@ class SimilarProductsData:
 	other_products: tuple[Product, ...]
 
 
+def _add_product_with_sku(
+	products: list,
+	skus: list,
+	*,
+	category_id: uuid.UUID,
+	status: ProductStatusEnum = ProductStatusEnum.MODERATED,
+	active_quantity: int = 10,
+) -> Product:
+	product = ProductFactory.build(
+		id=_fixed_uuid(),
+		category_id=category_id,
+		status=status,
+	)
+	skus.append(
+		SkuFactory.build(product_id=product.id, active_quantity=active_quantity)
+	)
+	products.append(product)
+	return product
+
+
 @pytest.fixture()
 async def one_product_category(db_session: AsyncSession) -> SimilarProductsData:
 	category = CategoryFactory.build(
@@ -255,12 +276,10 @@ async def one_product_category(db_session: AsyncSession) -> SimilarProductsData:
 		id=_fixed_uuid(),
 		parent_id=None,
 	)
-	product = ProductFactory.build(
-		id=_fixed_uuid(),
-		category_id=category.id,
-		status=ProductStatusEnum.MODERATED,
-	)
-	db_session.add_all([category, other_category, product])
+	products: list = []
+	skus: list = []
+	product = _add_product_with_sku(products, skus, category_id=category.id)
+	db_session.add_all([category, other_category, *products, *skus])
 	await db_session.commit()
 	return SimilarProductsData(
 		category=category,
@@ -282,35 +301,23 @@ async def similar_products_data(db_session: AsyncSession) -> SimilarProductsData
 		parent_id=None,
 	)
 
-	base_product = ProductFactory.build(
-		id=_fixed_uuid(),
-		category_id=category.id,
-		status=ProductStatusEnum.MODERATED,
-	)
+	products: list[Product] = []
+	skus: list = []
+	base_product = _add_product_with_sku(products, skus, category_id=category.id)
 
 	similar_products: list[Product] = []
 	for _ in range(10):
 		similar_products.append(
-			ProductFactory.build(
-				id=_fixed_uuid(),
-				category_id=category.id,
-				status=ProductStatusEnum.MODERATED,
-			)
+			_add_product_with_sku(products, skus, category_id=category.id)
 		)
 
 	other_products: list[Product] = []
 	for _ in range(2):
 		other_products.append(
-			ProductFactory.build(
-				id=_fixed_uuid(),
-				category_id=other_category.id,
-				status=ProductStatusEnum.MODERATED,
-			)
+			_add_product_with_sku(products, skus, category_id=other_category.id)
 		)
 
-	db_session.add_all(
-		[category, other_category, base_product, *similar_products, *other_products]
-	)
+	db_session.add_all([category, other_category, *products, *skus])
 	await db_session.commit()
 
 	return SimilarProductsData(
