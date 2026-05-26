@@ -2,7 +2,7 @@ import uuid
 from collections import deque
 from typing import List, Tuple, Optional
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +12,7 @@ from exceptions.product import ProductNotFoundError
 from schemas.sku import Sku as SkuSchema
 from database.models.catalog.base import ProductStatusEnum
 from sqlalchemy import func as sql_func
+from crud.category import get_category_by_id
 
 
 async def get_category_descendants(
@@ -167,29 +168,63 @@ async def get_product_full(db: AsyncSession, id: uuid.UUID) -> Optional[Product]
 	return (await db.execute(stmt)).scalar_one_or_none()
 
 
+async def _fetch_similar_products_batch(
+	db: AsyncSession,
+	category_ids: list[uuid.UUID],
+	exclude_ids: set[uuid.UUID],
+	limit: int,
+) -> list[Product]:
+	if limit <= 0 or not category_ids:
+		return []
+
+	conditions = [
+		Product.category_id.in_(category_ids),
+		Product.status == ProductStatusEnum.MODERATED,
+		Product.deleted == False,  # noqa: E712
+		Product.id.in_(select(Sku.product_id).where(Sku.active_quantity > 0)),
+	]
+	if exclude_ids:
+		conditions.append(Product.id.not_in(exclude_ids))
+
+	query = (
+		select(Product)
+		.where(*conditions)
+		.options(
+			selectinload(Product.images),
+			selectinload(Product.skus),
+			selectinload(Product.seller),
+		)
+		.order_by(func.random())
+		.limit(limit)
+	)
+	return list((await db.execute(query)).scalars().all())
+
+
 async def get_similar_products(
 	db: AsyncSession,
 	category_id: uuid.UUID,
 	exclude_id: uuid.UUID,
 	limit: int,
-	offset: int,
-) -> Tuple[List[Product], int]:
+) -> list[Product]:
+
+	exclude_ids = {exclude_id}
 	category_ids = await get_category_descendants(db, category_id)
-	query = (
-		select(Product)
-		.options(selectinload(Product.images))
-		.where(and_(Product.category_id.in_(category_ids), Product.id != exclude_id))
-	)
-	count_query = select(func.count(Product.id)).where(
-		and_(Product.category_id.in_(category_ids), Product.id != exclude_id)
-	)
+	products = await _fetch_similar_products_batch(db, category_ids, exclude_ids, limit)
+	exclude_ids.update(product.id for product in products)
 
-	query = query.order_by(Product.created_at.desc()).offset(offset).limit(limit)
+	if len(products) < limit:
+		category = await get_category_by_id(db, category_id)
+		if category is not None and category.parent_id is not None:
+			parent_category_ids = await get_category_descendants(db, category.parent_id)
+			extra = await _fetch_similar_products_batch(
+				db,
+				parent_category_ids,
+				exclude_ids,
+				limit - len(products),
+			)
+			products.extend(extra)
 
-	products = list((await db.execute(query)).scalars().all())
-	total = (await db.execute(count_query)).scalar() or 0
-
-	return products, total
+	return products
 
 
 async def get_product_category_id(db: AsyncSession, product_id: uuid.UUID) -> uuid.UUID:

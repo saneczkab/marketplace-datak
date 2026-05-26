@@ -7,7 +7,9 @@ from fastapi import Request
 import json
 
 from exceptions.banner import BannerNotFoundError, EmptyEventsError
+from exceptions.product import ProductNotFoundError
 from schemas.banner import Banner, BannerEventsRequest
+from schemas.catalog import CatalogProductCard
 from schemas.category import FacetsResponse
 from exceptions.category import CategoryNotFoundError
 from core import db
@@ -103,6 +105,26 @@ async def post_banner_events(
 			detail={"code": "BANNER_NOT_FOUND", "message": str(e)},
 		) from e
 	return fastapi.Response(status_code=204)
+
+
+@router.get(
+	"/products/{product_id}/similar",
+	response_model=list[CatalogProductCard],
+)
+async def get_similar_products_api(
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	product_id: uuid.UUID,
+	limit: Annotated[int, fastapi.Query(ge=1, le=50)] = 10,
+) -> list[CatalogProductCard]:
+	try:
+		return await product_service.get_similar_products(db, product_id, limit)
+	except ProductNotFoundError as err:
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(err)},
+		) from err
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/products", response_model=ProductShortListResponse)
