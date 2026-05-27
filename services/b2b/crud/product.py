@@ -5,7 +5,7 @@ from database.models.catalog.base import Product, ProductStatusEnum
 
 
 async def add_product(product: Product, db: AsyncSession) -> Product:
-	await db.add(product)
+	db.add(product)
 	await db.commit()
 	await db.refresh(product)
 	return product

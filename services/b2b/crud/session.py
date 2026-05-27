@@ -51,4 +51,4 @@ async def get_session_by_access_token(
 	result = await db.execute(
 		select(Session).where(Session.access_token == access_token)
 	)
-	return await result.scalar_one_or_none()
+	return result.scalar_one_or_none()
