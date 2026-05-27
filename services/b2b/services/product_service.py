@@ -1,20 +1,35 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from services import sku as sku_service
+from database.models import Session
 from crud import product as product_crud
-from database.models.catalog.base import Product
+from crud import session as session_crud
+from database.models.catalog.base import Product, ProductStatusEnum
 from exceptions.product import ProductNotFoundError
 from uuid import UUID
 from schemas.product import ProductCreate, ProductUpdate, ProductResponse
-import crud.images as images_crud
 
 
 async def create_new_product(
-	db: AsyncSession, product_in: ProductCreate, seller_id: UUID
+	db: AsyncSession, product_in: ProductCreate, seller_token: UUID
 ) -> ProductResponse:
-	product: Product = await product_crud.create_product(db, product_in, seller_id)
+	session: Session = await session_crud.get_session_by_access_token(
+		seller_token, db
+	)  # Used to get seller_id
+
+	product = Product(
+		seller_id=session.user_id,
+		category_id=product_in.category_id,
+		title=product_in.title,
+		slug=product_in.slug,
+		description=product_in.description,
+		status=ProductStatusEnum.CREATED,
+		deleted=False,
+	)
+
+	product = await product_crud.add_product(product, db)
+
 	response = ProductResponse(
 		id=product.id,
-		seller_id=seller_id,
+		seller_id=session.user_id,
 		category_id=product.category_id,
 		title=product.title,
 		slug=product.slug,
@@ -23,9 +38,9 @@ async def create_new_product(
 		deleted=product.deleted,
 		blocking_reason_id=product.blocked_reason_id,
 		moderator_comment=product.moderator_comment,
-		images=await images_crud.get_product_images_by_id(product.id, db),
-		characteristics=[],  # TODO Add characteristics
-		skus=await sku_service.get_skus_by_product_id(db, product.id),
+		images=[],
+		characteristics=[],
+		skus=[],
 		created_at=product.created_at,
 		updated_at=product.updated_at,
 	)

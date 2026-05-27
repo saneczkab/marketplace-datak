@@ -6,21 +6,30 @@ from database.models import ProductStatusEnum
 from schemas.sku import SkuResponse
 
 
+class Characteristic(BaseModel):
+	name: str
+	value: str
+
+
+class ProductImageCreate(BaseModel):
+	url: str
+	ordering: int = 0
+
+
 class ProductCreate(BaseModel):
-	title: str = Field(..., min_length=5, max_length=255)
-	description: str | None = None
+	title: str = Field(..., min_length=1, max_length=255)
+	description: str = Field(..., min_length=1, max_length=5000)
 	category_id: UUID
-	slug: Optional[str]
-	images: Optional[List[ProductImageCreate]]
-	characteristics: Optional[List[Characteristic]]
+	slug: Optional[str] = None
+	images: List[ProductImageCreate] = []
+	characteristics: List[Characteristic] = []
 
 
 class ProductUpdate(BaseModel):
-	title: Optional[str] = Field(None, min_length=5, max_length=255)
-	description: Optional[str] = None
+	title: Optional[str] = Field(None, min_length=1, max_length=255)
+	description: Optional[str] = Field(None, max_length=5000)
 	category_id: Optional[UUID] = None
-	slug: Optional[str] = None
-	status: Optional[ProductStatusEnum] = None
+	characteristics: Optional[List[Characteristic]] = None
 
 
 class ProductSellerRead(BaseModel):
@@ -35,16 +44,6 @@ class ProductSellerRead(BaseModel):
 
 	class Config:
 		from_attributes = True
-
-
-class Characteristic(BaseModel):
-	name: str
-	value: str
-
-
-class ProductImageCreate(BaseModel):
-	url: str
-	ordering: int
 
 
 class ProductResponse(BaseModel):
@@ -66,11 +65,12 @@ class ProductResponse(BaseModel):
 
 
 class ProductImageResponse(BaseModel):
+	id: UUID
 	url: str
 	ordering: int
 
 
 class CharacteristicsResponse(BaseModel):
+	id: UUID
 	name: str
 	value: str
-	id: UUID

@@ -43,3 +43,12 @@ async def update_session_access_token(
 	await db.refresh(session)
 
 	return session
+
+
+async def get_session_by_access_token(
+	access_token: str, db: AsyncSession
+) -> Session | None:
+	result = await db.execute(
+		select(Session).where(Session.access_token == access_token)
+	)
+	return await result.scalar_one_or_none()
