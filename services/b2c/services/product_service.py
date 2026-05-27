@@ -1,6 +1,5 @@
-import json
 import uuid
-from typing import Optional, List
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +7,11 @@ import crud.product as product_crud
 import crud.category as category_crud
 from database.models import Sku
 from exceptions.category import CategoryNotFoundError
-from exceptions.product import ProductNotFoundError
+from exceptions.product import (
+	ProductNotFoundError,
+	InvalidSortError,
+	InvalidSearchQueryError,
+)
 from schemas.product import (
 	ProductShort,
 	Product,
@@ -16,8 +19,8 @@ from schemas.product import (
 	SimilarProductsResponse,
 )
 from schemas.sku import SkuShort
-from schemas.sku import Sku as SkuSchema
 from schemas.image import Image
+from services.b2b_client import request_b2b
 
 
 async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]:
@@ -66,11 +69,10 @@ async def get_products_list(
 	limit: int,
 	offset: int,
 	category_id: Optional[str],
-	filters_json: Optional[str],
+	filters_dict: Optional[dict],
 	sort: str,
 	q: Optional[str],
 ) -> ProductShortListResponse:
-	# Валидация sort согласно спецификации
 	valid_sorts = [
 		"rating",
 		"popularity",
@@ -80,46 +82,49 @@ async def get_products_list(
 		"discount_desc",
 	]
 	if sort not in valid_sorts:
-		raise ValueError(f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}")
+		raise InvalidSortError(
+			f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}"
+		)
 
 	if q:
 		search_stripped = q.strip()
-
-		if len(search_stripped) > 0 and len(search_stripped) < 3:
-			raise ValueError("Search query must be at least 3 characters")
-
+		if 0 < len(search_stripped) < 3:
+			raise InvalidSearchQueryError("Search query must be at least 3 characters")
 		if len(search_stripped) > 255:
-			raise ValueError("Search query must be at most 255 characters")
+			raise InvalidSearchQueryError("Search query must be at most 255 characters")
 
-	cat_uuid = uuid.UUID(category_id) if category_id else None
-	filter = json.loads(filters_json) if filters_json else {}
+	b2b_params = {"limit": limit, "offset": offset, "sort": sort}
+	if category_id:
+		b2b_params["category_id"] = category_id
+	if q:
+		b2b_params["q"] = q
 
-	products, total_count = await product_crud.get_products_list(
-		db, limit, offset, cat_uuid, filter, sort, q
-	)
+	if filters_dict:
+		for filter_key, filter_val in filters_dict.items():
+			if isinstance(filter_val, list):
+				b2b_params[f"filters[{filter_key}]"] = filter_val
+			else:
+				b2b_params[f"filters[{filter_key}]"] = filter_val
 
-	items = []
-	for p in products:
-		main_image_url = p.images[0].url if p.images else ""
+	b2b_data = await request_b2b("GET", "/api/v1/products", params=b2b_params)
 
-		# SKU is used to determine price
-		skus: List[SkuSchema] = await product_crud.get_product_skus(db, p.id)
-		price = min((sku.price for sku in skus), default=0.0) if skus else 0.0
+	return ProductShortListResponse.model_validate(b2b_data)
 
-		items.append(
-			ProductShort(
-				id=p.id,
-				title=p.title,
-				image=main_image_url,
-				price=float(price),
-				in_stock=False,
-				is_in_cart=False,
-			)
-		)
 
-	return ProductShortListResponse(
-		items=items, total_count=total_count, limit=limit, offset=offset
-	)
+async def get_catalog_facets_service(
+	category_id: str, filters_dict: Optional[dict]
+) -> dict:
+	"""
+	Запрашивает фасеты у B2B-сервиса с учетом текущих примененных фильтров
+	"""
+	b2b_params = {"category_id": category_id}
+
+	if filters_dict:
+		for filter_key, filter_val in filters_dict.items():
+			b2b_params[f"filters[{filter_key}]"] = filter_val
+
+	b2b_data = await request_b2b("GET", "/api/v1/catalog/facets", params=b2b_params)
+	return b2b_data
 
 
 async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:

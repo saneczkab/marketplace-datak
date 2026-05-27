@@ -4,20 +4,19 @@ import uuid
 from typing import Annotated, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
-import json
 
 from exceptions.banner import BannerNotFoundError, EmptyEventsError
+from exceptions.product import InvalidSortError, InvalidSearchQueryError
 from schemas.banner import Banner, BannerEventsRequest
 from schemas.category import FacetsResponse
-from exceptions.category import CategoryNotFoundError
 from core import db
 
 
 from schemas.collection import Collection
 from schemas.product import ProductShortListResponse
+from services.b2b_client import B2BServiceUnavailableError, B2BNotFoundError
 from services import (
 	banner_service,
-	category_service,
 	collection_service,
 	product_service,
 )
@@ -26,17 +25,14 @@ from core.db import get_db
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
 
 
-# @router.get("/facets")
+@router.get("/facets", response_model=FacetsResponse)
 async def get_facets(
 	request: Request,
-	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	category_id: uuid.UUID,
-	filters: str | None = None,
 ) -> FacetsResponse:
 	try:
-		qp = request.query_params
 		deep: dict = {}
-		for k, v in qp.multi_items():
+		for k, v in request.query_params.multi_items():
 			if k.startswith("filters[") and k.endswith("]"):
 				inner = k[len("filters[") : -1]
 				if inner in deep:
@@ -47,17 +43,18 @@ async def get_facets(
 				else:
 					deep[inner] = v
 
-		filters_param = json.dumps(deep, ensure_ascii=False) if deep else filters
-
-		return await category_service.get_category_facets(
-			db_session, category_id, filters_param
+		facets_data = await product_service.get_catalog_facets_service(
+			str(category_id), deep
 		)
-	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail=str(e)) from e
-	except Exception as e:
-		import traceback
+		return FacetsResponse.model_validate(facets_data)
 
-		traceback.print_exc()
+	except B2BNotFoundError as e:
+		raise fastapi.HTTPException(status_code=404, detail="Category not found") from e
+	except B2BServiceUnavailableError as e:
+		raise fastapi.HTTPException(
+			status_code=502, detail="Catalog temporarily unavailable"
+		) from e
+	except Exception as e:
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
@@ -75,10 +72,10 @@ async def get_banners(
 	"""Get active banners
 
 	Args:
-	    db (Annotated[AsyncSession, fastapi.Depends]): Database session
+		db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
 	Returns:
-	    list[Banner]: List of active banners
+		list[Banner]: List of active banners
 	"""
 	return await banner_service.get_active_banners(db)
 
@@ -107,23 +104,25 @@ async def post_banner_events(
 
 @router.get("/products", response_model=ProductShortListResponse)
 async def get_product_list_api(
+	request: Request,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	category_id: Optional[uuid.UUID] = None,
 	limit: int = 20,
 	offset: int = 0,
-	filter: Optional[str] = None,
-	sort: str = "popularity",
-	q: str = None,
+	sort: str = "rating",
+	q: Optional[str] = None,
 ) -> ProductShortListResponse:
-	filters_param = None
-	if filter:
-		try:
-			filters_obj = json.loads(filter)
-			filters_param = json.dumps(filters_obj, ensure_ascii=False)
-		except json.JSONDecodeError as e:
-			raise fastapi.HTTPException(
-				status_code=400, detail="Invalid JSON in filters parameter"
-			) from e
+	deep_filters: dict = {}
+	for k, v in request.query_params.multi_items():
+		if k.startswith("filters[") and k.endswith("]"):
+			inner = k[len("filters[") : -1]
+			if inner in deep_filters:
+				if isinstance(deep_filters[inner], list):
+					deep_filters[inner].append(v)
+				else:
+					deep_filters[inner] = [deep_filters[inner], v]
+			else:
+				deep_filters[inner] = v
 
 	try:
 		return await product_service.get_products_list(
@@ -131,11 +130,19 @@ async def get_product_list_api(
 			limit,
 			offset,
 			str(category_id) if category_id else None,
-			filters_param,
+			deep_filters,
 			sort,
 			q,
 		)
-	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+	except (InvalidSortError, InvalidSearchQueryError) as e:
+		raise fastapi.HTTPException(
+			status_code=400, detail={"code": "INVALID_REQUEST", "message": str(e)}
+		) from e
+	except B2BNotFoundError as e:
+		raise fastapi.HTTPException(status_code=404, detail="Category not found") from e
+	except B2BServiceUnavailableError as e:
+		raise fastapi.HTTPException(
+			status_code=502, detail="Catalog temporarily unavailable"
+		) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
