@@ -29,7 +29,7 @@ async def create_product(
 	except ValidationError as e:
 		raise HTTPException(status_code=422, detail=f"{e}") from e
 	except Exception as e:
-		raise HTTPException(status_code=418, detail=f"{e}") from e
+		raise HTTPException(status_code=500, detail=f"{e}") from e
 
 
 @router.get("/", response_model=list[ProductSellerRead])
