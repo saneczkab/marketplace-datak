@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from jose import JWTError
 
 PRIVATE_PATHS = ["/api/v1/auth/me", "/api/v1/auth/logout"]
-PRIVATE_PATHS_PREFIXES = ["/api/v1/favorites"]
+PRIVATE_PATHS_PREFIXES = ["/api/v1/favorites", "/api/v1/orders"]
 CART_PATH_PREFIX = "/api/v1/cart"
 CART_MERGE_PATH = "/api/v1/cart/merge"
 

@@ -12,6 +12,7 @@ from api import (
 	favorite,
 	subscriptions,
 	auth,
+	orders,
 )
 from core.config import settings
 from core.db import get_db
@@ -95,3 +96,4 @@ app.include_router(favorite.router)
 app.include_router(catalog.router)
 app.include_router(auth.router)
 app.include_router(subscriptions.router)
+app.include_router(orders.router)

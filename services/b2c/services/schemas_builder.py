@@ -3,12 +3,14 @@ import uuid
 from crud.review import ProductReviewStats
 from database.models.catalog.base import Category, Product
 from database.models.catalog.variants import Sku
+from database.models.orders.order import Order
 from schemas.catalog import (
 	CatalogProductCard,
 	CatalogProductSeller,
 	CategoryRef,
 	ImageRef,
 )
+from schemas.order import OrderResponse
 
 
 def build_category_ref(
@@ -113,3 +115,57 @@ def build_catalog_product_cards(
 		)
 		for product in products
 	]
+
+
+def build_order_response(order: Order) -> OrderResponse:
+	items = []
+	for item in order.items:
+		items.append(
+			{
+				"sku_id": item.sku_id,
+				"product_id": item.product_id,
+				"name": f"{item.product_title} — {item.sku_name}",
+				"sku_code": str(item.sku_id),
+				"quantity": item.quantity,
+				"unit_price": item.unit_price,
+				"line_total": item.line_total,
+				"image_url": item.image_url,
+			}
+		)
+
+	return OrderResponse(
+		id=order.id,
+		number=order.number,
+		buyer_id=order.buyer_id,
+		status=order.status.value,
+		items=items,
+		subtotal=order.subtotal,
+		delivery_cost=order.delivery_cost,
+		total=order.total,
+		address={
+			"id": order.address.id,
+			"country": order.address.country,
+			"region": order.address.region,
+			"city": order.address.city,
+			"street": order.address.street,
+			"building": order.address.building,
+			"apartment": order.address.apartment,
+			"postal_code": order.address.postal_code,
+			"recipient_name": order.address.recipient_name,
+			"recipient_phone": order.address.recipient_phone,
+			"is_default": order.address.is_default,
+			"comment": order.address.comment,
+			"created_at": order.address.created_at,
+		},
+		payment_method={
+			"id": order.payment_method.id,
+			"type": order.payment_method.type.value,
+			"card_last4": order.payment_method.card_last4,
+			"card_brand": order.payment_method.card_brand,
+			"is_default": order.payment_method.is_default,
+			"created_at": order.payment_method.created_at,
+		},
+		comment=order.comment,
+		created_at=order.created_at,
+		paid_at=order.paid_at,
+	)
