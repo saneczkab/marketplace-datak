@@ -13,6 +13,7 @@ from exceptions.order import (
 	PaymentMethodNotFoundError,
 	ReserveFailedError,
 )
+from schemas.cart import CartValidationResponse
 from schemas.order import OrderCreateRequest, OrderResponse
 from services import order_service
 
@@ -96,12 +97,24 @@ async def create_order(
 			},
 		) from err
 	except ReserveFailedError as err:
+		details = err.args[0] if err.args else []
 		raise fastapi.HTTPException(
 			status_code=409,
 			detail={
 				"code": "RESERVE_FAILED",
-				"message": "Failed to reserve items",
+				"message": "Partial reserve failed",
+				"details": details,
 			},
 		) from err
+
+	if isinstance(result, CartValidationResponse):
+		raise fastapi.HTTPException(
+			status_code=422,
+			detail={
+				"code": "VALIDATION_ERROR",
+				"message": "Cart validation failed",
+				"details": result.model_dump(mode="json"),
+			},
+		)
 
 	return result
