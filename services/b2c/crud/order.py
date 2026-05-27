@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import Result, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 
 from database.models.catalog.base import ProductStatusEnum
 from database.models.catalog.variants import Sku
@@ -61,7 +61,7 @@ async def _lock_skus_for_update(
 	locked_result = await db.execute(
 		select(Sku)
 		.where(Sku.id.in_(sku_ids_sorted))
-		.options(joinedload(Sku.product), joinedload(Sku.images))
+		.options(selectinload(Sku.product))
 		.with_for_update()
 	)
 	return {sku.id: sku for sku in locked_result.scalars().all()}
@@ -183,7 +183,8 @@ async def reserve_and_create_order(
 	requested_by_sku: dict[uuid.UUID, int],
 	enriched_items: list[tuple],
 ) -> uuid.UUID:
-	async with db.begin():
+	transaction_ctx = db.begin_nested() if db.in_transaction() else db.begin()
+	async with transaction_ctx:
 		locked_skus = await _lock_skus_for_update(db, requested_by_sku)
 		reserve_failed = _collect_reserve_failures(requested_by_sku, locked_skus)
 		if reserve_failed:
