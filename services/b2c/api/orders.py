@@ -1,8 +1,9 @@
 from typing import Annotated
 
 import fastapi
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security import HTTPBearer
 from core import db
 from exceptions.order import (
 	AddressNotFoundError,
@@ -16,7 +17,10 @@ from schemas.order import OrderCreateRequest, OrderResponse
 from services import order_service
 
 
-router = fastapi.APIRouter(prefix="/api/v1/orders", tags=["Orders"])
+security = HTTPBearer()
+router = fastapi.APIRouter(
+	prefix="/api/v1/orders", tags=["Orders"], dependencies=[fastapi.Depends(security)]
+)
 
 
 @router.post(
