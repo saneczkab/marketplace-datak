@@ -20,7 +20,6 @@ from schemas.product import (
 )
 from schemas.sku import SkuShort
 from schemas.image import Image
-from services.b2b_client import request_b2b
 
 
 async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]:
@@ -93,38 +92,27 @@ async def get_products_list(
 		if len(search_stripped) > 255:
 			raise InvalidSearchQueryError("Search query must be at most 255 characters")
 
-	b2b_params = {"limit": limit, "offset": offset, "sort": sort}
-	if category_id:
-		b2b_params["category_id"] = category_id
-	if q:
-		b2b_params["q"] = q
+	parsed_category_id = uuid.UUID(category_id) if category_id else None
 
-	if filters_dict:
-		for filter_key, filter_val in filters_dict.items():
-			if isinstance(filter_val, list):
-				b2b_params[f"filters[{filter_key}]"] = filter_val
-			else:
-				b2b_params[f"filters[{filter_key}]"] = filter_val
+	products, total = await product_crud.get_products_list(
+		db=db,
+		limit=limit,
+		offset=offset,
+		category_id=parsed_category_id,
+		filter=filters_dict,
+		sort=sort,
+		q=q,
+	)
 
-	b2b_data = await request_b2b("GET", "/api/v1/products", params=b2b_params)
-
-	return ProductShortListResponse.model_validate(b2b_data)
+	return ProductShortListResponse(items=products, total_count=total)
 
 
 async def get_catalog_facets_service(
-	category_id: str, filters_dict: Optional[dict]
+	db: AsyncSession, category_id: str, filters_dict: Optional[dict]
 ) -> dict:
-	"""
-	Запрашивает фасеты у B2B-сервиса с учетом текущих примененных фильтров
-	"""
-	b2b_params = {"category_id": category_id}
+	facets_result = {"category_id": category_id, "filters": [], "facets": []}
 
-	if filters_dict:
-		for filter_key, filter_val in filters_dict.items():
-			b2b_params[f"filters[{filter_key}]"] = filter_val
-
-	b2b_data = await request_b2b("GET", "/api/v1/catalog/facets", params=b2b_params)
-	return b2b_data
+	return facets_result
 
 
 async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:

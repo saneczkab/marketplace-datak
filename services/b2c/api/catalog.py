@@ -14,7 +14,6 @@ from core import db
 
 from schemas.collection import Collection
 from schemas.product import ProductShortListResponse
-from services.b2b_client import B2BServiceUnavailableError, B2BNotFoundError
 from services import (
 	banner_service,
 	collection_service,
@@ -29,33 +28,28 @@ router = fastapi.APIRouter(prefix="/api/v1/catalog")
 async def get_facets(
 	request: Request,
 	category_id: uuid.UUID,
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> FacetsResponse:
-	try:
-		deep: dict = {}
-		for k, v in request.query_params.multi_items():
-			if k.startswith("filters[") and k.endswith("]"):
-				inner = k[len("filters[") : -1]
-				if inner in deep:
-					if isinstance(deep[inner], list):
-						deep[inner].append(v)
-					else:
-						deep[inner] = [deep[inner], v]
+	deep: dict = {}
+	for k, v in request.query_params.multi_items():
+		if k.startswith("filters[") and k.endswith("]"):
+			inner = k[len("filters[") : -1]
+			if inner in deep:
+				if isinstance(deep[inner], list):
+					deep[inner].append(v)
 				else:
-					deep[inner] = v
+					deep[inner] = [deep[inner], v]
+			else:
+				deep[inner] = v
 
+	try:
 		facets_data = await product_service.get_catalog_facets_service(
-			str(category_id), deep
+			db, str(category_id), deep
 		)
 		return FacetsResponse.model_validate(facets_data)
 
-	except B2BNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail="Category not found") from e
-	except B2BServiceUnavailableError as e:
-		raise fastapi.HTTPException(
-			status_code=502, detail="Catalog temporarily unavailable"
-		) from e
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/collections", response_model=list[Collection])
@@ -72,10 +66,10 @@ async def get_banners(
 	"""Get active banners
 
 	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
+	        db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
 	Returns:
-		list[Banner]: List of active banners
+	        list[Banner]: List of active banners
 	"""
 	return await banner_service.get_active_banners(db)
 
@@ -137,12 +131,6 @@ async def get_product_list_api(
 	except (InvalidSortError, InvalidSearchQueryError) as e:
 		raise fastapi.HTTPException(
 			status_code=400, detail={"code": "INVALID_REQUEST", "message": str(e)}
-		) from e
-	except B2BNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail="Category not found") from e
-	except B2BServiceUnavailableError as e:
-		raise fastapi.HTTPException(
-			status_code=502, detail="Catalog temporarily unavailable"
 		) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
