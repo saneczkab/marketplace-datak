@@ -3,7 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
-from schemas.product import ProductCreate, ProductUpdate, ProductSellerRead
+from schemas.product import (
+	ProductCreate,
+	ProductResponse,
+	ProductUpdate,
+	ProductSellerRead,
+)
 from services import product_service
 from uuid import UUID
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -12,7 +17,7 @@ router = APIRouter(prefix="/products", tags=["B2B Products"])
 security = HTTPBearer()
 
 
-@router.post("/", response_model=ProductSellerRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
 	product_in: ProductCreate,
 	db: Annotated[AsyncSession, Depends(get_db)],

@@ -38,10 +38,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-	op.execute("""
-        ALTER TYPE public.productstatusenum 
-        RENAME VALUE 'HARD_BLOCKED' TO 'DELETED'
-    """)
-	op.drop_column("products", "moderator_comment")
-	op.drop_column("products", "blocked_reason_id")
-	op.drop_column("products", "deleted")
+	# Note: Cannot remove ENUM value 'HARD_BLOCKED' in PostgreSQL
+	# The value will remain in the enum type
+	op.drop_column("products", "moderator_comment", schema="catalog")
+	op.drop_column("products", "blocked_reason_id", schema="catalog")
+	op.drop_column("products", "deleted", schema="catalog")

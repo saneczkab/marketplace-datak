@@ -1,9 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from services import sku as sku_service
 from crud import product as product_crud
 from database.models.catalog.base import Product
 from exceptions.product import ProductNotFoundError
 from uuid import UUID
 from schemas.product import ProductCreate, ProductUpdate, ProductResponse
+import crud.images as images_crud
 
 
 async def create_new_product(
@@ -21,9 +23,9 @@ async def create_new_product(
 		deleted=product.deleted,
 		blocking_reason_id=product.blocked_reason_id,
 		moderator_comment=product.moderator_comment,
-		images=[],  # TODO Add images,
+		images=await images_crud.get_product_images_by_id(product.id, db),
 		characteristics=[],  # TODO Add characteristics
-		skus=[],  # TODO Add skus
+		skus=await sku_service.get_skus_by_product_id(db, product.id),
 		created_at=product.created_at,
 		updated_at=product.updated_at,
 	)

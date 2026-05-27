@@ -38,6 +38,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
 	"""Downgrade schema."""
-	op.drop_column("identity.sellers", "created_at")
-	op.drop_column("identity.sellers", "updated_at")
+	op.drop_column("sellers", "updated_at", schema="identity")
+	op.drop_column("sellers", "created_at", schema="identity")
 	# ### end Alembic commands ###
