@@ -5,9 +5,7 @@ from database.models.catalog.base import Product, ProductStatusEnum
 from schemas.product import ProductCreate
 
 
-async def create_product(
-	db: AsyncSession, obj_in: ProductCreate, seller_id: UUID
-) -> Product:
+async def create_product(db: AsyncSession, obj_in: ProductCreate, seller_id: UUID):
 	db_obj = Product(
 		**obj_in.model_dump(),
 		seller_id=seller_id,
