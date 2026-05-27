@@ -20,6 +20,9 @@ class Sku(Base):
 	__tablename__ = "skus"
 	__table_args__ = (
 		CheckConstraint("active_quantity >= 0", name="chk_active_quantity_positive"),
+		CheckConstraint(
+			"reserved_quantity >= 0", name="chk_reserved_quantity_positive"
+		),
 		{"schema": "catalog"},
 	)
 
@@ -32,6 +35,7 @@ class Sku(Base):
 	name: Mapped[str] = mapped_column(String(255))
 	price: Mapped[int] = mapped_column(BigInteger)
 	active_quantity: Mapped[int] = mapped_column(default=0, server_default="0")
+	reserved_quantity: Mapped[int] = mapped_column(default=0, server_default="0")
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)

@@ -12,6 +12,7 @@ from api import (
 	favorite,
 	subscriptions,
 	auth,
+	orders,
 )
 from core.config import settings
 from core.db import get_db
@@ -53,7 +54,11 @@ async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONR
 	if isinstance(detail, dict) and "code" in detail and "message" in detail:
 		return JSONResponse(
 			status_code=exc.status_code,
-			content={"code": detail["code"], "message": detail["message"]},
+			content={
+				"code": detail["code"],
+				"message": detail["message"],
+				"details": detail.get("details", []),
+			},
 			headers=exc.headers,
 		)
 	return JSONResponse(
@@ -95,3 +100,4 @@ app.include_router(favorite.router)
 app.include_router(catalog.router)
 app.include_router(auth.router)
 app.include_router(subscriptions.router)
+app.include_router(orders.router)
