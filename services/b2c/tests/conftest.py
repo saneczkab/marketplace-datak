@@ -96,6 +96,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		catalog,
 		favorite,
 		subscriptions,
+		orders,
 	)
 	from middlewares.token_verification import verify_token
 
@@ -118,6 +119,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(favorite.router)
 	test_app.include_router(catalog.router)
 	test_app.include_router(subscriptions.router)
+	test_app.include_router(orders.router)
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 
 	return test_app
