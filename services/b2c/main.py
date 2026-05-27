@@ -5,7 +5,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from api import (
-	category,
 	product,
 	breadcrumbs,
 	cart,
@@ -89,7 +88,6 @@ app.add_middleware(
 
 app.middleware("http")(verify_token)
 
-app.include_router(category.router)
 app.include_router(product.router)
 app.include_router(breadcrumbs.router)
 app.include_router(cart.router)

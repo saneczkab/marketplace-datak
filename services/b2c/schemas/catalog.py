@@ -13,6 +13,11 @@ class CategoryRef(BaseModel):
 	model_config = ConfigDict(from_attributes=True)
 
 
+class CategoryTreeNode(CategoryRef):
+	children: List[CategoryTreeNode] = Field(default_factory=list)
+	model_config = ConfigDict(from_attributes=True)
+
+
 class ImageRef(BaseModel):
 	id: uuid.UUID
 	url: str

@@ -90,7 +90,6 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from fastapi.exceptions import RequestValidationError
 	from fastapi.middleware.cors import CORSMiddleware
 	from api import (
-		category,
 		product,
 		breadcrumbs,
 		cart,
@@ -113,7 +112,6 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		allow_methods=["*"],
 		allow_headers=["*"],
 	)
-	test_app.include_router(category.router)
 	test_app.include_router(product.router)
 	test_app.include_router(breadcrumbs.router)
 	test_app.include_router(cart.router)

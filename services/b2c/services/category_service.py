@@ -3,14 +3,15 @@ import json
 import os
 import asyncio
 from pathlib import Path
+from pydantic import TypeAdapter
+
+from schemas.catalog import CategoryRef, CategoryTreeNode
 from schemas.category import (
 	BreadcrumbItem,
 	BreadcrumbMeta,
 	BreadcrumbResponse,
 	CategoryInfoResponse,
 	CategoryParent,
-	CategoryTreeResponse,
-	CategoryNode,
 	FacetsResponse,
 	Facet,
 	FacetValue,
@@ -24,10 +25,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.category as category_crud
 import crud.product as product_crud
 from database.models.catalog.base import Category
+from services.schemas_builder import build_category_ref
 
 # Cache file path
 CACHE_DIR = Path("cache")
 CATEGORIES_TREE_CACHE_FILE = CACHE_DIR / "categories_tree.json"
+
+_category_tree_list_adapter = TypeAdapter(list[CategoryTreeNode])
 
 # Lock to prevent concurrent cache rebuilds - created lazily
 _cache_rebuild_lock = None
@@ -39,6 +43,34 @@ def _get_cache_lock() -> asyncio.Lock:
 	if _cache_rebuild_lock is None:
 		_cache_rebuild_lock = asyncio.Lock()
 	return _cache_rebuild_lock
+
+
+def _load_tree_cache() -> list[CategoryTreeNode] | None:
+	if not CATEGORIES_TREE_CACHE_FILE.exists():
+		return None
+	try:
+		with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:  # noqa
+			cache_data = json.load(f)
+		if isinstance(cache_data, dict) and "items" in cache_data:
+			return None
+		return _category_tree_list_adapter.validate_python(cache_data)
+	except Exception as e:  # noqa
+		print(f"Failed to load cache: {e}")
+		return None
+
+
+def _save_tree_cache(tree: list[CategoryTreeNode]) -> None:
+	try:
+		CACHE_DIR.mkdir(exist_ok=True)
+		with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:  # noqa
+			json.dump(
+				[n.model_dump(mode="json") for n in tree],
+				f,
+				ensure_ascii=False,
+				indent=2,
+			)
+	except Exception as e:  # noqa
+		print(f"Failed to save cache: {e}")
 
 
 async def get_category_info(
@@ -67,7 +99,7 @@ async def get_category_info(
 		if include_product_count
 		else None,
 		seo=None,  # TODO implement  # noqa
-		meta=None,  # TODO implement # noqa
+		meta_tags=None,  # TODO implement # noqa
 		image_url=category.image_url,
 		is_active=category.is_active,
 		created_at=category.created_at.isoformat(),
@@ -76,113 +108,100 @@ async def get_category_info(
 
 
 async def category_product_count(db: AsyncSession, category_id: uuid.UUID) -> int:
-	categories: list[uuid.UUID] = [category_id]
-	subcategories = await category_crud.get_categories_by_parent_id(db, category_id)
-	while subcategories:
-		subcategory_ids = [subcategory.id for subcategory in subcategories]
-		categories.extend(subcategory_ids)
-		subcategories = await category_crud.get_categories_by_parent_id(db, category_id)
+	category_ids: list[uuid.UUID] = [category_id]
+	queue: list[uuid.UUID] = [category_id]
+	while queue:
+		current_id = queue.pop(0)
+		subcategories = await category_crud.get_categories_by_parent_id(db, current_id)
+		for subcategory in subcategories:
+			category_ids.append(subcategory.id)
+			queue.append(subcategory.id)
 
 	count = 0
-	for cat_id in categories:
+	for cat_id in category_ids:
 		count += await product_crud.count_products_in_category(db, cat_id)
 	return count
 
 
-async def get_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
-	# Try to load from cache file
-	if CATEGORIES_TREE_CACHE_FILE.exists():
-		try:
-			with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:  # noqa
-				cache_data = json.load(f)
-				return CategoryTreeResponse(**cache_data)
-		except Exception as e:  # noqa
-			# If cache is corrupted, rebuild it
-			print(f"Failed to load cache: {e}")
+async def get_categories_flat(db: AsyncSession) -> list[CategoryRef]:
+	categories_map = await category_crud.get_all_categories_map(db)
+	return [
+		build_category_ref(category.id, categories_map)
+		for category in categories_map.values()
+	]
 
-	# Use lock to prevent concurrent rebuilds
+
+async def get_categories_tree(db: AsyncSession) -> list[CategoryTreeNode]:
+	cached = _load_tree_cache()
+	if cached is not None:
+		return cached
+
 	async with _get_cache_lock():
-		# Double-check if cache was created while waiting for lock
-		if CATEGORIES_TREE_CACHE_FILE.exists():
-			try:
-				with open(CATEGORIES_TREE_CACHE_FILE, "r", encoding="utf-8") as f:  # noqa
-					cache_data = json.load(f)
-					return CategoryTreeResponse(**cache_data)
-			except Exception:  # noqa
-				pass
+		cached = _load_tree_cache()
+		if cached is not None:
+			return cached
 
-		# Build tree
 		result = await _build_categories_tree(db)
-
-		# Save to cache file
-		try:
-			CACHE_DIR.mkdir(exist_ok=True)
-			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:  # noqa
-				json.dump(
-					result.model_dump(mode="json"), f, ensure_ascii=False, indent=2
-				)
-		except Exception as e:  # noqa
-			print(f"Failed to save cache: {e}")
-
+		_save_tree_cache(result)
 		return result
 
 
-async def _build_categories_tree(db: AsyncSession) -> CategoryTreeResponse:
-	"""Internal function to build categories tree from database."""
-	root_category_all = await category_crud.get_categories_by_parent_id(db, None)
-	root_category = root_category_all[0] if root_category_all else None
-	if not root_category:
+async def _build_categories_tree(db: AsyncSession) -> list[CategoryTreeNode]:
+	root_categories = await category_crud.get_categories_by_parent_id(db, None)
+	if not root_categories:
 		raise CategoryNotFoundError("No root category found")
 
-	result = CategoryTreeResponse(
-		items=[
-			CategoryNode(
-				id=root_category.id,
-				name=root_category.name,
-				parent_id=root_category.parent_id,
-				children=[],
-			)
-		]
-	)
+	return [
+		await _build_tree_node(db, root, path=[root.name], level=0)
+		for root in root_categories
+	]
 
-	await build_category_tree(db, result.items[0])
-	return result
+
+async def _build_tree_node(
+	db: AsyncSession,
+	category: Category,
+	*,
+	path: list[str],
+	level: int,
+) -> CategoryTreeNode:
+	subcategories = await category_crud.get_categories_by_parent_id(db, category.id)
+	children: list[CategoryTreeNode] = []
+	for subcategory in subcategories:
+		child_path = [*path, subcategory.name]
+		children.append(
+			await _build_tree_node(
+				db,
+				subcategory,
+				path=child_path,
+				level=level + 1,
+			)
+		)
+
+	return CategoryTreeNode(
+		id=category.id,
+		name=category.name,
+		parent_id=category.parent_id,
+		level=level,
+		path=path,
+		children=children,
+	)
 
 
 async def invalidate_categories_tree_cache(db: AsyncSession) -> None:
 	"""Invalidate and rebuild the categories tree cache. Call this when categories are modified."""
 	async with _get_cache_lock():
-		# Remove old cache file
 		if CATEGORIES_TREE_CACHE_FILE.exists():
 			try:
 				os.remove(CATEGORIES_TREE_CACHE_FILE)  # noqa
 			except Exception as e:  # noqa
 				print(f"Failed to remove cache file: {e}")
 
-		# Rebuild cache
 		try:
 			result = await _build_categories_tree(db)
-			CACHE_DIR.mkdir(exist_ok=True)
-			with open(CATEGORIES_TREE_CACHE_FILE, "w", encoding="utf-8") as f:  # noqa
-				json.dump(
-					result.model_dump(mode="json"), f, ensure_ascii=False, indent=2
-				)
+			_save_tree_cache(result)
 			print("Categories tree cache rebuilt successfully")
 		except Exception as e:  # noqa
 			print(f"Failed to rebuild cache: {e}")
-
-
-async def build_category_tree(db: AsyncSession, node: CategoryNode) -> None:
-	subcategories = await category_crud.get_categories_by_parent_id(db, node.id)
-	for subcategory in subcategories:
-		child_node = CategoryNode(
-			id=subcategory.id,
-			name=subcategory.name,
-			parent_id=subcategory.parent_id,
-			children=[],
-		)
-		node.children.append(child_node)
-		await build_category_tree(db, child_node)
 
 
 async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResponse:
@@ -317,11 +336,7 @@ async def get_category_breadcrumbs(
 		data=items,
 		meta=BreadcrumbMeta(
 			resolved_via=resolved_via,
-			category_id=resolved_category_id
-			if resolved_via == ResolveViaEnum.PRODUCT
-			else None,
-			product_id=uuid.UUID(product_id)
-			if resolved_via == ResolveViaEnum.PRODUCT
-			else None,
+			category_id=resolved_category_id,
+			product_id=uuid.UUID(product_id) if product_id else None,
 		),
 	)

@@ -36,6 +36,12 @@ class CategoriesTreeData:
 	grandchild: Category
 
 
+@dataclass(frozen=True, slots=True)
+class MultipleRootCategoriesData:
+	root_a: Category
+	root_b: Category
+
+
 @pytest.fixture()
 async def categories_tree(
 	db_session: AsyncSession,
@@ -56,6 +62,21 @@ async def categories_tree(
 	db_session.add_all([root, child, grandchild])
 	await db_session.commit()
 	return CategoriesTreeData(root=root, child=child, grandchild=grandchild)
+
+
+@pytest.fixture()
+async def multiple_root_categories(
+	db_session: AsyncSession,
+) -> MultipleRootCategoriesData:
+	root_a = CategoryFactory.build(
+		id=_fixed_uuid(), parent_id=None, name="Электроника", slug="electronics"
+	)
+	root_b = CategoryFactory.build(
+		id=_fixed_uuid(), parent_id=None, name="Одежда", slug="clothing"
+	)
+	db_session.add_all([root_a, root_b])
+	await db_session.commit()
+	return MultipleRootCategoriesData(root_a=root_a, root_b=root_b)
 
 
 @dataclass(frozen=True, slots=True)
