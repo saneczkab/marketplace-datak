@@ -10,6 +10,40 @@ from schemas.image import Image, ImageInFavorite
 from schemas.sku import Sku, SkuInFavorite
 
 
+class ProductCardCharacteristic(BaseModel):
+	model_config = ConfigDict(from_attributes=True)
+	name: str
+	value: str
+
+
+class ProductCardImage(BaseModel):
+	model_config = ConfigDict(from_attributes=True)
+	url: str
+	ordering: int = 0
+
+
+class ProductCardSku(BaseModel):
+	id: uuid.UUID
+	name: str
+	price: int
+	discount: int = 0
+	active_quantity: int
+	in_stock: bool
+	image: str | None = None
+	characteristics: list[ProductCardCharacteristic] = []
+
+
+class ProductCard(BaseModel):
+	id: uuid.UUID
+	slug: str
+	title: str
+	description: str | None
+	images: list[ProductCardImage]
+	status: ProductStatusEnum
+	characteristics: list[ProductCardCharacteristic]
+	skus: list[ProductCardSku]
+
+
 class ProductShort(BaseModel):
 	id: uuid.UUID
 	title: str

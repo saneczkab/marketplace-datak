@@ -133,7 +133,7 @@ async def get_category_filters(
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
-# @router.get("/facets")
+@router.get("/facets")
 async def get_facets(
 	request: Request,
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],

@@ -15,9 +15,10 @@ from schemas.category import (
 	FacetsResponse,
 	Facet,
 	FacetValue,
-	FilterResponse,
-	ResolveViaEnum,
 	Filter,
+	FilterResponse,
+	FilterTypesEnum,
+	ResolveViaEnum,
 )
 from exceptions.category import CategoryHierarchyError, CategoryNotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -244,9 +245,6 @@ async def get_category_facets(
 
 	available_filters = await category_crud.get_category_filters(db, category_id)
 
-	# Преобразуем фильтры в схему Filter
-	from schemas.category import Filter
-
 	filters_list = []
 	for filter_item in available_filters:
 		filter_values = None
@@ -256,9 +254,10 @@ async def get_category_facets(
 		filters_list.append(
 			Filter(
 				id=filter_item.id,
+				slug=filter_item.slug,
 				name=filter_item.name,
-				type=filter_item.type,
-				value=filter_values,
+				type=FilterTypesEnum(str(filter_item.type).lower()),
+				value=filter_item.value,
 				min=filter_item.min,
 				max=filter_item.max,
 			)

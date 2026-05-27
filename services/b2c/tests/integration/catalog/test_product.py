@@ -44,3 +44,18 @@ async def test_sku_without_stock_is_shown_as_unavailable(
 	body = response.json()
 	assert body["id"] == str(product.id)
 	assert not body["skus"][0]["in_stock"]
+
+
+async def test_cost_price_absent_in_response(
+	client: AsyncClient,
+	products_data: ProductData,
+) -> None:
+	product = products_data.base_product
+	response = await client.get(f"/api/v1/products/{product.id}")
+
+	assert response.status_code == 200
+	body = response.json()
+	assert len(body["skus"]) > 0
+	for sku in body["skus"]:
+		assert "cost_price" not in sku
+		assert "reserved_quantity" not in sku

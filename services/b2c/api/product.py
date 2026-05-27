@@ -1,5 +1,6 @@
+import json
 import uuid
-from typing import Annotated
+from typing import Annotated, Optional
 
 import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,11 +8,47 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core import db
 from exceptions.product import ProductNotFoundError
 from exceptions.sku import SkuNotFoundError
-from schemas.product import Product
+from schemas.product import ProductCard, ProductShortListResponse
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
 from services import product_service, sku_service
 
 router = fastapi.APIRouter(prefix="/api/v1/products")
+
+
+@router.get("", response_model=ProductShortListResponse)
+async def get_product_list_api(
+	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	category_id: Optional[uuid.UUID] = None,
+	limit: int = 20,
+	offset: int = 0,
+	filter: Optional[str] = None,
+	sort: str = "popularity",
+	search: Optional[str] = None,
+) -> ProductShortListResponse:
+	filters_param = None
+	if filter:
+		try:
+			filters_obj = json.loads(filter)
+			filters_param = json.dumps(filters_obj, ensure_ascii=False)
+		except json.JSONDecodeError as e:
+			raise fastapi.HTTPException(
+				status_code=400, detail="Invalid JSON in filters parameter"
+			) from e
+
+	try:
+		return await product_service.get_products_list(
+			db,
+			limit,
+			offset,
+			str(category_id) if category_id else None,
+			filters_param,
+			sort,
+			search,
+		)
+	except ValueError as e:
+		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+	except Exception as e:
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{product_id}/skus/{sku_id}", response_model=SkuSchema)
@@ -53,10 +90,10 @@ async def get_product_skus_short_api(
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
 
 
-@router.get("/{id}", response_model=Product)
+@router.get("/{id}", response_model=ProductCard)
 async def get_product_api(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)], id: uuid.UUID
-) -> Product:
+) -> ProductCard:
 	try:
 		return await product_service.get_product_by_id(db, id)
 	except ProductNotFoundError as err:

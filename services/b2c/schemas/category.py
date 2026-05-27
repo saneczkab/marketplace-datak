@@ -48,6 +48,7 @@ class FilterTypesEnum(str, Enum):
 
 
 class Filter(BaseModel):
+	id: uuid.UUID
 	slug: str
 	name: str
 	type: FilterTypesEnum
