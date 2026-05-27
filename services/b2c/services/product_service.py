@@ -108,7 +108,9 @@ async def get_products_list(
 
 
 async def get_catalog_facets_service(
-	db: AsyncSession, category_id: str, filters_dict: Optional[dict]
+	db: AsyncSession,  # noqa
+	category_id: str,
+	filters_dict: Optional[dict],  # noqa
 ) -> dict:
 	facets_result = {"category_id": category_id, "filters": [], "facets": []}
 
