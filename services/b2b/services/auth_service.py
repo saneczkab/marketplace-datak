@@ -2,7 +2,8 @@ import secrets
 
 
 from database.models import Seller, Session
-from schemas.auth import LoginRequest, TokenResponse, SellerCreate
+from exceptions.session import SessionNotFoundError
+from schemas.auth import LoginRequest, RefreshRequest, TokenResponse, SellerCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 import crud.seller as seller_crud
@@ -75,3 +76,33 @@ async def login(data: LoginRequest, db: AsyncSession) -> TokenResponse:
 	session = await create_session(seller.id, db)
 
 	return session
+
+
+async def logout(refresh_token: str, db: AsyncSession) -> None:
+	if await session_crud.deactivate_session(refresh_token, db):
+		return
+	raise SessionNotFoundError
+
+
+async def refresh(refresh_token: RefreshRequest, db: AsyncSession) -> TokenResponse:
+	session: Session | None = await session_crud.get_session_by_refresh_token(
+		refresh_token, db
+	)
+
+	if not session:
+		raise SessionNotFoundError("session not found 1")
+
+	new_token = security.create_access_token(session.user_id)
+
+	session = await session_crud.update_session_access_token(session, new_token, db)
+
+	if not session:
+		raise SessionNotFoundError("session not found 2")
+
+	return TokenResponse(
+		user_id=session.user_id,
+		access_token=session.access_token,
+		refresh_token=session.refresh_token,
+		token_type="Bearer",  # noqa
+		expires_in=settings.SESSION_EXPIRE_SECONDS,
+	)

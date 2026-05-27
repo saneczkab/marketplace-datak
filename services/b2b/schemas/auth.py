@@ -24,3 +24,7 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
 	email: EmailStr
 	password: str
+
+
+class RefreshRequest(BaseModel):
+	refresh_token: str
