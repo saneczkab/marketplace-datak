@@ -21,6 +21,8 @@ async def test_cancel_paid_order_transitions_to_cancelled(
 	body = response.json()
 	assert body["id"] == str(order_data.order.id)
 	assert body["status"] == "CANCELLED"
+	assert body["status_history"][0]["status"] == "PAID"
+	assert body["status_history"][1]["status"] == "CANCELLED"
 
 
 async def test_other_user_order_returns_404(
@@ -49,5 +51,16 @@ async def test_cancel_assembling_order_returns_409(
 	)
 	assert response.status_code == 409
 	body = response.json()
-	assert body["code"] == "CONFLICT"
+	assert body["code"] == "CANCEL_NOT_ALLOWED"
 	assert body["message"] == "Can't cancel order in this state"
+
+
+async def test_cancel_order_not_authorized_returns_401(
+	client: AsyncClient,
+	order_data: OrderData,
+) -> None:
+	response = await client.post(
+		f"/api/v1/orders/{order_data.order.id}/cancel",
+		headers={},
+	)
+	assert response.status_code == 401

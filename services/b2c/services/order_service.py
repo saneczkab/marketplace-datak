@@ -11,11 +11,14 @@ import crud.cart as cart_crud
 import crud.order as order_crud
 import crud.payment_method as payment_method_crud
 from database.models.catalog.base import ProductStatusEnum
+from database.models.orders.order import OrderStatusEnum
 from exceptions.order import (
 	AddressNotFoundError,
 	EmptyCartError,
 	IdempotencyConflictError,
 	InvalidIdempotencyKeyError,
+	OrderNotCancelableError,
+	OrderNotFoundError,
 	PaymentMethodNotFoundError,
 	ReserveFailedError,
 )
@@ -198,3 +201,21 @@ async def checkout(
 		if existing2.idempotency_request_hash != request_hash:
 			raise IdempotencyConflictError() from None
 		return schemas_builder.build_order_response(existing2)
+
+
+async def cancel_order(
+	db: AsyncSession,
+	order_id: uuid.UUID,
+	buyer_id: uuid.UUID,
+) -> OrderResponse:
+	order_updated = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+	if order_updated is None:
+		raise OrderNotFoundError()
+
+	if order_updated.status not in [OrderStatusEnum.CREATED, OrderStatusEnum.PAID]:
+		raise OrderNotCancelableError()
+
+	await order_crud.cancel_order(db, order_id, buyer_id)
+	order_updated = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+
+	return schemas_builder.build_order_response(order_updated)

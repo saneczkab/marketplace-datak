@@ -1,4 +1,5 @@
 from typing import Annotated
+import uuid
 
 import fastapi
 
@@ -10,6 +11,8 @@ from exceptions.order import (
 	EmptyCartError,
 	IdempotencyConflictError,
 	InvalidIdempotencyKeyError,
+	OrderNotCancelableError,
+	OrderNotFoundError,
 	PaymentMethodNotFoundError,
 	ReserveFailedError,
 )
@@ -118,3 +121,31 @@ async def create_order(
 		)
 
 	return result
+
+
+@router.post(
+	"/{order_id}/cancel",
+	status_code=200,
+	response_model=OrderResponse,
+)
+async def cancel_order(
+	order_id: uuid.UUID,
+	http_request: fastapi.Request,
+	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+) -> OrderResponse:
+	user_id = uuid.UUID(str(getattr(http_request.state, "user_id", None)))
+	try:
+		return await order_service.cancel_order(db_session, order_id, user_id)
+	except OrderNotFoundError as err:
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": "Order not found"},
+		) from err
+	except OrderNotCancelableError as err:
+		raise fastapi.HTTPException(
+			status_code=409,
+			detail={
+				"code": "CANCEL_NOT_ALLOWED",
+				"message": "Can't cancel order in this state",
+			},
+		) from err

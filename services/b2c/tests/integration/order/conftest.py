@@ -12,6 +12,7 @@ from tests.factories.order import (
 	OrderFactory,
 	OrderItemFactory,
 	AddressFactory,
+	OrderStatusHistoryFactory,
 	PaymentMethodFactory,
 )
 from tests.factories.catalog import (
@@ -73,6 +74,9 @@ async def order_data(db_session: AsyncSession) -> OrderData:
 		payment_method_id=payment_method.id,
 	)
 	order_items = [OrderItemFactory.build(order_id=order.id) for _ in range(3)]
+	order_status_history = OrderStatusHistoryFactory.build(
+		order_id=order.id, status=OrderStatusEnum.PAID
+	)
 
 	db_session.add_all(
 		[
@@ -85,6 +89,7 @@ async def order_data(db_session: AsyncSession) -> OrderData:
 			*cart_items,
 			order,
 			*order_items,
+			order_status_history,
 		]
 	)
 	await db_session.commit()
@@ -244,4 +249,5 @@ async def assembling_order_data(db_session: AsyncSession) -> OrderData:
 		payment_method=payment_method,
 		skus=skus,
 		product=product,
+		cart_items=[],
 	)

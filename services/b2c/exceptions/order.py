@@ -38,3 +38,15 @@ class EmptyCartError(OrderError):
 	"""Empty cart error"""
 
 	pass
+
+
+class OrderNotFoundError(OrderError):
+	"""Order not found error"""
+
+	pass
+
+
+class OrderNotCancelableError(OrderError):
+	"""Order not cancelable error (not created or paid)"""
+
+	pass
