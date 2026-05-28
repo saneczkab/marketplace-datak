@@ -1,7 +1,8 @@
+from random import random
 import factory
 import uuid
 from datetime import datetime
-from database.models.orders.order import Order, OrderStatusEnum
+from database.models.orders.order import Order, OrderStatusEnum, OrderStatusHistory
 from database.models.orders.order_item import OrderItem
 from database.models.personal.address import Address
 from database.models.personal.payment_method import PaymentMethod, PaymentMethodTypeEnum
@@ -77,3 +78,14 @@ class OrderItemFactory(factory.Factory):
 	image_url = factory.LazyFunction(
 		lambda: f"https://example.com/image-{uuid.uuid4().hex[:8]}.jpg"
 	)
+
+
+class OrderStatusHistoryFactory(factory.Factory):
+	class Meta:
+		model = OrderStatusHistory
+
+	id = factory.LazyFunction(uuid.uuid4)
+	order_id = factory.SubFactory(OrderFactory)
+	status = factory.LazyFunction(lambda: random.choice(OrderStatusEnum))
+	changed_at = factory.LazyFunction(datetime.now)
+	reason = factory.LazyFunction(lambda: f"Reason {uuid.uuid4().hex[:8]}")

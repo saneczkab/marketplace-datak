@@ -165,6 +165,14 @@ def build_order_response(order: Order) -> OrderResponse:
 			"is_default": order.payment_method.is_default,
 			"created_at": order.payment_method.created_at,
 		},
+		status_history=[
+			{
+				"status": status.status.value,
+				"changed_at": status.changed_at,
+				"reason": status.reason,
+			}
+			for status in order.status_history
+		],
 		comment=order.comment,
 		created_at=order.created_at,
 		paid_at=order.paid_at,

@@ -7,9 +7,9 @@ from sqlalchemy.orm import selectinload
 
 from database.models.catalog.base import ProductStatusEnum
 from database.models.catalog.variants import Sku
-from database.models.orders.order import Order, OrderStatusEnum
+from database.models.orders.order import Order, OrderStatusEnum, OrderStatusHistory
 from database.models.orders.order_item import OrderItem
-from exceptions.order import ReserveFailedError
+from exceptions.order import OrderNotFoundError, ReserveFailedError
 
 
 async def get_order_by_idempotency_key(
@@ -22,6 +22,7 @@ async def get_order_by_idempotency_key(
 			selectinload(Order.items),
 			selectinload(Order.address),
 			selectinload(Order.payment_method),
+			selectinload(Order.status_history),
 		)
 	)
 	return result.scalar_one_or_none()
@@ -37,6 +38,21 @@ async def get_order_by_id_for_buyer(
 			selectinload(Order.items),
 			selectinload(Order.address),
 			selectinload(Order.payment_method),
+			selectinload(Order.status_history),
+		)
+	)
+	return result.scalar_one_or_none()
+
+
+async def get_order_by_id(db: AsyncSession, order_id: uuid.UUID) -> Order | None:
+	result: Result = await db.execute(
+		select(Order)
+		.where(Order.id == order_id)
+		.options(
+			selectinload(Order.items),
+			selectinload(Order.address),
+			selectinload(Order.payment_method),
+			selectinload(Order.status_history),
 		)
 	)
 	return result.scalar_one_or_none()
@@ -171,6 +187,27 @@ def _build_order_items(
 	return order_items, subtotal
 
 
+async def change_order_status(
+	db: AsyncSession,
+	order_id: uuid.UUID,
+	status: OrderStatusEnum,
+	reason: str | None,
+) -> None:
+	order = await get_order_by_id(db, order_id)
+	if order is None:
+		raise OrderNotFoundError()
+
+	order_status_history = OrderStatusHistory(
+		order_id=order_id,
+		status=status,
+		reason=reason,
+	)
+	db.add(order_status_history)
+	order.status_history.append(order_status_history)
+	order.status = status
+	await db.flush()
+
+
 async def reserve_and_create_order(
 	db: AsyncSession,
 	buyer_id: uuid.UUID,
@@ -211,5 +248,21 @@ async def reserve_and_create_order(
 		order.total = subtotal
 		db.add_all(order_items)
 		db.add(order)
+		await change_order_status(db, order.id, OrderStatusEnum.PAID, None)
 
+	return order.id
+
+
+async def cancel_order(
+	db: AsyncSession,
+	order_id: uuid.UUID,
+	buyer_id: uuid.UUID,
+	reason: str | None = None,
+) -> None:
+	order = await get_order_by_id_for_buyer(db, order_id, buyer_id)
+	if order is None:
+		raise OrderNotFoundError()
+
+	await change_order_status(db, order.id, OrderStatusEnum.CANCELLED, reason)
+	await db.flush()
 	return order.id

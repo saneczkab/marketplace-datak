@@ -59,3 +59,24 @@ class Order(Base):
 	)
 	address = relationship("Address")
 	payment_method = relationship("PaymentMethod")
+	status_history = relationship("OrderStatusHistory", cascade="all, delete-orphan")
+
+
+class OrderStatusHistory(Base):
+	__tablename__ = "order_status_history"
+	__table_args__ = {"schema": "orders"}
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	order_id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), ForeignKey("orders.orders.id")
+	)
+	status: Mapped[OrderStatusEnum] = mapped_column(
+		default=OrderStatusEnum.CREATED, server_default="CREATED"
+	)
+	changed_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now()
+	)
+	reason: Mapped[str | None] = mapped_column(Text)
+	order = relationship("Order", back_populates="status_history")
