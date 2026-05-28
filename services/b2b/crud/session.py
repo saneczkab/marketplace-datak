@@ -52,3 +52,11 @@ async def get_session_by_access_token(
 		select(Session).where(Session.access_token == access_token)
 	)
 	return result.scalar_one_or_none()
+
+
+async def check_active_session(token: str, db: AsyncSession) -> bool:
+	result = await db.execute(select(Session).where(Session.access_token == token))
+	session = result.scalar_one_or_none()
+	if session:
+		return session.is_active
+	return False

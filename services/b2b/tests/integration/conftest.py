@@ -3,9 +3,14 @@ from dataclasses import dataclass
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import crud.session as session_crud
+from core.security import create_access_token
 from database.models.catalog.base import Category, ProductStatusEnum
 from database.models.catalog.variants import Sku, Product
+from database.models import Session
 from tests.factories.catalog import CategoryFactory, ProductFactory, SkuFactory
+
+import uuid
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,6 +18,19 @@ class CategoryWithProductsData:
 	categories: list[Category]
 	products: list[Product]
 	skus: list[Sku]
+
+
+async def auth_headers(user_id: uuid.UUID, db: AsyncSession) -> dict:
+	token = create_access_token(user_id)
+	if not await session_crud.check_active_session(token, db):
+		session = Session(
+			user_id=user_id,
+			access_token=token,
+			refresh_token="Something",  # noqa
+		)
+		await session_crud.add_session(session)
+
+	return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture()
