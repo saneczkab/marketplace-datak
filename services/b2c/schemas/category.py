@@ -41,17 +41,6 @@ class CategoryInfoResponse(BaseModel):
 	updated_at: str
 
 
-class CategoryTreeResponse(BaseModel):
-	items: list[CategoryNode]
-
-
-class CategoryNode(BaseModel):
-	id: uuid.UUID
-	name: str
-	parent_id: uuid.UUID | None
-	children: list[CategoryNode]
-
-
 class FilterTypesEnum(str, Enum):
 	list = "list"
 	range = "range"

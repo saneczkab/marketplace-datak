@@ -5,13 +5,9 @@ import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db
-from exceptions.category import CategoryNotFoundError
 from exceptions.product import ProductNotFoundError
 from exceptions.sku import SkuNotFoundError
-from schemas.product import (
-	Product,
-	SimilarProductsResponse,
-)
+from schemas.product import Product
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
 from services import product_service, sku_service
 
@@ -65,25 +61,5 @@ async def get_product_api(
 		return await product_service.get_product_by_id(db, id)
 	except ProductNotFoundError as err:
 		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/{id}/similar", response_model=SimilarProductsResponse)
-async def get_similar_product_api(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	id: uuid.UUID,
-	category: uuid.UUID,
-	limit: int = 8,
-	offset: int = 0,
-) -> SimilarProductsResponse:
-	try:
-		return await product_service.get_similar_products(
-			db, id, category, limit, offset
-		)
-	except (ProductNotFoundError, CategoryNotFoundError) as err:
-		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
-	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
