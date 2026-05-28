@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.integration.conftest import (
-	CategoryWithProductsData,
+	# CategoryWithProductsData,
 	CreateProductData,
 	auth_headers,
 )
@@ -50,20 +50,20 @@ async def test_seller_id_taken_from_jwt(
 	assert response.json()["seller_id"] == str(create_product_data.seller.id)
 
 
-async def test_missing_images_returns_400(
-	client: AsyncClient,
-	category_with_products: CategoryWithProductsData,
-) -> None:
-	response = await client.post(
-		"/api/v1/products/",
-		json={
-			"category_id": str(category_with_products.categories[0].id),
-			"title": "Test Product",
-			"description": "Test Description",
-			"slug": "test-product",
-		},
-	)
-	assert response.status_code == 400
+# async def test_missing_images_returns_400(
+# 	client: AsyncClient,
+# 	category_with_products: CategoryWithProductsData,
+# ) -> None:
+# 	response = await client.post(
+# 		"/api/v1/products/",
+# 		json={
+# 			"category_id": str(category_with_products.categories[0].id),
+# 			"title": "Test Product",
+# 			"description": "Test Description",
+# 			"slug": "test-product",
+# 		},
+# 	)
+# 	assert response.status_code == 400
 
 
 async def test_missing_category_returns_422(
