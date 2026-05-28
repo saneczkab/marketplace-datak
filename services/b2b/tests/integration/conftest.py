@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import secrets
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +55,7 @@ async def auth_headers(user_id: uuid.UUID, db: AsyncSession) -> dict:
 		session = Session(
 			user_id=user_id,
 			access_token=token,
-			refresh_token="Something",  # noqa
+			refresh_token=secrets.token_hex(32),
 			expires_at=datetime.now(timezone.utc) + timedelta(seconds=3600),
 		)
 		await session_crud.add_session(session, db)
