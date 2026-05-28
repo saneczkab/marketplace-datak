@@ -7,6 +7,7 @@ from fastapi import Request
 
 from exceptions.banner import BannerNotFoundError, EmptyEventsError
 from exceptions.product import InvalidSortError, InvalidSearchQueryError
+from exceptions.category import CategoryNotFoundError, CategoryHierarchyError
 from schemas.banner import Banner, BannerEventsRequest
 from schemas.category import FacetsResponse
 from core import db
@@ -30,23 +31,24 @@ async def get_facets(
 	category_id: uuid.UUID,
 	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> FacetsResponse:
-	deep: dict = {}
-	for k, v in request.query_params.multi_items():
-		if k.startswith("filters[") and k.endswith("]"):
-			inner = k[len("filters[") : -1]
-			if inner in deep:
-				if isinstance(deep[inner], list):
-					deep[inner].append(v)
-				else:
-					deep[inner] = [deep[inner], v]
-			else:
-				deep[inner] = v
+	deep = product_service.parse_deep_filters(request.query_params.multi_items())
 
 	try:
 		facets_data = await product_service.get_catalog_facets_service(
 			db, str(category_id), deep
 		)
-		return FacetsResponse.model_validate(facets_data)
+		return facets_data
+
+	except CategoryNotFoundError as e:
+		raise fastapi.HTTPException(
+			status_code=404, detail={"code": "CATEGORY_NOT_FOUND", "message": str(e)}
+		) from e
+
+	except CategoryHierarchyError as e:
+		raise fastapi.HTTPException(
+			status_code=400,
+			detail={"code": "CATEGORY_HIERARCHY_ERROR", "message": str(e)},
+		) from e
 
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
@@ -106,17 +108,9 @@ async def get_product_list_api(
 	sort: str = "rating",
 	q: Optional[str] = None,
 ) -> ProductShortListResponse:
-	deep_filters: dict = {}
-	for k, v in request.query_params.multi_items():
-		if k.startswith("filters[") and k.endswith("]"):
-			inner = k[len("filters[") : -1]
-			if inner in deep_filters:
-				if isinstance(deep_filters[inner], list):
-					deep_filters[inner].append(v)
-				else:
-					deep_filters[inner] = [deep_filters[inner], v]
-			else:
-				deep_filters[inner] = v
+	deep_filters = product_service.parse_deep_filters(
+		request.query_params.multi_items()
+	)
 
 	try:
 		return await product_service.get_products_list(

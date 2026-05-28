@@ -20,6 +20,7 @@ from schemas.product import (
 )
 from schemas.sku import SkuShort
 from schemas.image import Image
+from schemas.category import FacetsResponse
 
 
 async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]:
@@ -111,10 +112,8 @@ async def get_catalog_facets_service(
 	db: AsyncSession,  # noqa
 	category_id: str,
 	filters_dict: Optional[dict],  # noqa
-) -> dict:
-	facets_result = {"category_id": category_id, "filters": [], "facets": []}
-
-	return facets_result
+) -> FacetsResponse:
+	return FacetsResponse(category_id=category_id, filters=[], facets=[])
 
 
 async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:
@@ -152,3 +151,18 @@ async def get_similar_products(
 	return SimilarProductsResponse(
 		items=items, total_count=total_count, limit=limit, offset=offset
 	)
+
+
+def parse_deep_filters(query_params: list[tuple[str, str]]) -> dict:
+	deep_filters: dict = {}
+	for k, v in query_params:
+		if k.startswith("filters[") and k.endswith("]"):
+			inner = k[len("filters[") : -1]
+			if inner in deep_filters:
+				if isinstance(deep_filters[inner], list):
+					deep_filters[inner].append(v)
+				else:
+					deep_filters[inner] = [deep_filters[inner], v]
+			else:
+				deep_filters[inner] = v
+	return deep_filters
