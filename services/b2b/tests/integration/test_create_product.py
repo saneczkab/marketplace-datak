@@ -18,7 +18,7 @@ async def test_create_product_returns_201_with_created_status(
 	db_session: AsyncSession,
 ) -> None:
 	response = await client.post(
-		"/api/v1/products",
+		"/api/v1/products/",
 		headers=await auth_headers(create_product_data.seller.id, db_session),
 		json={
 			"category_id": str(create_product_data.category.id),

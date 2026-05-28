@@ -13,6 +13,10 @@ from tests.factories.catalog import CategoryFactory, ProductFactory, SkuFactory
 
 import uuid
 
+from datetime import datetime, timezone, timedelta
+
+from tests.factories.seller import SellerFactory
+
 
 @dataclass(frozen=True, slots=True)
 class CategoryWithProductsData:
@@ -28,8 +32,20 @@ class CreateProductData:
 
 
 @pytest.fixture
-async def create_product_data(db: AsyncSession) -> CreateProductData:
-	seller = Seller()
+async def create_product_data(db_session: AsyncSession) -> CreateProductData:
+	seller: Seller = SellerFactory.build()
+
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
+	category = CategoryFactory.build()
+
+	db_session.add(category)
+	await db_session.commit()
+	await db_session.refresh(category)
+
+	return CreateProductData(seller=seller, category=category)
 
 
 async def auth_headers(user_id: uuid.UUID, db: AsyncSession) -> dict:
@@ -39,8 +55,9 @@ async def auth_headers(user_id: uuid.UUID, db: AsyncSession) -> dict:
 			user_id=user_id,
 			access_token=token,
 			refresh_token="Something",  # noqa
+			expires_at=datetime.now(timezone.utc) + timedelta(seconds=3600),
 		)
-		await session_crud.add_session(session)
+		await session_crud.add_session(session, db)
 
 	return {"Authorization": f"Bearer {token}"}
 
