@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from database.models.orders.order import Order
+from database.models.orders.order import Order, OrderStatusEnum
 from database.models.orders.order_item import OrderItem
 from database.models.personal.address import Address
 from database.models.personal.payment_method import PaymentMethod
@@ -202,6 +202,46 @@ async def cart_validation_error_data(db_session: AsyncSession) -> OrderData:
 		address=address,
 		payment_method=payment_method,
 		cart_items=cart_items,
+		skus=skus,
+		product=product,
+	)
+
+
+@pytest.fixture()
+async def assembling_order_data(db_session: AsyncSession) -> OrderData:
+	user = UserFactory.build()
+	address = AddressFactory.build(user_id=user.id)
+	payment_method = PaymentMethodFactory.build(user_id=user.id)
+	category = CategoryFactory.build()
+	product = ProductFactory.build(
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	skus = [SkuFactory.build(product_id=product.id) for _ in range(3)]
+	order = OrderFactory.build(
+		buyer_id=user.id,
+		address_id=address.id,
+		payment_method_id=payment_method.id,
+		status=OrderStatusEnum.ASSEMBLING,
+	)
+	order_items = [OrderItemFactory.build(order_id=order.id) for _ in range(3)]
+	db_session.add_all(
+		[
+			user,
+			address,
+			payment_method,
+			category,
+			product,
+			*skus,
+			order,
+			*order_items,
+		]
+	)
+	return OrderData(
+		order=order,
+		order_items=order_items,
+		address=address,
+		payment_method=payment_method,
 		skus=skus,
 		product=product,
 	)
