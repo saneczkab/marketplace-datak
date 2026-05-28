@@ -22,6 +22,7 @@ async def get_order_by_idempotency_key(
 			selectinload(Order.items),
 			selectinload(Order.address),
 			selectinload(Order.payment_method),
+			selectinload(Order.status_history),
 		)
 	)
 	return result.scalar_one_or_none()
@@ -37,6 +38,7 @@ async def get_order_by_id_for_buyer(
 			selectinload(Order.items),
 			selectinload(Order.address),
 			selectinload(Order.payment_method),
+			selectinload(Order.status_history),
 		)
 	)
 	return result.scalar_one_or_none()
