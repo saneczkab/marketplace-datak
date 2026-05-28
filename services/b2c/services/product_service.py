@@ -69,7 +69,7 @@ async def get_products_list(
 	limit: int,
 	offset: int,
 	category_id: Optional[str],
-	filters_dict: Optional[dict],
+	raw_query_params: list[tuple[str, str]],
 	sort: str,
 	q: Optional[str],
 ) -> ProductShortListResponse:
@@ -93,6 +93,8 @@ async def get_products_list(
 		if len(search_stripped) > 255:
 			raise InvalidSearchQueryError("Search query must be at most 255 characters")
 
+	filters_dict = parse_deep_filters(raw_query_params)
+
 	parsed_category_id = uuid.UUID(category_id) if category_id else None
 
 	products, total = await product_crud.get_products_list(
@@ -111,9 +113,11 @@ async def get_products_list(
 async def get_catalog_facets_service(
 	db: AsyncSession,  # noqa
 	category_id: str,
-	filters_dict: Optional[dict],  # noqa
+	raw_query_params: list[tuple[str, str]],  # noqa
 ) -> FacetsResponse:
-	return FacetsResponse(category_id=category_id, filters=[], facets=[])
+	parsed_category_id = uuid.UUID(category_id)
+
+	return FacetsResponse(category_id=parsed_category_id, filters=[], facets=[])
 
 
 async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:

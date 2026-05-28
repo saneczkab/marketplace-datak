@@ -31,11 +31,9 @@ async def get_facets(
 	category_id: uuid.UUID,
 	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> FacetsResponse:
-	deep = product_service.parse_deep_filters(request.query_params.multi_items())
-
 	try:
 		facets_data = await product_service.get_catalog_facets_service(
-			db, str(category_id), deep
+			db, str(category_id), request.query_params.multi_items()
 		)
 		return facets_data
 
@@ -108,17 +106,13 @@ async def get_product_list_api(
 	sort: str = "rating",
 	q: Optional[str] = None,
 ) -> ProductShortListResponse:
-	deep_filters = product_service.parse_deep_filters(
-		request.query_params.multi_items()
-	)
-
 	try:
 		return await product_service.get_products_list(
 			db,
 			limit,
 			offset,
 			str(category_id) if category_id else None,
-			deep_filters,
+			request.query_params.multi_items(),
 			sort,
 			q,
 		)
