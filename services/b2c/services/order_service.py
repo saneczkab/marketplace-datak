@@ -207,6 +207,7 @@ async def cancel_order(
 	db: AsyncSession,
 	order_id: uuid.UUID,
 	buyer_id: uuid.UUID,
+	reason: str | None = None,
 ) -> OrderResponse:
 	order_updated = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
 	if order_updated is None:
@@ -215,7 +216,7 @@ async def cancel_order(
 	if order_updated.status not in [OrderStatusEnum.CREATED, OrderStatusEnum.PAID]:
 		raise OrderNotCancelableError()
 
-	await order_crud.cancel_order(db, order_id, buyer_id)
+	await order_crud.cancel_order(db, order_id, buyer_id, reason=reason)
 	order_updated = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
 
 	return schemas_builder.build_order_response(order_updated)

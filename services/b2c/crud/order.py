@@ -252,12 +252,15 @@ async def reserve_and_create_order(
 
 
 async def cancel_order(
-	db: AsyncSession, order_id: uuid.UUID, buyer_id: uuid.UUID
+	db: AsyncSession,
+	order_id: uuid.UUID,
+	buyer_id: uuid.UUID,
+	reason: str | None = None,
 ) -> None:
 	order = await get_order_by_id_for_buyer(db, order_id, buyer_id)
 	if order is None:
 		raise OrderNotFoundError()
 
-	await change_order_status(db, order.id, OrderStatusEnum.CANCELLED, None)
+	await change_order_status(db, order.id, OrderStatusEnum.CANCELLED, reason)
 	await db.flush()
 	return order.id

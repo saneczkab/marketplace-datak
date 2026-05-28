@@ -17,7 +17,7 @@ from exceptions.order import (
 	ReserveFailedError,
 )
 from schemas.cart import CartValidationResponse
-from schemas.order import OrderCreateRequest, OrderResponse
+from schemas.order import OrderCancelRequest, OrderCreateRequest, OrderResponse
 from services import order_service
 
 
@@ -132,10 +132,13 @@ async def cancel_order(
 	order_id: uuid.UUID,
 	http_request: fastapi.Request,
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	body: OrderCancelRequest | None = None,
 ) -> OrderResponse:
 	user_id = uuid.UUID(str(getattr(http_request.state, "user_id", None)))
 	try:
-		return await order_service.cancel_order(db_session, order_id, user_id)
+		return await order_service.cancel_order(
+			db_session, order_id, user_id, reason=body.reason if body else None
+		)
 	except OrderNotFoundError as err:
 		raise fastapi.HTTPException(
 			status_code=404,
