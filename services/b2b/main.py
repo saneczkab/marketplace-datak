@@ -4,6 +4,7 @@ from api.invoice import router as invoice_router
 from api.products import router as product_router
 from api.categories import router as category_router
 from api.auth import router as auth_router
+from api.images import router as image_router
 from middlewares.token_verification import verify_token
 
 
@@ -19,6 +20,7 @@ app.include_router(category_router, prefix="/api/v1")
 app.include_router(sku_router, prefix="/api/v1")
 app.include_router(invoice_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(image_router, prefix="/api/v1")
 
 
 @app.get("/")

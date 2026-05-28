@@ -55,5 +55,5 @@ async def get_skus_by_product_endpoint(
 	product_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> list[SkuResponse]:
 	"""Retrieve all SKUs associated with a specific product ID."""
-	skus = await sku_service.get_skus_by_product(db, product_id)
+	skus = await sku_service.get_skus_by_product_id(db, product_id)
 	return [SkuResponse.model_validate(s) for s in skus]

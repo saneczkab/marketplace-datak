@@ -2,20 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
 from database.models.catalog.base import Product, ProductStatusEnum
-from schemas.product import ProductCreate
 
 
-async def create_product(
-	db: AsyncSession, obj_in: ProductCreate, seller_id: UUID
-) -> Product:
-	db_obj = Product(
-		**obj_in.model_dump(),
-		seller_id=seller_id,
-	)
-	db.add(db_obj)
+async def add_product(product: Product, db: AsyncSession) -> Product:
+	db.add(product)
 	await db.commit()
-	await db.refresh(db_obj)
-	return db_obj
+	await db.refresh(product)
+	return product
 
 
 async def get_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:

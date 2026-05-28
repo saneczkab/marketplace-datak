@@ -1,15 +1,51 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from database.models import Session
 from crud import product as product_crud
-from database.models.catalog.base import Product
+from crud import session as session_crud
+from database.models.catalog.base import Product, ProductStatusEnum
 from exceptions.product import ProductNotFoundError
 from uuid import UUID
-from schemas.product import ProductCreate, ProductUpdate
+from schemas.product import ProductCreate, ProductUpdate, ProductResponse
 
 
 async def create_new_product(
-	db: AsyncSession, product_in: ProductCreate, seller_id: UUID
-) -> Product:
-	return await product_crud.create_product(db, product_in, seller_id)
+	db: AsyncSession, product_in: ProductCreate, seller_token: UUID
+) -> ProductResponse:
+	session: Session = await session_crud.get_session_by_access_token(
+		seller_token, db
+	)  # Used to get seller_id
+
+	product = Product(
+		seller_id=session.user_id,
+		category_id=product_in.category_id,
+		title=product_in.title,
+		slug=product_in.slug,
+		description=product_in.description,
+		status=ProductStatusEnum.CREATED,
+		deleted=False,
+	)
+
+	product = await product_crud.add_product(product, db)
+
+	response = ProductResponse(
+		id=product.id,
+		seller_id=session.user_id,
+		category_id=product.category_id,
+		title=product.title,
+		slug=product.slug,
+		description=product.description,
+		status=product.status,
+		deleted=product.deleted,
+		blocking_reason_id=product.blocked_reason_id,
+		moderator_comment=product.moderator_comment,
+		images=[],
+		characteristics=[],
+		skus=[],
+		created_at=product.created_at,
+		updated_at=product.updated_at,
+	)
+
+	return response
 
 
 async def get_product_for_seller(

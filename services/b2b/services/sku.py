@@ -33,6 +33,6 @@ async def update_sku(db: AsyncSession, sku_id: UUID, data: dict) -> Sku | None:
 	return sku
 
 
-async def get_skus_by_product(db: AsyncSession, product_id: UUID) -> list[Sku]:
+async def get_skus_by_product_id(db: AsyncSession, product_id: UUID) -> list[Sku]:
 	"""Retrieve all SKUs for a product."""
-	return await sku_crud.get_by_product(db, product_id)
+	return await sku_crud.get_by_product_id(db, product_id)

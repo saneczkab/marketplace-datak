@@ -36,7 +36,7 @@ async def get_sku_by_id(db: AsyncSession, sku_id: UUID) -> Sku | None:
 	return result.unique().scalar_one_or_none()
 
 
-async def get_by_product(db: AsyncSession, product_id: UUID) -> list[Sku]:
+async def get_by_product_id(db: AsyncSession, product_id: UUID) -> list[Sku]:
 	"""Get all SKUs associated with a specific product."""
 	result = await db.execute(
 		select(Sku)

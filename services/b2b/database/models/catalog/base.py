@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Text, DateTime, ForeignKey, Index, text, func
+from sqlalchemy import Boolean, String, Text, DateTime, ForeignKey, Index, text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from database.core import Base
@@ -13,7 +13,7 @@ class ProductStatusEnum(str, enum.Enum):
 	ON_MODERATION = "ON_MODERATION"
 	MODERATED = "MODERATED"
 	BLOCKED = "BLOCKED"
-	DELETED = "DELETED"
+	HARD_BLOCKED = "HARD_BLOCKED"
 
 
 class Product(Base):
@@ -34,6 +34,11 @@ class Product(Base):
 	status: Mapped[ProductStatusEnum] = mapped_column(
 		default=ProductStatusEnum.CREATED, server_default="CREATED"
 	)
+	deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+	blocked_reason_id: Mapped[uuid.UUID] = mapped_column(
+		UUID, nullable=True, server_default=None
+	)
+	moderator_comment: Mapped[str] = mapped_column(String(1000))
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)

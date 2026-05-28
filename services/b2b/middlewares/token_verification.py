@@ -6,7 +6,7 @@ from jose import JWTError
 from core import db as core_db
 import crud.session as session_crud
 
-PRIVATE_PATHS = []
+PRIVATE_PATHS = ["/api/v1/products"]
 
 
 async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
