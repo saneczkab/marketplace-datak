@@ -8,6 +8,7 @@ from core.security import create_access_token
 from database.models.catalog.base import Category, ProductStatusEnum
 from database.models.catalog.variants import Sku, Product
 from database.models import Session
+from database.models.identity.identity import Seller
 from tests.factories.catalog import CategoryFactory, ProductFactory, SkuFactory
 
 import uuid
@@ -18,6 +19,17 @@ class CategoryWithProductsData:
 	categories: list[Category]
 	products: list[Product]
 	skus: list[Sku]
+
+
+@dataclass(frozen=True, slots=True)
+class CreateProductData:
+	seller: Seller
+	category: Category
+
+
+@pytest.fixture
+async def create_product_data(db: AsyncSession) -> CreateProductData:
+	seller = Seller()
 
 
 async def auth_headers(user_id: uuid.UUID, db: AsyncSession) -> dict:
