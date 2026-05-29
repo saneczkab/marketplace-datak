@@ -4,14 +4,14 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, text, func, Integer
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.schema import CheckConstraint
 
 from database.core import Base
 
 
 class InvoiceStatusEnum(str, enum.Enum):
-	DRAFT = "DRAFT"
+	DRAFT = "CREATED"
 	PENDING = "PENDING"
 	ACCEPTED = "ACCEPTED"
 	REJECTED = "REJECTED"
@@ -26,12 +26,19 @@ class Invoice(Base):
 	)
 	seller_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 	status: Mapped[InvoiceStatusEnum] = mapped_column(
-		default=InvoiceStatusEnum.DRAFT, server_default="DRAFT"
+		default=InvoiceStatusEnum.DRAFT, server_default="CREATED"
 	)
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
+	updated_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+	)
 	accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+	items: Mapped[list["InvoiceItem"]] = relationship(
+		"InvoiceItem", back_populates="invoice", cascade="all, delete-orphan"
+	)
 
 
 class InvoiceItem(Base):
@@ -49,3 +56,5 @@ class InvoiceItem(Base):
 	)
 	sku_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("catalog.skus.id"))
 	quantity: Mapped[int] = mapped_column(Integer)
+
+	invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="items")
