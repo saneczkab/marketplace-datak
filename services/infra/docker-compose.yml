@@ -1,0 +1,21 @@
+services:
+  rabbitmq:
+    image: "rabbitmq:4.3.1-management"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: USERNAME
+      RABBITMQ_DEFAULT_PASS: PASSWORD
+    networks:
+      - shared_ms_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  shared_ms_network:
+    name: shared_ms_network  
+    driver: bridge
