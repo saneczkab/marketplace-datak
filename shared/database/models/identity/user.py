@@ -5,15 +5,13 @@ from datetime import datetime
 from sqlalchemy import DateTime, text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+from shared.database.core import Base
 
 
 class RoleEnum(str, enum.Enum):
 	SELLER = "SELLER"
 	BUYER = "BUYER"
 	ADMIN = "ADMIN"
-
-
-from shared.database.core import Base
 
 
 class User(Base):

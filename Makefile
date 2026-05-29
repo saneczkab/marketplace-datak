@@ -7,6 +7,11 @@ down:
 build:
 	docker-compose build --no-cache
 
+rebuild:
+	docker-compose down
+	docker-compose build --no-cache
+	docker-compose up -d
+
 migrate:
 	docker-compose exec b2b-backend uv run alembic -c /app/database/alembic.ini upgrade head
 
