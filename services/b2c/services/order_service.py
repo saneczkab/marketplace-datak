@@ -23,7 +23,7 @@ from exceptions.order import (
 	ReserveFailedError,
 )
 from schemas.cart import CartValidationResponse
-from schemas.order import OrderResponse
+from schemas.order import OrderResponse, PaginatedOrders
 from services import cart_service, schemas_builder
 
 
@@ -220,3 +220,32 @@ async def cancel_order(
 	order_updated = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
 
 	return schemas_builder.build_order_response(order_updated)
+
+
+async def get_order_by_id_for_buyer(
+	db: AsyncSession,
+	order_id: uuid.UUID,
+	buyer_id: uuid.UUID,
+) -> OrderResponse:
+	order = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+	if order is None:
+		raise OrderNotFoundError()
+	return schemas_builder.build_order_response(order)
+
+
+async def get_buyer_orders(
+	db: AsyncSession,
+	buyer_id: uuid.UUID,
+	limit: int,
+	offset: int,
+	status: OrderStatusEnum | None,
+) -> PaginatedOrders:
+	orders, total_count = await order_crud.get_buyer_orders(
+		db, buyer_id, limit, offset, status
+	)
+	return PaginatedOrders(
+		items=[schemas_builder.build_order_response(order) for order in orders],
+		total_count=total_count,
+		limit=limit,
+		offset=offset,
+	)

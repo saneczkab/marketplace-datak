@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.address import AddressResponse
 from schemas.payment_method import PaymentMethodResponse
@@ -67,3 +67,11 @@ class OrderResponse(BaseModel):
 	created_at: datetime
 	paid_at: datetime | None = None
 	delivered_at: datetime | None = None
+
+
+class PaginatedOrders(BaseModel):
+	items: list[OrderResponse]
+	total_count: int
+	limit: int
+	offset: int
+	model_config = ConfigDict(from_attributes=True)
