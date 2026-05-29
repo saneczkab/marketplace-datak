@@ -5,11 +5,11 @@ down:
 	docker-compose down
 
 build:
-	docker-compose build --no-cache
+	docker-compose build 
 
 rebuild:
 	docker-compose down
-	docker-compose build --no-cache
+	docker-compose build 
 	docker-compose up -d
 
 migrate:
@@ -25,5 +25,14 @@ format:
 check:
 	uv run ruff check .
 
+test:
+	uv run python -m pytest -q
+
 seed:
 	docker-compose exec b2c-backend uv run python ./scripts/seed.py
+
+parse-category:
+	docker-compose exec b2c-backend uv run python ./scripts/category_parser.py
+
+translator:
+	docker-compose exec b2c-backend uv run python ./scripts/file_translator.py

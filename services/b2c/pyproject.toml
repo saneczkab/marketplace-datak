@@ -13,7 +13,11 @@ dependencies = [
     "python-dotenv",
     "psycopg2-binary",
     "asyncpg",
-    "pydantic>=2.12.5",
+    "pydantic[email]>=2.12.5",
+    "openpyxl>=3.1.5",
+    "deep-translator>=1.11.4",
+    "passlib>=1.7.4",
+    "python-jose>=3.5.0",
 ]
 
 [tool.ruff]
@@ -36,7 +40,15 @@ lint.extend-select = [
 quote-style =  "double"
 indent-style = "tab"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S607"]
+
 [dependency-groups]
 dev = [
     "ruff>=0.15.6",
+    "pytest~=9.0",
+    "pytest-asyncio~=1.3",
+    "httpx~=0.28",
+    "testcontainers~=4.14",
+    "factory-boy>=3.3.0",
 ]

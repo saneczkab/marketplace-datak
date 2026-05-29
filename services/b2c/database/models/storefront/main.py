@@ -27,6 +27,24 @@ class Banner(Base):
 	)
 
 
+class BannerEvent(Base):
+	__tablename__ = "banner_events"
+	__table_args__ = {"schema": "storefront"}
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	banner_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("storefront.banners.id"), nullable=False
+	)
+	user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+	event: Mapped[str] = mapped_column(String(20))
+	timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+	created_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now()
+	)
+
+
 class Collection(Base):
 	__tablename__ = "collections"
 	__table_args__ = {"schema": "storefront"}
