@@ -10,6 +10,11 @@ services:
       - .env
     depends_on:
       - b2b-db
+    environment:
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-unset}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-unset}
+      - RABBITMQ_USER=${RABBITMQ_USER:-unset}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-unset}
 
   b2b-db:
     image: postgres:15
