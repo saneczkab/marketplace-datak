@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Result, select
+from sqlalchemy import Result, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -266,3 +266,36 @@ async def cancel_order(
 	await change_order_status(db, order.id, OrderStatusEnum.CANCELLED, reason)
 	await db.flush()
 	return order.id
+
+
+async def get_buyer_orders(
+	db: AsyncSession,
+	buyer_id: uuid.UUID,
+	limit: int,
+	offset: int,
+	status: OrderStatusEnum | None,
+) -> tuple[list[Order], int]:
+	filters = [Order.buyer_id == buyer_id]
+	if status is not None:
+		filters.append(Order.status == status)
+
+	count_result = await db.execute(
+		select(func.count()).select_from(Order).where(*filters)
+	)
+	total_count = count_result.scalar() or 0
+
+	query = (
+		select(Order)
+		.where(*filters)
+		.order_by(Order.created_at.desc())
+		.limit(limit)
+		.offset(offset)
+		.options(
+			selectinload(Order.items),
+			selectinload(Order.address),
+			selectinload(Order.payment_method),
+			selectinload(Order.status_history),
+		)
+	)
+	result: Result = await db.execute(query)
+	return list(result.scalars().all()), total_count

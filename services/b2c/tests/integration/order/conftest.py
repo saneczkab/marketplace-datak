@@ -73,7 +73,10 @@ async def order_data(db_session: AsyncSession) -> OrderData:
 		address_id=address.id,
 		payment_method_id=payment_method.id,
 	)
-	order_items = [OrderItemFactory.build(order_id=order.id) for _ in range(3)]
+	order_items = [
+		OrderItemFactory.build(order_id=order.id, sku_id=sku.id, unit_price=sku.price)
+		for sku in skus
+	]
 	order_status_history = OrderStatusHistoryFactory.build(
 		order_id=order.id, status=OrderStatusEnum.PAID
 	)
