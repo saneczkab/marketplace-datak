@@ -17,6 +17,7 @@ dependencies = [
     "pydantic[email]>=2.12.5",
     "python-multipart>=0.0.29",
     "minio>=7.2.20",
+    "aio-pika>=9.6.2",
 ]
 
 [tool.ruff]
