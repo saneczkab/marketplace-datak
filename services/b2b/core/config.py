@@ -14,6 +14,11 @@ class settings(BaseSettings):  # noqa
 	S3_BUCKET: str
 	MAX_SIZE: int
 
+	RABBITMQ_HOST: str
+	RABBITMQ_PORT: str
+	RABBITMQ_USER: str
+	RABBITMQ_PASSWORD: str
+
 	model_config = {"env_file": ".env", "extra": "allow"}
 
 

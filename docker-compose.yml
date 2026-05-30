@@ -1,42 +1,26 @@
+include:
+  - path: ./services/b2b/docker-compose.yml
+  - path: ./services/b2c/docker-compose.yml
+
 services:
   rabbitmq:
-    image: rabbitmq:3-management
+    image: "rabbitmq:4.3.1-management"
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+      - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-
-  b2b-backend:
-    build:
-      context: .
-      dockerfile: services/b2b/Dockerfile
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./services/b2b/.env 
-    depends_on:
-      - b2b-db
-
-  b2b-db:
-    image: postgres:15
-    restart: always
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+    networks:
+      - shared_ms_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 2s
-      timeout: 5s
-      retries: 10
-    env_file:
-      - ./services/b2b/.env
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-volumes:
-  postgres_data:
+networks:
+  shared_ms_network:
+    name: shared_ms_network  
+    driver: bridge
