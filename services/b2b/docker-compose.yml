@@ -39,8 +39,8 @@ services:
     image: minio/minio
     container_name: b2b-minio
     ports:
-      - "${MINIO_PORT}:${MINIO_PORT}"
-      - "${MINIO_PANNEL_PORT}:${MINIO_PANNEL_PORT}"
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_PANNEL_PORT}:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
