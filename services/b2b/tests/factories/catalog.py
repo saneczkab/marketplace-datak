@@ -33,6 +33,7 @@ class ProductFactory(factory.Factory):
 	slug = factory.Faker("slug")
 	description = factory.Faker("sentence", nb_words=6)
 	status = ProductStatusEnum.MODERATED
+	moderator_comment = ""
 
 
 class SkuFactory(factory.Factory):
@@ -44,3 +45,4 @@ class SkuFactory(factory.Factory):
 	name = factory.Faker("sentence", nb_words=2)
 	price = factory.Faker("pyint", min_value=100, max_value=10000)
 	active_quantity = factory.Faker("pyint", min_value=0, max_value=100)
+	article = ""

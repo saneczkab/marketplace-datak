@@ -1,23 +1,25 @@
-from typing import Callable
+from typing import Callable, Optional
+
+import crud.session as session_crud
+from core.db import get_db
+from core.security import decode_access_token
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from core.security import decode_access_token
 from jose import JWTError
-from core import db as core_db
-import crud.session as session_crud
 
-PRIVATE_PATHS = ["/api/v1/products"]
+PRIVATE_PATHS: list[str] = []
+PRIVATE_PATHS_PREFIXES = ["/api/v1/products", "/api/v1/skus"]
 
 
-async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
-	if request.url.path not in PRIVATE_PATHS:
-		return await call_next(request)
-
+async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
 	auth_header = request.headers.get("Authorization")
 	if not auth_header or not auth_header.startswith("Bearer "):
 		return JSONResponse(
 			status_code=401,
-			content={"detail": "Missing or invalid Authorization header"},
+			content={
+				"code": "UNAUTHORIZED",
+				"message": "Missing or invalid Authorization header",
+			},
 		)
 
 	token = auth_header.split(" ", 1)[1]
@@ -27,20 +29,35 @@ async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
 		request.state.user_id = decoded.get("user_id")
 	except JWTError:
 		return JSONResponse(
-			status_code=401, content={"detail": "Invalid or expired token"}
+			status_code=401,
+			content={"code": "UNAUTHORIZED", "message": "Invalid or expired token"},
 		)
-	except ValueError as e:
-		return JSONResponse(status_code=401, content={"detail": str(e)})
-	get_db_dep = request.app.dependency_overrides.get(core_db.get_db, core_db.get_db)
+	except ValueError as err:
+		return JSONResponse(
+			status_code=401, content={"code": "UNAUTHORIZED", "message": str(err)}
+		)
+
+	get_db_dep = request.app.dependency_overrides.get(get_db, get_db)
 	async for db in get_db_dep():
-		try:
-			is_active = await session_crud.check_active_session(token, db)
-			if not is_active:
-				return JSONResponse(
-					status_code=401, content={"detail": "Token invalidated in db"}
-				)
-		finally:
-			await db.close()
+		is_active = await session_crud.check_active_session(token, db)
+		if not is_active:
+			return JSONResponse(
+				status_code=401,
+				content={"code": "UNAUTHORIZED", "message": "Token invalidated in db"},
+			)
 		break
+
+	return None
+
+
+async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
+	if request.url.path not in PRIVATE_PATHS and not any(
+		request.url.path.startswith(prefix) for prefix in PRIVATE_PATHS_PREFIXES
+	):
+		return await call_next(request)
+
+	auth_error = await _authenticate_bearer(request)
+	if auth_error is not None:
+		return auth_error
 
 	return await call_next(request)

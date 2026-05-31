@@ -86,8 +86,10 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from api.products import router as product_router
 	from api.invoice import router as invoice_router
 	from api.sku import router as sku_router
+	from middlewares.token_verification import verify_token
 
 	test_app = FastAPI(debug=False)
+	test_app.middleware("http")(verify_token)
 	test_app.add_middleware(
 		CORSMiddleware,
 		allow_origins=["http://localhost:5173", "http://localhost:3000"],

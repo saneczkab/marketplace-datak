@@ -23,6 +23,7 @@ async def create_new_product(
 		description=product_in.description,
 		status=ProductStatusEnum.CREATED,
 		deleted=False,
+		moderator_comment="",
 	)
 
 	product = await product_crud.add_product(product, db)
