@@ -14,6 +14,9 @@ ROUTING_KEY = os.getenv(
 	"RABBITMQ_ROUTING_KEY_MODERATION_PRODUCT", "moderation.product.created"
 )
 
+# TODO: как только доберёмся до сервиса, инициализировать core, docker-compose, uv. # noqa
+# TODO: Также считывать переменные из .env # noqa
+
 
 def _rabbitmq_url() -> str:
 	host = os.getenv("RABBITMQ_HOST", "localhost")
