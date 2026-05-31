@@ -119,7 +119,7 @@ async def test_first_sku_without_images_returns_400(
 	assert response.status_code == 400
 
 
-async def test_missing_image_url_on_attach_returns_400(
+async def test_missing_image_url_on_attach_returns_422(
 	client: AsyncClient,
 	category_with_products: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -134,4 +134,4 @@ async def test_missing_image_url_on_attach_returns_400(
 		headers=headers,
 		json={"ordering": 0},
 	)
-	assert response.status_code == 400
+	assert response.status_code == 422

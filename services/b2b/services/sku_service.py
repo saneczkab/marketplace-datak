@@ -105,7 +105,8 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 async def attach_sku_image(
 	db: AsyncSession, sku_id: UUID, data: ImageAttachRequest, seller_id: UUID
 ) -> SkuImageResponse:
-	if not data.url or not data.url.strip():
+	url = data.url.strip()
+	if not url:
 		raise SkuValidationError("url is required")
 
 	sku, _ = await _get_owned_sku(db, sku_id, seller_id)
@@ -113,7 +114,7 @@ async def attach_sku_image(
 	image = await sku_crud.attach_sku_image(
 		db,
 		sku,
-		data.url.strip(),
+		url,
 		data.ordering,
 	)
 	return SkuImageResponse.model_validate(image)

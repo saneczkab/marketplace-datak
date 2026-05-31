@@ -23,7 +23,7 @@ class ImageSchema(BaseModel):
 
 class ImageAttachRequest(BaseModel):
 	image_id: Optional[UUID] = None
-	url: Optional[str] = None
+	url: str = Field(..., min_length=1)
 	ordering: int = 0
 
 
