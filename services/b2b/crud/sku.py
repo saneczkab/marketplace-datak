@@ -1,56 +1,69 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 from uuid import UUID
-from database.models import Sku, Characteristic, Image
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from crud import images as images_crud
+from database.models import Characteristic, Sku
+from database.models.catalog.base import Product, ProductStatusEnum
+from database.models.catalog.variants import Image
 
 
-async def create(db: AsyncSession, data: dict) -> Sku:
-	"""Create a new SKU with its characteristics and images."""
-	chars_data = data.pop("characteristics", [])
-	images_data = data.pop("images", [])
+async def create(
+	db: AsyncSession,
+	data: dict,
+	product: Product,
+) -> Sku:
+	chars_data = data.pop("characteristics", []) or []
+	data.pop("images", None)
+	data.pop("product_id", None)
 
-	sku = Sku(**data)
+	sku = Sku(product_id=product.id, **data)
 	db.add(sku)
 	await db.flush()
 
-	if chars_data:
-		for char in chars_data:
-			db.add(Characteristic(**char, sku_id=sku.id))
-
-	if images_data:
-		for img in images_data:
-			db.add(Image(**img, sku_id=sku.id))
+	for char in chars_data:
+		char_fields = {"name": char["name"], "value": char["value"]}
+		db.add(Characteristic(**char_fields, sku_id=sku.id))
 
 	await db.commit()
 	return await get_sku_by_id(db, sku.id)
 
 
+async def transition_product_to_on_moderation(
+	db: AsyncSession, product: Product
+) -> None:
+	product.status = ProductStatusEnum.ON_MODERATION
+	db.add(product)
+	await db.commit()
+	await db.refresh(product)
+
+
 async def get_sku_by_id(db: AsyncSession, sku_id: UUID) -> Sku | None:
-	"""Get a single SKU by its ID with all related data."""
 	result = await db.execute(
-		select(Sku)
-		.options(joinedload(Sku.characteristics), joinedload(Sku.images))
-		.filter(Sku.id == sku_id)
+		select(Sku).options(joinedload(Sku.characteristics)).where(Sku.id == sku_id)
 	)
 	return result.unique().scalar_one_or_none()
 
 
 async def get_by_product_id(db: AsyncSession, product_id: UUID) -> list[Sku]:
-	"""Get all SKUs associated with a specific product."""
 	result = await db.execute(
 		select(Sku)
-		.options(joinedload(Sku.characteristics), joinedload(Sku.images))
-		.filter(Sku.product_id == product_id)
+		.options(joinedload(Sku.characteristics))
+		.where(Sku.product_id == product_id)
 	)
 	return list(result.unique().scalars().all())
 
 
 async def update(db: AsyncSession, sku_id: UUID, data: dict) -> Sku | None:
-	"""Update SKU fields."""
 	sku = await get_sku_by_id(db, sku_id)
 	if not sku:
 		return None
+
+	data.pop("product_id", None)
+	data.pop("characteristics", None)
+	data.pop("images", None)
 
 	for key, value in data.items():
 		setattr(sku, key, value)
@@ -58,3 +71,14 @@ async def update(db: AsyncSession, sku_id: UUID, data: dict) -> Sku | None:
 	await db.commit()
 	await db.refresh(sku)
 	return sku
+
+
+async def count_skus_by_product_id(db: AsyncSession, product_id: UUID) -> int:
+	result = await db.execute(
+		select(func.count()).select_from(Sku).where(Sku.product_id == product_id)
+	)
+	return int(result.scalar_one())
+
+
+async def load_images_for_sku(db: AsyncSession, sku_id: UUID) -> list[Image]:
+	return await images_crud.get_sku_images_by_id(sku_id, db)

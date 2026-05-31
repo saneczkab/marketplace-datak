@@ -67,6 +67,11 @@ async def auth_headers(user_id: uuid.UUID, db: AsyncSession) -> dict:
 async def category_with_products(
 	db_session: AsyncSession,
 ) -> CategoryWithProductsData:
+	seller: Seller = SellerFactory.build()
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
 	categories = []
 	products = []
 	skus = []
@@ -76,7 +81,11 @@ async def category_with_products(
 		await db_session.commit()
 		categories.append(category)
 		for _ in range(3):
-			product = ProductFactory.build(category_id=category.id)
+			product = ProductFactory.build(
+				category_id=category.id,
+				seller_id=seller.id,
+				status=ProductStatusEnum.MODERATED,
+			)
 			db_session.add(product)
 			await db_session.commit()
 			products.append(product)
@@ -95,6 +104,11 @@ async def category_with_products(
 async def product_no_skus(
 	db_session: AsyncSession,
 ) -> CategoryWithProductsData:
+	seller: Seller = SellerFactory.build()
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
 	categories = []
 	products = []
 	skus = []
@@ -104,7 +118,11 @@ async def product_no_skus(
 		await db_session.commit()
 		categories.append(category)
 		for _ in range(3):
-			product = ProductFactory.build(category_id=category.id)
+			product = ProductFactory.build(
+				category_id=category.id,
+				seller_id=seller.id,
+				status=ProductStatusEnum.CREATED,
+			)
 			db_session.add(product)
 			await db_session.commit()
 			products.append(product)
@@ -117,9 +135,16 @@ async def product_no_skus(
 async def hard_blocked_product(
 	db_session: AsyncSession,
 ) -> CategoryWithProductsData:
+	seller: Seller = SellerFactory.build()
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
 	category = CategoryFactory.build()
 	product = ProductFactory.build(
-		category_id=category.id, status=ProductStatusEnum.BLOCKED
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.HARD_BLOCKED,
 	)
 	sku = SkuFactory.build(product_id=product.id)
 	db_session.add_all([category, product, sku])

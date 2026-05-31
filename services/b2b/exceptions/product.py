@@ -7,3 +7,7 @@ class ProductError(MarketplaceError):
 
 class ProductNotFoundError(ProductError):
 	"""Raised when a product is not found in the catalog."""
+
+
+class ProductNotOwnerError(ProductError):
+	"""Raised when the product belongs to another seller."""

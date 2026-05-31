@@ -25,6 +25,11 @@ async def get_product_by_id(
 	return result.scalar_one_or_none()
 
 
+async def get_product_by_id_only(db: AsyncSession, product_id: UUID) -> Product | None:
+	result = await db.execute(select(Product).where(Product.id == product_id))
+	return result.scalar_one_or_none()
+
+
 async def update_product(
 	db: AsyncSession, db_obj: Product, update_data: dict
 ) -> Product:
@@ -48,9 +53,3 @@ async def soft_delete_product(db: AsyncSession, db_obj: Product) -> Product:
 async def hard_delete_product(db: AsyncSession, db_obj: Product) -> None:
 	await db.delete(db_obj)
 	await db.commit()
-
-
-async def get_sku_by_id(db: AsyncSession, product_id: UUID) -> Product | None:
-	"""Check if a product exists in the database."""
-	result = await db.execute(select(Product).filter(Product.id == product_id))
-	return result.scalar_one_or_none()
