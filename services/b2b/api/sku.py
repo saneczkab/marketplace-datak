@@ -19,7 +19,7 @@ from schemas.sku import (
 	SkuResponse,
 	SkuUpdate,
 )
-from services import sku as sku_service
+from services import sku_service
 
 router = APIRouter(prefix="/skus", tags=["SKU"])
 

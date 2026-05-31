@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from crud import images as images_crud
 from crud import product as product_crud
 from crud import sku as sku_crud
-from database.models.catalog.base import Product, ProductStatusEnum
+from database.models.catalog.base import ProductStatusEnum
 from database.models.catalog.variants import Sku
 from exceptions.product import ProductNotFoundError, ProductNotOwnerError
 from exceptions.sku import SkuForbiddenError, SkuNotFoundError, SkuValidationError
@@ -17,15 +17,6 @@ from schemas.sku import (
 	SkuImageResponse,
 	SkuResponse,
 )
-
-
-def _prepare_sku_data(data: SkuCreate) -> dict:
-	payload = data.model_dump()
-	payload["cost_price"] = (
-		payload.get("cost_price") if payload.get("cost_price") is not None else 0
-	)
-	payload["article"] = payload.get("article") or ""
-	return payload
 
 
 async def build_sku_response(db: AsyncSession, sku: Sku) -> SkuResponse:
@@ -50,15 +41,13 @@ async def build_sku_response(db: AsyncSession, sku: Sku) -> SkuResponse:
 	)
 
 
-async def _get_owned_sku(
-	db: AsyncSession, sku_id: UUID, seller_id: UUID
-) -> tuple[Sku, Product]:
-	sku = await sku_crud.get_sku_by_id(db, sku_id)
-	if not sku:
+async def _get_owned_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> tuple:
+	pair = await sku_crud.get_sku_and_product(db, sku_id)
+	if pair is None:
 		raise SkuNotFoundError(f"SKU with id {sku_id} not found")
 
-	product = await product_crud.get_product_by_id_only(db, sku.product_id)
-	if not product or product.seller_id != seller_id:
+	sku, product = pair
+	if product.seller_id != seller_id:
 		raise ProductNotOwnerError("SKU does not belong to the authenticated seller")
 	if product.status == ProductStatusEnum.HARD_BLOCKED:
 		raise SkuForbiddenError("Cannot modify SKU of hard-blocked product")
@@ -79,7 +68,15 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 	if data.price <= 0:
 		raise SkuValidationError("price must be a positive integer")
 
-	sku = await sku_crud.create(db, _prepare_sku_data(data), product=product)
+	sku_payload = data.model_dump()
+	sku_payload["cost_price"] = (
+		sku_payload.get("cost_price")
+		if sku_payload.get("cost_price") is not None
+		else 0
+	)
+	sku_payload["article"] = sku_payload.get("article") or ""
+
+	sku = await sku_crud.create(db, sku_payload, product=product)
 	return await build_sku_response(db, sku)
 
 
@@ -91,22 +88,23 @@ async def attach_sku_image(
 
 	sku, product = await _get_owned_sku(db, sku_id, seller_id)
 	had_sku_image_before = await images_crud.product_has_sku_image(db, product.id)
-
-	image = await images_crud.attach_sku_image(
-		db, sku.id, data.url.strip(), data.ordering
+	submit_for_moderation = (
+		product.status == ProductStatusEnum.CREATED and not had_sku_image_before
 	)
-	await db.commit()
-	await db.refresh(image)
 
-	if product.status == ProductStatusEnum.CREATED and not had_sku_image_before:
-		await sku_crud.transition_product_to_on_moderation(db, product)
-
+	image = await sku_crud.attach_sku_image_with_moderation(
+		db,
+		sku=sku,
+		product=product,
+		url=data.url.strip(),
+		ordering=data.ordering,
+		submit_for_moderation=submit_for_moderation,
+	)
 	return SkuImageResponse.model_validate(image)
 
 
 async def get_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> SkuResponse:
-	await _get_owned_sku(db, sku_id, seller_id)
-	sku = await sku_crud.get_sku_by_id(db, sku_id)
+	sku, _ = await _get_owned_sku(db, sku_id, seller_id)
 	return await build_sku_response(db, sku)
 
 

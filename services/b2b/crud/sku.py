@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from crud import images as images_crud
+from crud import outbox as outbox_crud
+from crud import product as product_crud
 from database.models import Characteristic, Sku
 from database.models.catalog.base import Product, ProductStatusEnum
 from database.models.catalog.variants import Image
@@ -45,6 +47,42 @@ async def get_sku_by_id(db: AsyncSession, sku_id: UUID) -> Sku | None:
 		select(Sku).options(joinedload(Sku.characteristics)).where(Sku.id == sku_id)
 	)
 	return result.unique().scalar_one_or_none()
+
+
+async def get_sku_and_product(
+	db: AsyncSession, sku_id: UUID
+) -> tuple[Sku, Product] | None:
+	sku = await get_sku_by_id(db, sku_id)
+	if sku is None:
+		return None
+	product = await product_crud.get_product_by_id_only(db, sku.product_id)
+	if product is None:
+		return None
+	return sku, product
+
+
+async def attach_sku_image_with_moderation(
+	db: AsyncSession,
+	sku: Sku,
+	product: Product,
+	url: str,
+	ordering: int,
+	submit_for_moderation: bool,
+) -> Image:
+	image = await images_crud.attach_sku_image(db, sku.id, url, ordering)
+
+	if submit_for_moderation:
+		product.status = ProductStatusEnum.ON_MODERATION
+		db.add(product)
+		await outbox_crud.enqueue_moderation_product_created(
+			db,
+			product_id=product.id,
+			seller_id=product.seller_id,
+		)
+
+	await db.commit()
+	await db.refresh(image)
+	return image
 
 
 async def get_by_product_id(db: AsyncSession, product_id: UUID) -> list[Sku]:
