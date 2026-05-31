@@ -6,7 +6,6 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.config import settings
 from core.db import SessionLocal
 from database.models.outbox import OutboxEvent, OutboxEventStatus
 
@@ -47,7 +46,7 @@ async def enqueue_moderation_product_created(
 	outbox_event = OutboxEvent(
 		idempotency_key=idempotency_key,
 		event_type=MODERATION_PRODUCT_CREATED,
-		routing_key=settings.RABBITMQ_ROUTING_KEY_MODERATION_PRODUCT,
+		routing_key=MODERATION_PRODUCT_CREATED,
 		payload=payload,
 		status=OutboxEventStatus.PENDING,
 	)
