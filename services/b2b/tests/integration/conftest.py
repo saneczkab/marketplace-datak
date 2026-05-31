@@ -131,6 +131,22 @@ async def product_no_skus(
 	return CategoryWithProductsData(categories, products, skus)
 
 
+@dataclass(frozen=True, slots=True)
+class EditProductData:
+	owner: Seller
+	other_seller: Seller
+	category: Category
+	moderated_product: Product
+	moderated_sku: Sku
+	reserved_sku: Sku
+	blocked_product: Product
+	blocked_sku: Sku
+	hard_blocked_product: Product
+	hard_blocked_sku: Sku
+	other_seller_product: Product
+	other_seller_sku: Sku
+
+
 @pytest.fixture()
 async def hard_blocked_product(
 	db_session: AsyncSession,
@@ -150,3 +166,106 @@ async def hard_blocked_product(
 	db_session.add_all([category, product, sku])
 	await db_session.commit()
 	return CategoryWithProductsData([category], [product], [sku])
+
+
+@pytest.fixture()
+async def blocked_product(
+	db_session: AsyncSession,
+) -> CategoryWithProductsData:
+	seller: Seller = SellerFactory.build()
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
+	category = CategoryFactory.build()
+	product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.BLOCKED,
+	)
+	sku = SkuFactory.build(product_id=product.id)
+	db_session.add_all([category, product, sku])
+	await db_session.commit()
+	return CategoryWithProductsData([category], [product], [sku])
+
+
+@pytest.fixture()
+async def edit_product_data(
+	db_session: AsyncSession,
+) -> EditProductData:
+	owner: Seller = SellerFactory.build()
+	other_seller: Seller = SellerFactory.build()
+	db_session.add_all([owner, other_seller])
+	await db_session.commit()
+	await db_session.refresh(owner)
+	await db_session.refresh(other_seller)
+
+	category = CategoryFactory.build()
+	db_session.add(category)
+	await db_session.commit()
+	await db_session.refresh(category)
+
+	moderated_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.BLOCKED,
+	)
+	hard_blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.HARD_BLOCKED,
+	)
+	other_seller_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=other_seller.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	db_session.add_all(
+		[
+			moderated_product,
+			blocked_product,
+			hard_blocked_product,
+			other_seller_product,
+		]
+	)
+	await db_session.commit()
+
+	moderated_sku = SkuFactory.build(product_id=moderated_product.id)
+	reserved_sku = SkuFactory.build(
+		product_id=moderated_product.id,
+		reserved_quantity=5,
+		active_quantity=10,
+	)
+	blocked_sku = SkuFactory.build(product_id=blocked_product.id)
+	hard_blocked_sku = SkuFactory.build(product_id=hard_blocked_product.id)
+	other_seller_sku = SkuFactory.build(product_id=other_seller_product.id)
+	db_session.add_all(
+		[
+			moderated_sku,
+			reserved_sku,
+			blocked_sku,
+			hard_blocked_sku,
+			other_seller_sku,
+		]
+	)
+	await db_session.commit()
+
+	return EditProductData(
+		owner=owner,
+		other_seller=other_seller,
+		category=category,
+		moderated_product=moderated_product,
+		moderated_sku=moderated_sku,
+		reserved_sku=reserved_sku,
+		blocked_product=blocked_product,
+		blocked_sku=blocked_sku,
+		hard_blocked_product=hard_blocked_product,
+		hard_blocked_sku=hard_blocked_sku,
+		other_seller_product=other_seller_product,
+		other_seller_sku=other_seller_sku,
+	)

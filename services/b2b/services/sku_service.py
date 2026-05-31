@@ -128,9 +128,19 @@ async def get_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> SkuRespons
 async def update_sku(
 	db: AsyncSession, sku_id: UUID, data: dict, seller_id: UUID
 ) -> SkuResponse:
-	await _get_owned_sku(db, sku_id, seller_id)
+	_, product = await _get_owned_sku(db, sku_id, seller_id)
+	submit_for_remoderation = product.status in [
+		ProductStatusEnum.BLOCKED,
+		ProductStatusEnum.MODERATED,
+	]
 
-	updated = await sku_crud.update(db, sku_id, data)
+	updated = await sku_crud.update(
+		db,
+		sku_id,
+		data,
+		product=product,
+		should_remoderate=submit_for_remoderation,
+	)
 	if not updated:
 		raise SkuNotFoundError(f"SKU with id {sku_id} not found")
 	return await build_sku_response(db, updated)

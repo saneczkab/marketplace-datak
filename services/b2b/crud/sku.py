@@ -5,10 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from crud import images as images_crud
-from crud import outbox as outbox_crud
 from crud import product as product_crud
 from database.models import Characteristic, Sku
-from database.models.catalog.base import Product, ProductStatusEnum
+from database.models.catalog.base import Product
 from database.models.catalog.variants import Image
 
 
@@ -40,13 +39,7 @@ async def create(
 		)
 
 	if submit_for_moderation:
-		product.status = ProductStatusEnum.ON_MODERATION
-		db.add(product)
-		await outbox_crud.enqueue_moderation_product_created(
-			db,
-			product_id=product.id,
-			seller_id=product.seller_id,
-		)
+		await product_crud.submit_for_moderation(db, product)
 
 	await db.commit()
 	return await get_sku_by_id(db, sku.id)
@@ -92,7 +85,13 @@ async def get_by_product_id(db: AsyncSession, product_id: UUID) -> list[Sku]:
 	return list(result.unique().scalars().all())
 
 
-async def update(db: AsyncSession, sku_id: UUID, data: dict) -> Sku | None:
+async def update(
+	db: AsyncSession,
+	sku_id: UUID,
+	data: dict,
+	product: Product | None = None,
+	should_remoderate: bool = False,
+) -> Sku | None:
 	sku = await get_sku_by_id(db, sku_id)
 	if not sku:
 		return None
@@ -100,9 +99,13 @@ async def update(db: AsyncSession, sku_id: UUID, data: dict) -> Sku | None:
 	data.pop("product_id", None)
 	data.pop("characteristics", None)
 	data.pop("images", None)
+	data.pop("reserved_quantity", None)
 
 	for key, value in data.items():
 		setattr(sku, key, value)
+
+	if should_remoderate and product is not None:
+		await product_crud.submit_for_moderation(db, product, event="EDITED")
 
 	await db.commit()
 	await db.refresh(sku)
