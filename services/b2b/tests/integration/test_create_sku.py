@@ -46,6 +46,33 @@ async def test_first_sku_transitions_product_to_on_moderation(
 	assert product_response.json()["status"] == "ON_MODERATION"
 
 
+async def test_first_sku_enqueues_created_event_to_outbox(
+	client: AsyncClient,
+	product_no_skus: CategoryWithProductsData,
+	db_session: AsyncSession,
+) -> None:
+	from sqlalchemy import select
+
+	from database.models.outbox import OutboxEvent, OutboxEventStatus
+
+	product = product_no_skus.products[0]
+	headers = await auth_headers(product.seller_id, db_session)
+
+	sku = await _create_sku(client, headers, str(product.id))
+	await _attach_sku_image(client, headers, sku["id"])
+
+	result = await db_session.execute(
+		select(OutboxEvent).where(
+			OutboxEvent.payload["product_id"].astext == str(product.id)
+		)
+	)
+	events = list(result.scalars().all())
+	assert len(events) == 1
+	assert events[0].payload["event"] == "CREATED"
+	assert events[0].payload["seller_id"] == str(product.seller_id)
+	assert events[0].status == OutboxEventStatus.PENDING
+
+
 async def test_second_sku_no_state_change(
 	client: AsyncClient,
 	category_with_products: CategoryWithProductsData,
