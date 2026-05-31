@@ -2,7 +2,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud import images as images_crud
 from crud import product as product_crud
 from crud import sku as sku_crud
 from database.models.catalog.base import ProductStatusEnum
@@ -14,6 +13,7 @@ from schemas.sku import (
 	ImageAttachRequest,
 	ImageSchema,
 	SkuCreate,
+	SkuImageCreate,
 	SkuImageResponse,
 	SkuResponse,
 )
@@ -55,6 +55,16 @@ async def _get_owned_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> tup
 	return sku, product
 
 
+def _process_sku_images(images: list[SkuImageCreate]) -> list[dict]:
+	normalized: list[dict] = []
+	for image in images:
+		url = image.url.strip()
+		if not url:
+			raise SkuValidationError("Each image must have a non-empty url")
+		normalized.append({"url": url, "ordering": image.ordering})
+	return normalized
+
+
 async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuResponse:
 	product = await product_crud.get_product_by_id_only(db, data.product_id)
 	if not product:
@@ -68,6 +78,12 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 	if data.price <= 0:
 		raise SkuValidationError("price must be a positive integer")
 
+	sku_images = _process_sku_images(data.images)
+	is_first_sku = await sku_crud.count_skus_by_product_id(db, product.id) == 0
+	submit_for_moderation = is_first_sku and product.status == ProductStatusEnum.CREATED
+	if submit_for_moderation and not sku_images:
+		raise SkuValidationError("at least one image is required for the first SKU")
+
 	sku_payload = data.model_dump()
 	sku_payload["cost_price"] = (
 		sku_payload.get("cost_price")
@@ -76,7 +92,13 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 	)
 	sku_payload["article"] = sku_payload.get("article") or ""
 
-	sku = await sku_crud.create(db, sku_payload, product=product)
+	sku = await sku_crud.create(
+		db,
+		sku_payload,
+		product=product,
+		images=sku_images,
+		submit_for_moderation=submit_for_moderation,
+	)
 	return await build_sku_response(db, sku)
 
 
@@ -86,19 +108,13 @@ async def attach_sku_image(
 	if not data.url or not data.url.strip():
 		raise SkuValidationError("url is required")
 
-	sku, product = await _get_owned_sku(db, sku_id, seller_id)
-	had_sku_image_before = await images_crud.product_has_sku_image(db, product.id)
-	submit_for_moderation = (
-		product.status == ProductStatusEnum.CREATED and not had_sku_image_before
-	)
+	sku, _ = await _get_owned_sku(db, sku_id, seller_id)
 
-	image = await sku_crud.attach_sku_image_with_moderation(
+	image = await sku_crud.attach_sku_image(
 		db,
-		sku=sku,
-		product=product,
-		url=data.url.strip(),
-		ordering=data.ordering,
-		submit_for_moderation=submit_for_moderation,
+		sku,
+		data.url.strip(),
+		data.ordering,
 	)
 	return SkuImageResponse.model_validate(image)
 

@@ -7,26 +7,21 @@ from tests.integration.conftest import CategoryWithProductsData, auth_headers
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-async def _create_sku(client: AsyncClient, headers: dict, product_id: str) -> dict:
-	response = await client.post(
-		"/api/v1/skus",
-		headers=headers,
-		json={"product_id": product_id, "name": "Test SKU", "price": 100},
-	)
+async def _create_sku(
+	client: AsyncClient,
+	headers: dict,
+	product_id: str,
+	with_images: bool = False,
+) -> dict:
+	body = {"product_id": product_id, "name": "Test SKU", "price": 100}
+	if with_images:
+		body["images"] = [{"url": "/s3/test-sku.jpg", "ordering": 0}]
+	response = await client.post("/api/v1/skus", headers=headers, json=body)
 	assert response.status_code == 201
 	return response.json()
 
 
-async def _attach_sku_image(client: AsyncClient, headers: dict, sku_id: str) -> None:
-	response = await client.post(
-		f"/api/v1/skus/{sku_id}/images",
-		headers=headers,
-		json={"url": "/s3/test-sku.jpg", "ordering": 0},
-	)
-	assert response.status_code == 201
-
-
-async def test_first_sku_transitions_product_to_on_moderation(
+async def test_first_sku_emits_created_event_to_moderation(
 	client: AsyncClient,
 	product_no_skus: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -34,8 +29,9 @@ async def test_first_sku_transitions_product_to_on_moderation(
 	product = product_no_skus.products[0]
 	headers = await auth_headers(product.seller_id, db_session)
 
-	sku = await _create_sku(client, headers, str(product.id))
-	await _attach_sku_image(client, headers, sku["id"])
+	sku = await _create_sku(client, headers, str(product.id), with_images=True)
+	assert len(sku["images"]) == 1
+	assert sku["images"][0]["url"] == "/s3/test-sku.jpg"
 
 	product_response = await client.get(
 		f"/api/v1/products/{product.id}",
@@ -55,11 +51,10 @@ async def test_first_sku_enqueues_created_event_to_outbox(
 
 	from database.models.outbox import OutboxEvent, OutboxEventStatus
 
-	product = product_no_skus.products[0]
+	product = product_no_skus.products[1]
 	headers = await auth_headers(product.seller_id, db_session)
 
-	sku = await _create_sku(client, headers, str(product.id))
-	await _attach_sku_image(client, headers, sku["id"])
+	await _create_sku(client, headers, str(product.id), with_images=True)
 
 	result = await db_session.execute(
 		select(OutboxEvent).where(
@@ -108,7 +103,23 @@ async def test_add_sku_to_hard_blocked_returns_403(
 	assert response.status_code == 403
 
 
-async def test_missing_image_returns_400(
+async def test_first_sku_without_images_returns_400(
+	client: AsyncClient,
+	product_no_skus: CategoryWithProductsData,
+	db_session: AsyncSession,
+) -> None:
+	product = product_no_skus.products[2]
+	headers = await auth_headers(product.seller_id, db_session)
+
+	response = await client.post(
+		"/api/v1/skus",
+		headers=headers,
+		json={"product_id": str(product.id), "name": "Test SKU", "price": 100},
+	)
+	assert response.status_code == 400
+
+
+async def test_missing_image_url_on_attach_returns_400(
 	client: AsyncClient,
 	category_with_products: CategoryWithProductsData,
 	db_session: AsyncSession,
