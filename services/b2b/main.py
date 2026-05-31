@@ -3,6 +3,9 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi import HTTPException, Request
 
 from api.auth import router as auth_router
 from api.categories import router as category_router
@@ -38,6 +41,41 @@ app = FastAPI(
 	version="1.0.0",
 	lifespan=lifespan,
 )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
+	detail = exc.detail
+	if isinstance(detail, dict) and "code" in detail and "message" in detail:
+		return JSONResponse(
+			status_code=exc.status_code,
+			content={
+				"code": detail["code"],
+				"message": detail["message"],
+				"details": detail.get("details", []),
+			},
+			headers=exc.headers,
+		)
+	return JSONResponse(
+		status_code=exc.status_code,
+		content={"detail": detail},
+		headers=exc.headers,
+	)
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(
+	_request: Request, exc: RequestValidationError
+) -> JSONResponse:
+	return JSONResponse(
+		status_code=422,
+		content={
+			"code": "VALIDATION_ERROR",
+			"message": "Request validation failed",
+			"details": exc.errors(),
+		},
+	)
+
 
 app.middleware("http")(verify_token)
 app.include_router(product_router, prefix="/api/v1")

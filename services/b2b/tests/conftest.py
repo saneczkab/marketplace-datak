@@ -76,11 +76,16 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		async with session_factory() as session:
 			yield session
 
-	from main import app as fastapi_app
+	from main import (
+		app as fastapi_app,
+		http_exception_handler,
+		request_validation_exception_handler,
+	)
 
 	fastapi_app.dependency_overrides[core_db.get_db] = override_get_db
 
-	from fastapi import FastAPI
+	from fastapi import FastAPI, HTTPException
+	from fastapi.exceptions import RequestValidationError
 	from fastapi.middleware.cors import CORSMiddleware
 	from api.categories import router as category_router
 	from api.products import router as product_router
@@ -89,6 +94,10 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from middlewares.token_verification import verify_token
 
 	test_app = FastAPI(debug=False)
+	test_app.add_exception_handler(HTTPException, http_exception_handler)
+	test_app.add_exception_handler(
+		RequestValidationError, request_validation_exception_handler
+	)
 	test_app.middleware("http")(verify_token)
 	test_app.add_middleware(
 		CORSMiddleware,

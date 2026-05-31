@@ -1,17 +1,20 @@
 from typing import Annotated
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from core.db import get_db
+from exceptions.product import ProductNotFoundError
 from schemas.product import (
 	ProductCreate,
 	ProductResponse,
-	ProductUpdate,
 	ProductSellerRead,
+	ProductUpdate,
 )
 from services import product_service
-from uuid import UUID
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 router = APIRouter(prefix="/products", tags=["B2B Products"])
 security = HTTPBearer()
@@ -27,9 +30,15 @@ async def create_product(
 	try:
 		return await product_service.create_new_product(db, product_in, seller_id)
 	except ValidationError as e:
-		raise HTTPException(status_code=422, detail=f"{e}") from e
+		raise HTTPException(
+			status_code=422,
+			detail={"code": "VALIDATION_ERROR", "message": "Request validation failed"},
+		) from e
 	except Exception as e:
-		raise HTTPException(status_code=500, detail=f"{e}") from e
+		raise HTTPException(
+			status_code=500,
+			detail={"code": "INTERNAL_ERROR", "message": "Internal server error"},
+		) from e
 
 
 @router.get("/", response_model=list[ProductSellerRead])
@@ -46,7 +55,13 @@ async def get_product(
 	db: Annotated[AsyncSession, Depends(get_db)],
 	seller_id: UUID,
 ) -> ProductSellerRead:
-	return await product_service.get_product_for_seller(db, product_id, seller_id)
+	try:
+		return await product_service.get_product_for_seller(db, product_id, seller_id)
+	except ProductNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
 
 
 @router.patch("/{product_id}", response_model=ProductSellerRead)
@@ -56,9 +71,15 @@ async def patch_product(
 	db: Annotated[AsyncSession, Depends(get_db)],
 	seller_id: UUID,
 ) -> ProductSellerRead:
-	return await product_service.patch_existing_product(
-		db, product_id, seller_id, product_in
-	)
+	try:
+		return await product_service.patch_existing_product(
+			db, product_id, seller_id, product_in
+		)
+	except ProductNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_200_OK)
@@ -67,4 +88,10 @@ async def delete_product(
 	db: Annotated[AsyncSession, Depends(get_db)],
 	seller_id: UUID,
 ) -> dict[str, str]:
-	return await product_service.remove_product(db, product_id, seller_id)
+	try:
+		return await product_service.remove_product(db, product_id, seller_id)
+	except ProductNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e

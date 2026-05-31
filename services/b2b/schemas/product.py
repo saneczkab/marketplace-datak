@@ -20,7 +20,7 @@ class ProductCreate(BaseModel):
 	title: str = Field(..., min_length=1, max_length=255)
 	description: str = Field(..., min_length=1, max_length=5000)
 	category_id: UUID
-	slug: Optional[str] = None
+	slug: str = Field(..., min_length=1, max_length=255)
 	images: List[ProductImageCreate] = []
 	characteristics: List[Characteristic] = []
 
