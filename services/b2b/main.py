@@ -1,17 +1,42 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from api.sku import router as sku_router
+
+from api.auth import router as auth_router
+from api.categories import router as category_router
+from api.images import router as image_router
 from api.invoice import router as invoice_router
 from api.products import router as product_router
-from api.categories import router as category_router
-from api.auth import router as auth_router
-from api.images import router as image_router
+from api.sku import router as sku_router
+from core.config import settings
 from middlewares.token_verification import verify_token
+from services import outbox_worker
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa
+	worker_task: asyncio.Task | None = None
+	if settings.OUTBOX_WORKER_ENABLED:
+		worker_task = asyncio.create_task(outbox_worker.run_forever())
+		logger.info("Outbox worker task scheduled")
+	yield
+	if worker_task is not None:
+		worker_task.cancel()
+		try:
+			await worker_task
+		except asyncio.CancelledError:
+			pass
 
 
 app = FastAPI(
 	title="NeoMarket B2B API",
 	description="API для кабинета продавца: управление товарами и складом",
 	version="1.0.0",
+	lifespan=lifespan,
 )
 
 app.middleware("http")(verify_token)

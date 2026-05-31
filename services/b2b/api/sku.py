@@ -19,7 +19,7 @@ from schemas.sku import (
 	SkuResponse,
 	SkuUpdate,
 )
-from services import sku as sku_service
+from services import sku_service
 
 router = APIRouter(prefix="/skus", tags=["SKU"])
 
@@ -39,7 +39,12 @@ async def create_sku_endpoint(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(e)},
 		) from e
-	except (ProductNotOwnerError, SkuForbiddenError) as e:
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+	except SkuForbiddenError as e:
 		raise HTTPException(
 			status_code=403,
 			detail={"code": "FORBIDDEN", "message": str(e)},
@@ -70,7 +75,12 @@ async def attach_sku_image_endpoint(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(e)},
 		) from e
-	except (ProductNotOwnerError, SkuForbiddenError) as e:
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+	except SkuForbiddenError as e:
 		raise HTTPException(
 			status_code=403,
 			detail={"code": "FORBIDDEN", "message": str(e)},
@@ -100,7 +110,12 @@ async def update_sku_endpoint(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(e)},
 		) from e
-	except (ProductNotOwnerError, SkuForbiddenError) as e:
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+	except SkuForbiddenError as e:
 		raise HTTPException(
 			status_code=403,
 			detail={"code": "FORBIDDEN", "message": str(e)},
@@ -125,7 +140,7 @@ async def get_sku_endpoint(
 	except ProductNotOwnerError as e:
 		raise HTTPException(
 			status_code=403,
-			detail={"code": "FORBIDDEN", "message": str(e)},
+			detail={"code": "NOT_OWNER", "message": str(e)},
 		) from e
 
 

@@ -23,7 +23,12 @@ class ImageSchema(BaseModel):
 
 class ImageAttachRequest(BaseModel):
 	image_id: Optional[UUID] = None
-	url: Optional[str] = None
+	url: str = Field(..., min_length=1)
+	ordering: int = 0
+
+
+class SkuImageCreate(BaseModel):
+	url: str = Field(..., min_length=1)
 	ordering: int = 0
 
 
@@ -42,6 +47,7 @@ class SkuCreate(BaseModel):
 	discount: int = Field(default=0, ge=0)
 	cost_price: Optional[int] = Field(default=None, ge=0)
 	article: Optional[str] = None
+	images: List[SkuImageCreate] = []
 	characteristics: List[CharacteristicSchema] = []
 
 
