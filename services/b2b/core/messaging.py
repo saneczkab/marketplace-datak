@@ -13,7 +13,7 @@ def _rabbitmq_url() -> str:
 	)
 
 
-async def publish_outbox_payload(routing_key: str, payload: dict) -> None:
+async def publish_message(routing_key: str, payload: dict) -> None:
 	body = json.dumps(payload).encode("utf-8")
 	connection = await aio_pika.connect_robust(_rabbitmq_url())
 	async with connection:
