@@ -44,5 +44,9 @@ class SkuFactory(factory.Factory):
 	product_id = factory.LazyFunction(uuid.uuid4)
 	name = factory.Faker("sentence", nb_words=2)
 	price = factory.Faker("pyint", min_value=100, max_value=10000)
+	discount = 0
+	cost_price = 0
+	stock_quantity = 0
 	active_quantity = factory.Faker("pyint", min_value=0, max_value=100)
+	reserved_quantity = 0
 	article = ""

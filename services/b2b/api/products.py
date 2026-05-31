@@ -1,13 +1,18 @@
+import uuid
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
-from exceptions.product import ProductNotFoundError
+from exceptions.product import (
+	ProductForbiddenError,
+	ProductNotFoundError,
+	ProductNotOwnerError,
+)
 from schemas.product import (
 	ProductCreate,
 	ProductResponse,
@@ -64,13 +69,14 @@ async def get_product(
 		) from e
 
 
-@router.patch("/{product_id}", response_model=ProductSellerRead)
+@router.patch("/{product_id}", response_model=ProductResponse)
 async def patch_product(
+	request: Request,
 	product_id: UUID,
 	product_in: ProductUpdate,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
-) -> ProductSellerRead:
+) -> ProductResponse:
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
 		return await product_service.patch_existing_product(
 			db, product_id, seller_id, product_in
@@ -79,6 +85,16 @@ async def patch_product(
 		raise HTTPException(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+	except ProductForbiddenError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "FORBIDDEN", "message": str(e)},
 		) from e
 
 

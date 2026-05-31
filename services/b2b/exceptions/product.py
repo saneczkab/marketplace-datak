@@ -11,3 +11,7 @@ class ProductNotFoundError(ProductError):
 
 class ProductNotOwnerError(ProductError):
 	"""Raised when the product belongs to another seller."""
+
+
+class ProductForbiddenError(ProductError):
+	"""Raised when product operation is not allowed (e.g. HARD_BLOCKED)."""

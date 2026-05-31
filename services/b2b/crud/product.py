@@ -1,7 +1,24 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
+
+from crud import outbox as outbox_crud
 from database.models.catalog.base import Product, ProductStatusEnum
+
+
+async def submit_for_moderation(
+	db: AsyncSession,
+	product: Product,
+	event: str = "CREATED",
+) -> None:
+	product.status = ProductStatusEnum.ON_MODERATION
+	db.add(product)
+	await outbox_crud.enqueue_moderation_product_created(
+		db,
+		product_id=product.id,
+		seller_id=product.seller_id,
+		event=event,
+	)
 
 
 async def add_product(product: Product, db: AsyncSession) -> Product:
@@ -31,12 +48,18 @@ async def get_product_by_id_only(db: AsyncSession, product_id: UUID) -> Product 
 
 
 async def update_product(
-	db: AsyncSession, db_obj: Product, update_data: dict
+	db: AsyncSession,
+	db_obj: Product,
+	update_data: dict,
+	should_remoderate: bool = False,
 ) -> Product:
 	for field, value in update_data.items():
 		setattr(db_obj, field, value)
 
 	db.add(db_obj)
+	if should_remoderate:
+		await submit_for_moderation(db, db_obj, event="EDITED")
+
 	await db.commit()
 	await db.refresh(db_obj)
 	return db_obj
