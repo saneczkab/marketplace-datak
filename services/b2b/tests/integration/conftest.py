@@ -7,7 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.session as session_crud
 from core.security import create_access_token
 from database.models.catalog.base import Category, ProductStatusEnum
-from database.models.catalog.variants import Sku, Product
+from database.models.catalog.variants import (
+	Sku,
+	Product,
+	Characteristic,
+	Image,
+	ImageEntityTypeEnum,
+)
 from database.models import Session
 from database.models.identity.identity import Seller
 from tests.factories.catalog import CategoryFactory, ProductFactory, SkuFactory
@@ -268,4 +274,113 @@ async def edit_product_data(
 		hard_blocked_sku=hard_blocked_sku,
 		other_seller_product=other_seller_product,
 		other_seller_sku=other_seller_sku,
+	)
+
+
+@dataclass(frozen=True, slots=True)
+class ViewProductData:
+	owner: Seller
+	other_seller: Seller
+	category: Category
+	moderated_product: Product
+	moderated_sku: Sku
+	blocked_product: Product
+	blocked_sku: Sku
+	other_seller_product: Product
+	blocking_reason_id: uuid.UUID
+
+
+@pytest.fixture()
+async def view_product_data(db_session: AsyncSession) -> ViewProductData:
+	owner: Seller = SellerFactory.build()
+	other_seller: Seller = SellerFactory.build()
+	db_session.add_all([owner, other_seller])
+	await db_session.commit()
+	await db_session.refresh(owner)
+	await db_session.refresh(other_seller)
+
+	category = CategoryFactory.build()
+	db_session.add(category)
+	await db_session.commit()
+	await db_session.refresh(category)
+
+	moderated_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	blocking_reason_id = uuid.uuid4()
+	blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.BLOCKED,
+		blocked_reason_id=blocking_reason_id,
+		blocking_reason_title="Описание не соответствует товару",
+		moderator_comment="Несоответствие описания и фотографий",
+	)
+	other_seller_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=other_seller.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	db_session.add_all([moderated_product, blocked_product, other_seller_product])
+	await db_session.commit()
+
+	moderated_sku = SkuFactory.build(
+		product_id=moderated_product.id,
+		cost_price=9500000,
+		reserved_quantity=2,
+		active_quantity=10,
+	)
+	blocked_sku = SkuFactory.build(
+		product_id=blocked_product.id,
+		cost_price=450000,
+	)
+	other_seller_sku = SkuFactory.build(product_id=other_seller_product.id)
+	db_session.add_all([moderated_sku, blocked_sku, other_seller_sku])
+	await db_session.flush()
+
+	blocked_product.field_reports = [
+		{
+			"field_name": "description",
+			"sku_id": None,
+			"comment": "В описании указан неверный материал",
+		},
+		{
+			"field_name": "sku_image",
+			"sku_id": str(blocked_sku.id),
+			"comment": "Фото SKU не соответствует указанному цвету",
+		},
+	]
+
+	product_char = Characteristic(
+		product_id=moderated_product.id,
+		name="Бренд",
+		value="Apple",
+	)
+	product_image = Image(
+		entity_type=ImageEntityTypeEnum.PRODUCT,
+		entity_id=moderated_product.id,
+		url="/s3/iphone15-front.jpg",
+		ordering=0,
+	)
+	sku_image = Image(
+		entity_type=ImageEntityTypeEnum.SKU,
+		entity_id=moderated_sku.id,
+		url="/s3/iphone15-black-256.jpg",
+		ordering=0,
+	)
+	db_session.add_all([product_char, product_image, sku_image])
+	await db_session.commit()
+
+	return ViewProductData(
+		owner=owner,
+		other_seller=other_seller,
+		category=category,
+		moderated_product=moderated_product,
+		moderated_sku=moderated_sku,
+		blocked_product=blocked_product,
+		blocked_sku=blocked_sku,
+		other_seller_product=other_seller_product,
+		blocking_reason_id=blocking_reason_id,
 	)

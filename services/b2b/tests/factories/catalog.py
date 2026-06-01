@@ -34,6 +34,8 @@ class ProductFactory(factory.Factory):
 	description = factory.Faker("sentence", nb_words=6)
 	status = ProductStatusEnum.MODERATED
 	moderator_comment = ""
+	blocking_reason_title = None
+	field_reports = factory.LazyFunction(list)
 
 
 class SkuFactory(factory.Factory):

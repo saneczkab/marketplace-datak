@@ -15,6 +15,7 @@ from exceptions.product import (
 )
 from schemas.product import (
 	ProductCreate,
+	ProductDetailResponse,
 	ProductResponse,
 	ProductSellerRead,
 	ProductUpdate,
@@ -30,7 +31,7 @@ async def create_product(
 	product_in: ProductCreate,
 	db: Annotated[AsyncSession, Depends(get_db)],
 	credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-) -> ProductSellerRead:
+) -> ProductResponse:
 	seller_id = credentials.credentials
 	try:
 		return await product_service.create_new_product(db, product_in, seller_id)
@@ -48,18 +49,21 @@ async def create_product(
 
 @router.get("/", response_model=list[ProductSellerRead])
 async def get_my_products(
+	request: Request,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
 ) -> list[ProductSellerRead]:
-	return await product_service.get_all_seller_products(db, seller_id)
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	products = await product_service.get_all_seller_products(db, seller_id)
+	return [ProductSellerRead.model_validate(p) for p in products]
 
 
-@router.get("/{product_id}", response_model=ProductSellerRead)
+@router.get("/{product_id}", response_model=ProductDetailResponse)
 async def get_product(
+	request: Request,
 	product_id: UUID,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
-) -> ProductSellerRead:
+) -> ProductDetailResponse:
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
 		return await product_service.get_product_for_seller(db, product_id, seller_id)
 	except ProductNotFoundError as e:
@@ -100,10 +104,11 @@ async def patch_product(
 
 @router.delete("/{product_id}", status_code=status.HTTP_200_OK)
 async def delete_product(
+	request: Request,
 	product_id: UUID,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
 ) -> dict[str, str]:
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
 		return await product_service.remove_product(db, product_id, seller_id)
 	except ProductNotFoundError as e:
