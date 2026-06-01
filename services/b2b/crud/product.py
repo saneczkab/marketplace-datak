@@ -4,6 +4,7 @@ from uuid import UUID
 
 from crud import outbox as outbox_crud
 from database.models.catalog.base import Product, ProductStatusEnum
+from database.models.catalog.variants import Characteristic
 
 
 async def submit_for_moderation(
@@ -45,6 +46,18 @@ async def get_product_by_id(
 async def get_product_by_id_only(db: AsyncSession, product_id: UUID) -> Product | None:
 	result = await db.execute(select(Product).where(Product.id == product_id))
 	return result.scalar_one_or_none()
+
+
+async def get_product_characteristics(
+	db: AsyncSession, product_id: UUID
+) -> list[Characteristic]:
+	result = await db.execute(
+		select(Characteristic).where(
+			Characteristic.product_id == product_id,
+			Characteristic.sku_id.is_(None),
+		)
+	)
+	return list(result.scalars().all())
 
 
 async def update_product(

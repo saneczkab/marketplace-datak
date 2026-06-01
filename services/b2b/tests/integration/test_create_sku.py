@@ -36,7 +36,6 @@ async def test_first_sku_emits_created_event_to_moderation(
 	product_response = await client.get(
 		f"/api/v1/products/{product.id}",
 		headers=headers,
-		params={"seller_id": str(product.seller_id)},
 	)
 	assert product_response.status_code == 200
 	assert product_response.json()["status"] == "ON_MODERATION"
@@ -81,7 +80,6 @@ async def test_second_sku_no_state_change(
 	product_response = await client.get(
 		f"/api/v1/products/{product.id}",
 		headers=headers,
-		params={"seller_id": str(product.seller_id)},
 	)
 	assert product_response.status_code == 200
 	assert product_response.json()["status"] == "MODERATED"

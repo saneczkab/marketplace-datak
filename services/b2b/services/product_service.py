@@ -2,8 +2,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from crud import images as images_crud
 from crud import product as product_crud
 from crud import session as session_crud
+from crud import sku as sku_crud
 from database.models import Session
 from database.models.catalog.base import Product, ProductStatusEnum
 from exceptions.product import (
@@ -11,7 +13,41 @@ from exceptions.product import (
 	ProductNotFoundError,
 	ProductNotOwnerError,
 )
-from schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from schemas.product import (
+	BlockingReason,
+	CharacteristicsResponse,
+	FieldReport,
+	ProductCreate,
+	ProductDetailResponse,
+	ProductImageResponse,
+	ProductResponse,
+	ProductUpdate,
+)
+from services.sku_service import build_sku_response
+
+
+def _build_blocking_reason(product: Product) -> BlockingReason | None:
+	if (
+		product.status
+		not in [ProductStatusEnum.BLOCKED, ProductStatusEnum.HARD_BLOCKED]
+		or product.blocked_reason_id is None
+	):
+		return None
+	return BlockingReason(
+		id=product.blocked_reason_id,
+		title=product.blocking_reason_title or "",
+		comment=product.moderator_comment or "",
+	)
+
+
+def _build_field_reports(product: Product) -> list[FieldReport]:
+	if product.status not in [
+		ProductStatusEnum.BLOCKED,
+		ProductStatusEnum.HARD_BLOCKED,
+	]:
+		return []
+	raw = product.field_reports or []
+	return [FieldReport.model_validate(item) for item in raw]
 
 
 def build_product_response(product: Product) -> ProductResponse:
@@ -31,6 +67,41 @@ def build_product_response(product: Product) -> ProductResponse:
 		skus=[],
 		created_at=product.created_at,
 		updated_at=product.updated_at,
+	)
+
+
+async def build_product_detail_response(
+	db: AsyncSession, product: Product
+) -> ProductDetailResponse:
+	images = await images_crud.get_product_images_by_id(product.id, db)
+	characteristics = await product_crud.get_product_characteristics(db, product.id)
+	skus = await sku_crud.get_by_product_id(db, product.id)
+	sku_responses = [await build_sku_response(db, sku) for sku in skus]
+
+	return ProductDetailResponse(
+		id=product.id,
+		seller_id=product.seller_id,
+		category_id=product.category_id,
+		title=product.title,
+		slug=product.slug,
+		description=product.description or "",
+		status=product.status,
+		deleted=product.deleted,
+		images=[
+			ProductImageResponse(id=img.id, url=img.url, ordering=img.ordering)
+			for img in images
+		],
+		characteristics=[
+			CharacteristicsResponse(id=c.id, name=c.name, value=c.value)
+			for c in characteristics
+		],
+		skus=sku_responses,
+		created_at=product.created_at,
+		updated_at=product.updated_at,
+		blocked=product.status
+		in [ProductStatusEnum.BLOCKED, ProductStatusEnum.HARD_BLOCKED],
+		blocking_reason=_build_blocking_reason(product),
+		field_reports=_build_field_reports(product),
 	)
 
 
@@ -69,11 +140,11 @@ async def create_new_product(
 
 async def get_product_for_seller(
 	db: AsyncSession, product_id: UUID, seller_id: UUID
-) -> Product:
+) -> ProductDetailResponse:
 	product = await product_crud.get_product_by_id(db, product_id, seller_id)
 	if not product:
-		raise ProductNotFoundError("Product not found or access denied")
-	return product
+		raise ProductNotFoundError("Product not found")
+	return await build_product_detail_response(db, product)
 
 
 async def get_all_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
@@ -102,7 +173,9 @@ async def patch_existing_product(
 async def remove_product(
 	db: AsyncSession, product_id: UUID, seller_id: UUID
 ) -> dict[str, str]:
-	product = await get_product_for_seller(db, product_id, seller_id)
+	product = await product_crud.get_product_by_id(db, product_id, seller_id)
+	if not product:
+		raise ProductNotFoundError("Product not found")
 
 	await product_crud.soft_delete_product(db, product)
 
