@@ -19,7 +19,7 @@ async def test_block_product(
 		headers={"X-Service-key": service_key},
 		json={
 			"event_type": "PRODUCT_BLOCKED",
-			"idempotency_key": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+			"idempotency_key": f"{product_with_block.idempotency_key}",
 			"occured_at": "2026-06-02T06:33:51.835Z",
 			"payload": {
 				"product_id": str(product_with_block.product.id),
@@ -42,7 +42,7 @@ async def test_block_product_idempotency(
 		headers={"X-Service-key": service_key},
 		json={
 			"event_type": "PRODUCT_BLOCKED",
-			"idempotency_key": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+			"idempotency_key": f"{product_with_block.idempotency_key}",
 			"occured_at": "2026-06-02T06:33:51.835Z",
 			"payload": {
 				"product_id": str(product_with_block.product.id),
@@ -56,7 +56,7 @@ async def test_block_product_idempotency(
 		headers={"X-Service-key": service_key},
 		json={
 			"event_type": "PRODUCT_BLOCKED",
-			"idempotency_key": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+			"idempotency_key": f"{product_with_block.idempotency_key}",
 			"occured_at": "2026-06-02T06:33:51.835Z",
 			"payload": {
 				"product_id": str(product_with_block.product.id),
@@ -76,7 +76,7 @@ async def test_missing_service_key_returns_401(
 		"/api/v1/b2b/events",
 		json={
 			"event_type": "PRODUCT_BLOCKED",
-			"idempotency_key": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+			"idempotency_key": f"{product_with_block.idempotency_key}",
 			"occured_at": "2026-06-02T06:33:51.835Z",
 			"payload": {
 				"product_id": str(product_with_block.product.id),

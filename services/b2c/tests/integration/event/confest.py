@@ -1,3 +1,4 @@
+import uuid
 import pytest
 from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from tests.factories.catalog import (
 class BlockingProduct:
 	product: Product
 	reason: ProductBlockReason
+	idempotency_key: uuid.UUID
 
 
 @pytest.fixture()
@@ -37,4 +39,4 @@ async def product_with_block(db_session: AsyncSession) -> BlockingProduct:
 	await db_session.commit()
 	await db_session.refresh(reason)
 
-	return BlockingProduct(product, reason)
+	return BlockingProduct(product, reason, uuid.uuid4())
