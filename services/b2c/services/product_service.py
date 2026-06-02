@@ -151,12 +151,14 @@ async def get_similar_products(
 	)
 
 
-async def mark_product_blocked(payload: EventProductRef, db: AsyncSession) -> Product:
+async def mark_product_blocked(
+	payload: EventProductRef, hard_blocked: bool, db: AsyncSession
+) -> Product:
 	blocked_reason: ProductBlockReason = await product_crud.get_blocked_reason_id(
 		payload.reason, db
 	)
 
 	product: Product = await product_crud.mark_product_blocked(
-		payload.product_id, blocked_reason.id, db
+		payload.product_id, blocked_reason.id, hard_blocked, db
 	)
 	return product

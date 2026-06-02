@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from typing import Annotated
 
+from exceptions.event import EventDuplicatError
 from schemas.event import B2BEvent
 
 from services import event_service
@@ -18,5 +19,9 @@ async def product_event(
 ) -> None:
 	try:
 		await event_service.handle_b2b_event(event, db)
+	except EventDuplicatError as e:
+		raise HTTPException(
+			status_code=409, detail="idempotency key already handled"
+		) from e
 	except Exception as e:
 		raise HTTPException(status_code=418, detail=f"{e}") from e

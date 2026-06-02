@@ -5,8 +5,7 @@ from database.models import B2BEvent as db_B2BEvent
 from schemas.event import B2BEvent as schema_B2BEvent
 from schemas.event import EventProductRef
 from exceptions.event import EventDuplicatError
-from services import product_service
-from services import cart_service
+from services import notification_service, product_service, cart_service
 import crud.product as product_crud
 import crud.cart as cart_crud
 
@@ -26,23 +25,28 @@ async def handle_b2b_event(event: schema_B2BEvent, db: AsyncSession) -> None:
 
 	match event.event_type:
 		case "PRODUCT_BLOCKED":
-			await handle_product_blocked(event.payload, db)
+			await handle_product_blocked(event.payload, db, False)
+		case "PRODUCT_HARD_BLOCKED":
+			await handle_product_blocked(event.payload, db, True)
 
 
-async def handle_product_blocked(payload: EventProductRef, db: AsyncSession) -> None:
+async def handle_product_blocked(
+	payload: EventProductRef, db: AsyncSession, is_hard_blocked: bool
+) -> None:
 	"""Steps of handling
 	1. Mark product as "BLOCKED" - Done
-	2. Add notification for each cart to notify user this product has been blocked
+	2. Add notification for each cart to notify user this product has been blocked - If hard blocked it changes
 	3. Delete product from each cart
 	"""
 
-	await product_service.mark_product_blocked(payload, db)
-
-	# No notifications yet
+	await product_service.mark_product_blocked(payload, is_hard_blocked, db)
 
 	skus = await product_crud.get_product_skus(db, payload.product_id)
 
 	for sku in skus:
 		gen = cart_crud.get_carts_with_product(sku.id, db)
 		async for cart in gen:
-			cart_service.remove_cart_item(db, user_id=cart.user_id, sku_id=sku.id)
+			await notification_service.notification_product_blocked(
+				cart.user_id, sku.id, is_hard_blocked
+			)
+			await cart_service.remove_cart_item(db, user_id=cart.user_id, sku_id=sku.id)

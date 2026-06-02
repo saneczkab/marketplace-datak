@@ -331,7 +331,10 @@ async def count_products_by_filter(
 
 
 async def mark_product_blocked(
-	product_id: uuid.UUID, blocked_reason_id: uuid.UUID, db: AsyncSession
+	product_id: uuid.UUID,
+	blocked_reason_id: uuid.UUID,
+	hard_blocked: bool,
+	db: AsyncSession,
 ) -> Product:
 	result = await db.execute(select(Product).where(Product.id == product_id))
 	product = result.scalar_one_or_none()
@@ -339,7 +342,7 @@ async def mark_product_blocked(
 	if not product:
 		raise ProductNotFoundError
 
-	product.status = "BLOCKED"
+	product.status = "HARD_BLOCKED" if hard_blocked else "BLOCKED"
 	product.blocked_reason_id = blocked_reason_id
 	await db.commit()
 	await db.refresh(product)
