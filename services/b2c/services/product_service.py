@@ -8,7 +8,11 @@ import crud.product as product_crud
 import crud.category as category_crud
 import crud.review as review_crud
 from database.models import Sku, ProductStatusEnum
-from exceptions.product import ProductNotFoundError
+from exceptions.product import (
+	InvalidFiltersError,
+	ProductNotFoundError,
+	SearchQueryTooShortError,
+)
 from schemas.catalog import CatalogProductCard
 from schemas.product import (
 	ProductShort,
@@ -70,11 +74,10 @@ async def get_products_list(
 	limit: int,
 	offset: int,
 	category_id: Optional[str],
-	filters_json: Optional[str],
+	filters_raw: Optional[str],
 	sort: str,
 	q: Optional[str],
 ) -> ProductShortListResponse:
-	# Валидация sort согласно спецификации
 	valid_sorts = [
 		"rating",
 		"popularity",
@@ -89,14 +92,17 @@ async def get_products_list(
 	if q:
 		search_stripped = q.strip()
 
-		if len(search_stripped) > 0 and len(search_stripped) < 4:
-			raise ValueError("Search query must be at least 3 characters")
+		if 0 < len(search_stripped) < 4:
+			raise SearchQueryTooShortError("Search query must be at least 3 characters")
 
 		if len(search_stripped) > 255:
 			raise ValueError("Search query must be at most 255 characters")
 
 	cat_uuid = uuid.UUID(category_id) if category_id else None
-	filter = json.loads(filters_json) if filters_json else {}
+	try:
+		filter = json.loads(filters_raw) if filters_raw else {}
+	except json.JSONDecodeError as e:
+		raise InvalidFiltersError("Invalid JSON in filters parameter") from e
 
 	products, total_count = await product_crud.get_products_list(
 		db, limit, offset, cat_uuid, filter, sort, q
