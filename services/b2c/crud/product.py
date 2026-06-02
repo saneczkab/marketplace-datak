@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models import Sku
-from database.models.catalog.base import Category, Product
+from database.models.catalog.base import Category, Product, ProductBlockReason
 from exceptions.product import ProductNotFoundError
 from schemas.sku import Sku as SkuSchema
 from database.models.catalog.base import ProductStatusEnum
@@ -328,3 +328,27 @@ async def count_products_by_filter(
 		)
 	)
 	return result.scalar() or 0
+
+
+async def mark_product_blocked(
+	product_id: uuid.UUID, blocked_reason_id: uuid.UUID, db: AsyncSession
+) -> Product:
+	result = await db.execute(select(Product).where(Product.id == product_id))
+	product = result.scalar_one_or_none()
+
+	if not product:
+		raise ProductNotFoundError
+
+	product.status = "BLOCKED"
+	product.blocked_reason_id = blocked_reason_id
+	await db.commit()
+	await db.refresh(product)
+
+	return product
+
+
+async def get_blocked_reason_id(reason: str, db: AsyncSession) -> ProductBlockReason:
+	result = await db.execute(
+		select(ProductBlockReason).where(ProductBlockReason.reason == reason)
+	)
+	return result.scalar_one_or_none()

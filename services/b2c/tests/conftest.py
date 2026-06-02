@@ -97,8 +97,10 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		favorite,
 		subscriptions,
 		orders,
+		event,
 	)
 	from middlewares.token_verification import verify_token
+	from middlewares.x_servive_key_verification import service_key_verification
 
 	test_app = FastAPI(debug=False)
 	test_app.add_exception_handler(HTTPException, http_exception_handler)
@@ -106,6 +108,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		RequestValidationError, request_validation_exception_handler
 	)
 	test_app.middleware("http")(verify_token)
+	test_app.middleware("http")(service_key_verification)
 	test_app.add_middleware(
 		CORSMiddleware,
 		allow_origins=["http://localhost:5173", "http://localhost:3000"],
@@ -120,6 +123,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(catalog.router)
 	test_app.include_router(subscriptions.router)
 	test_app.include_router(orders.router)
+	test_app.include_router(event.router)
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 
 	return test_app

@@ -51,11 +51,15 @@ class Product(Base):
 	updated_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
 	)
+	blocked_reason_id: Mapped[uuid.UUID] = mapped_column(
+		ForeignKey("catalog.product_block_reason.id"), nullable=True
+	)
 
 	seller: Mapped["Seller"] = relationship(
 		"Seller", lazy="selectin", cascade="save-update"
 	)
 	category: Mapped["Category"] = relationship("Category", lazy="selectin")
+
 	images = relationship("Image", back_populates="product")
 	characteristics = relationship("Characteristic", back_populates="product")
 	skus = relationship("Sku", back_populates="product")
@@ -157,3 +161,15 @@ class Review(Base):
 	comment: Mapped[str] = mapped_column(Text, nullable=False)
 
 	product: Mapped["Product"] = relationship("Product", back_populates="reviews")
+
+
+class ProductBlockReason(Base):
+	"""Pre-defined reasons of product blocking. Where do we get them from? Take a wild guess"""
+
+	__tablename__ = "product_block_reason"
+	__table_args__ = {"schema": "catalog"}  # Or is there a better place for this?
+
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+	)
+	reason: Mapped[str] = mapped_column(Text, nullable=False)

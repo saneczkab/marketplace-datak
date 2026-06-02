@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 	SECRET_KEY: str
 	ALGORITHM: str
 
-	X_Service_Key: str
+	X_SERVICE_KEY: str
 
 	model_config = SettingsConfigDict(
 		env_file=".env",

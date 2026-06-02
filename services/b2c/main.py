@@ -13,11 +13,13 @@ from api import (
 	subscriptions,
 	auth,
 	orders,
+	event,
 )
 from core.config import settings
 from core.db import get_db
 from services import category_service
 from middlewares.token_verification import verify_token
+from middlewares.x_servive_key_verification import service_key_verification
 
 # Configure logging
 if settings.DEBUG:
@@ -92,6 +94,7 @@ app.add_middleware(
 )
 
 app.middleware("http")(verify_token)
+app.middleware("http")(service_key_verification)
 
 app.include_router(product.router)
 app.include_router(breadcrumbs.router)
@@ -101,3 +104,4 @@ app.include_router(catalog.router)
 app.include_router(auth.router)
 app.include_router(subscriptions.router)
 app.include_router(orders.router)
+app.include_router(event.router)

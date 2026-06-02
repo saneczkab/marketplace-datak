@@ -8,8 +8,10 @@ import crud.product as product_crud
 import crud.category as category_crud
 import crud.review as review_crud
 from database.models import Sku
+from database.models.catalog.base import ProductBlockReason
 from exceptions.product import ProductNotFoundError
 from schemas.catalog import CatalogProductCard
+from schemas.event import EventProductRef
 from schemas.product import (
 	ProductShort,
 	Product,
@@ -147,3 +149,14 @@ async def get_similar_products(
 	return build_catalog_product_cards(
 		products, categories_map, review_stats_by_product
 	)
+
+
+async def mark_product_blocked(payload: EventProductRef, db: AsyncSession) -> Product:
+	blocked_reason: ProductBlockReason = await product_crud.get_blocked_reason_id(
+		payload.reason, db
+	)
+
+	product: Product = await product_crud.mark_product_blocked(
+		payload.product_id, blocked_reason.id, db
+	)
+	return product

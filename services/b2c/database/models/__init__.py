@@ -6,6 +6,7 @@ from database.models.catalog.base import (
 	ProductFilterValue,
 	FilterValues,
 	Review,
+	ProductBlockReason,
 )
 from database.models.catalog.inventory import Invoice, InvoiceItem, InvoiceStatusEnum
 from database.models.catalog.variants import Characteristic, Image, Sku
@@ -22,6 +23,7 @@ from database.models.storefront.main import (
 from database.models.identity.user import Session
 from database.models.orders.order import Order, OrderStatusEnum
 from database.models.orders.order_item import OrderItem
+from database.models.event.event import B2BEvent, EventTypeEnum
 
 __all__ = [
 	"CartItem",
@@ -52,4 +54,7 @@ __all__ = [
 	"Order",
 	"OrderItem",
 	"OrderStatusEnum",
+	"B2BEvent",
+	"EventTypeEnum",
+	"ProductBlockReason",
 ]

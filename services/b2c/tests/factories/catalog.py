@@ -10,6 +10,7 @@ from database.models.catalog.base import (
 	FilterTypeEnum,
 	FilterValues,
 	Product,
+	ProductBlockReason,
 	ProductStatusEnum,
 	Review,
 )
@@ -109,3 +110,11 @@ class CartItemFactory(factory.Factory):
 	user_id = factory.LazyFunction(uuid.uuid4)
 	sku_id = factory.LazyFunction(uuid.uuid4)
 	quantity = factory.Faker("pyint", min_value=5, max_value=10)
+
+
+class BlockingReasonFactory(factory.Factory):
+	class Meta:
+		model = ProductBlockReason
+
+	id = factory.LazyFunction(uuid.uuid4)
+	reason = factory.Faker("sentence")
