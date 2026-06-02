@@ -12,11 +12,9 @@ from exceptions.product import (
 	InvalidSortError,
 	InvalidSearchQueryError,
 )
-from schemas.catalog import CatalogProductCard
+from schemas.catalog import CatalogProductCard, PaginatedCatalogProducts
 from schemas.product import (
 	Product,
-	ProductShortListResponse,
-	SimilarProductsResponse,
 	ProductFilterParams,
 )
 from services.schemas_builder import build_catalog_product_cards
@@ -73,14 +71,11 @@ async def get_products_list(
 	filters: ProductFilterParams,
 	sort: str,
 	q: Optional[str],
-) -> ProductShortListResponse:
+) -> PaginatedCatalogProducts:
 	valid_sorts = [
-		"rating",
-		"popularity",
 		"price_asc",
 		"price_desc",
-		"date_desc",
-		"discount_desc",
+		"popularity",
 		"new",
 	]
 	if sort not in valid_sorts:
@@ -100,6 +95,12 @@ async def get_products_list(
 	crud_filters = {}
 	if filters.seller_id:
 		crud_filters["seller_id"] = filters.seller_id
+	if filters.price_min is not None:
+		crud_filters["price_min"] = filters.price_min
+	if filters.price_max is not None:
+		crud_filters["price_max"] = filters.price_max
+	if filters.attributes:
+		crud_filters["attributes"] = filters.attributes
 
 	products, total = await product_crud.get_products_list(
 		db=db,
@@ -111,8 +112,22 @@ async def get_products_list(
 		q=q,
 	)
 
-	return ProductShortListResponse(
-		items=products, total_count=total, limit=limit, offset=offset
+	if not products:
+		return PaginatedCatalogProducts(
+			items=[], total_count=total, limit=limit, offset=offset
+		)
+
+	categories_map = await category_crud.get_all_categories_map(db)
+	review_stats_by_product = await review_crud.get_reviews_stats_by_product_ids(
+		db, [product.id for product in products]
+	)
+
+	catalog_cards = build_catalog_product_cards(
+		products, categories_map, review_stats_by_product
+	)
+
+	return PaginatedCatalogProducts(
+		items=catalog_cards, total_count=total, limit=limit, offset=offset
 	)
 
 
@@ -152,16 +167,28 @@ async def get_similar_products(
 	)
 
 
+def _assign_nested_value(target: dict, path: list[str], value: str) -> None:
+	current = target
+	for key in path[:-1]:
+		if key not in current or not isinstance(current[key], dict):
+			current[key] = {}
+		current = current[key]
+	final_key = path[-1]
+	if final_key in current:
+		if isinstance(current[final_key], list):
+			current[final_key].append(value)
+		else:
+			current[final_key] = [current[final_key], value]
+	else:
+		current[final_key] = value
+
+
 def parse_deep_filters(query_params: list[tuple[str, str]]) -> dict:
 	deep_filters: dict = {}
 	for k, v in query_params:
-		if k.startswith("filters[") and k.endswith("]"):
-			inner = k[len("filters[") : -1]
-			if inner in deep_filters:
-				if isinstance(deep_filters[inner], list):
-					deep_filters[inner].append(v)
-				else:
-					deep_filters[inner] = [deep_filters[inner], v]
-			else:
-				deep_filters[inner] = v
+		if not k.startswith("filter[") or not k.endswith("]"):
+			continue
+		inner = k[len("filter[") : -1]
+		path = inner.split("][")
+		_assign_nested_value(deep_filters, path, v)
 	return deep_filters

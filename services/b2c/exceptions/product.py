@@ -12,3 +12,7 @@ class InvalidSortError(Exception):
 
 class InvalidSearchQueryError(Exception):
 	"""An exception is thrown if the search query 'q' is too short or too long."""
+
+
+class InvalidFilterError(Exception):
+	"""An exception is thrown if the filter parameters are invalid or corrupted."""
