@@ -1,5 +1,6 @@
 from httpx import AsyncClient
 import pytest
+from datetime import datetime, timezone
 
 from core.config import settings
 
@@ -20,7 +21,7 @@ async def test_block_product(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": "2026-06-02T06:33:51.835Z",
+			"occured_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
@@ -43,7 +44,7 @@ async def test_block_product_idempotency(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": "2026-06-02T06:33:51.835Z",
+			"occured_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
@@ -57,7 +58,7 @@ async def test_block_product_idempotency(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": "2026-06-02T06:33:51.835Z",
+			"occured_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
@@ -77,7 +78,7 @@ async def test_missing_service_key_returns_401(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": "2026-06-02T06:33:51.835Z",
+			"occured_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
