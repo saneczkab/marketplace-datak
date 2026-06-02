@@ -16,6 +16,8 @@ from schemas.catalog import CatalogProductCard
 from schemas.product import (
 	Product,
 	ProductShortListResponse,
+	SimilarProductsResponse,
+	ProductFilterParams,
 )
 from services.schemas_builder import build_catalog_product_cards
 from schemas.sku import SkuShort
@@ -68,8 +70,7 @@ async def get_products_list(
 	db: AsyncSession,
 	limit: int,
 	offset: int,
-	category_id: Optional[str],
-	raw_query_params: list[tuple[str, str]],
+	filters: ProductFilterParams,
 	sort: str,
 	q: Optional[str],
 ) -> ProductShortListResponse:
@@ -80,6 +81,7 @@ async def get_products_list(
 		"price_desc",
 		"date_desc",
 		"discount_desc",
+		"new",
 	]
 	if sort not in valid_sorts:
 		raise InvalidSortError(
@@ -93,21 +95,25 @@ async def get_products_list(
 		if len(search_stripped) > 255:
 			raise InvalidSearchQueryError("Search query must be at most 255 characters")
 
-	filters_dict = parse_deep_filters(raw_query_params)
+	category_id = filters.category_id
 
-	parsed_category_id = uuid.UUID(category_id) if category_id else None
+	crud_filters = {}
+	if filters.seller_id:
+		crud_filters["seller_id"] = filters.seller_id
 
 	products, total = await product_crud.get_products_list(
 		db=db,
 		limit=limit,
 		offset=offset,
-		category_id=parsed_category_id,
-		filter=filters_dict,
+		category_id=category_id,
+		filter=crud_filters if crud_filters else None,
 		sort=sort,
 		q=q,
 	)
 
-	return ProductShortListResponse(items=products, total_count=total)
+	return ProductShortListResponse(
+		items=products, total_count=total, limit=limit, offset=offset
+	)
 
 
 async def get_catalog_facets_service(

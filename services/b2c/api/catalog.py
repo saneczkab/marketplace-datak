@@ -1,15 +1,16 @@
 import fastapi
-
+import json
 import uuid
+from enum import Enum
 from typing import Annotated, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Request
+from fastapi import Request, Query, Depends
 
 from exceptions.banner import BannerNotFoundError, EmptyEventsError
 from exceptions.product import (
-	InvalidSortError,
-	InvalidSearchQueryError,
-	ProductNotFoundError,
+    InvalidSortError,
+    InvalidSearchQueryError,
+    ProductNotFoundError,
 )
 from exceptions.category import CategoryNotFoundError, CategoryHierarchyError
 from schemas.banner import Banner, BannerEventsRequest
@@ -17,239 +18,274 @@ from schemas.catalog import CatalogProductCard, CategoryRef, CategoryTreeNode
 from schemas.category import CategoryInfoResponse, FacetsResponse, FilterResponse
 from core import db
 
-
 from schemas.collection import Collection
-from schemas.product import ProductShortListResponse
+from schemas.product import ProductShortListResponse, ProductFilterParams
 from services import (
-	banner_service,
-	collection_service,
-	product_service,
-	category_service,
+    banner_service,
+    collection_service,
+    product_service,
+    category_service,
 )
 from core.db import get_db
 
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
 
 
+class ProductSortEnum(str, Enum):
+    price_asc = "price_asc"
+    price_desc = "price_desc"
+    popularity = "popularity"
+    rating = "rating"
+    date_desc = "date_desc"
+    discount_desc = "discount_desc"
+    new = "new"
+
+
+class JsonFilterExtractor:
+    def __init__(
+        self,
+        filter: Annotated[
+            Optional[str], 
+            fastapi.Query(
+                description="Фильтрация по параметрам",
+                json_schema_extra={
+                    "type": "object",
+                    "properties": {
+                        "category_id": {"type": "string", "format": "uuid"},
+                        "price_min": {"type": "integer", "default": 0},
+                        "price_max": {"type": "integer", "default": 0},
+                        "seller_id": {"type": "string", "format": "uuid"},
+                        "attributes": {"type": "object"}
+                    }
+                }
+            )
+        ] = None
+    ):
+        if filter:
+            try:
+                parsed_json = json.loads(filter) if isinstance(filter, str) else filter
+                self.params = ProductFilterParams.model_validate(parsed_json)
+            except Exception:
+                self.params = ProductFilterParams()
+        else:
+            self.params = ProductFilterParams()
+
+
 @router.get("/categories/tree", response_model=list[CategoryTreeNode])
 async def get_categories_tree(
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> list[CategoryTreeNode]:
-	"""Get categories tree
+    """Get categories tree
 
-	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
+    Args:
+        db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
-	Returns:
-		list[CategoryTreeNode]: Categories tree
-	"""
-	try:
-		return await category_service.get_categories_tree(db)
-	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(
-			status_code=404,
-			detail={"code": "NOT_FOUND", "message": str(e)},
-		) from e
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+    Returns:
+        list[CategoryTreeNode]: Categories tree
+    """
+    try:
+        return await category_service.get_categories_tree(db)
+    except CategoryNotFoundError as e:
+        raise fastapi.HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.get("/categories", response_model=list[CategoryRef])
 async def get_categories_flat(
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> list[CategoryRef]:
-	"""Get flat categories
+    """Get flat categories
 
-	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
+    Args:
+        db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
-	Returns:
-		list[CategoryRef]: Flat categories
-	"""
-	try:
-		return await category_service.get_categories_flat(db)
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+    Returns:
+        list[CategoryRef]: Flat categories
+    """
+    try:
+        return await category_service.get_categories_flat(db)
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.get("/categories/{category_id}", response_model=CategoryInfoResponse)
 async def get_category_info(
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
-	category_id: str,
-	include_product_count: bool = False,
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    category_id: str,
+    include_product_count: bool = False,
 ) -> CategoryInfoResponse:
-	"""Get category info
+    """Get category info
 
-	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
-		category_id (str): Category ID
-		include_product_count (bool, optional): Include product count
+    Args:
+        db (Annotated[AsyncSession, fastapi.Depends]): Database session
+        category_id (str): Category ID
+        include_product_count (bool, optional): Include product count
 
-	Returns:
-		CategoryInfoResponse: Category info
-	"""
-	try:
-		return await category_service.get_category_info(
-			db, category_id, include_product_count
-		)
-	except ValueError as e:
-		raise fastapi.HTTPException(
-			status_code=400,
-			detail={"code": "INVALID_REQUEST", "message": "id must be a valid UUID"},
-		) from e
-	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(
-			status_code=404,
-			detail={"code": "NOT_FOUND", "message": str(e)},
-		) from e
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+    Returns:
+        CategoryInfoResponse: Category info
+    """
+    try:
+        return await category_service.get_category_info(
+            db, category_id, include_product_count
+        )
+    except ValueError as e:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_REQUEST", "message": "id must be a valid UUID"},
+        ) from e
+    except CategoryNotFoundError as e:
+        raise fastapi.HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.get("/categories/{category_id}/filters", response_model=FilterResponse)
 async def get_category_filters(
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
-	category_id: str,
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    category_id: str,
 ) -> FilterResponse:
-	"""Get category filters
+    """Get category filters
 
-	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
-		category_id (str): Category ID
+    Args:
+        db (Annotated[AsyncSession, fastapi.Depends]): Database session
+        category_id (str): Category ID
 
-	Returns:
-		FilterResponse: Category filters
-	"""
-	try:
-		return await category_service.get_category_filters(db, category_id)
-	except ValueError as e:
-		raise fastapi.HTTPException(
-			status_code=400,
-			detail={"code": "INVALID_REQUEST", "message": "id must be a valid UUID"},
-		) from e
-	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(
-			status_code=404,
-			detail={"code": "NOT_FOUND", "message": str(e)},
-		) from e
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+    Returns:
+        FilterResponse: Category filters
+    """
+    try:
+        return await category_service.get_category_filters(db, category_id)
+    except ValueError as e:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_REQUEST", "message": "id must be a valid UUID"},
+        ) from e
+    except CategoryNotFoundError as e:
+        raise fastapi.HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.get("/facets", response_model=FacetsResponse)
 async def get_facets(
-	request: Request,
-	category_id: uuid.UUID,
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    request: Request,
+    category_id: uuid.UUID,
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> FacetsResponse:
-	try:
-		facets_data = await product_service.get_catalog_facets_service(
-			db, str(category_id), request.query_params.multi_items()
-		)
-		return facets_data
-
-	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(
-			status_code=404, detail={"code": "CATEGORY_NOT_FOUND", "message": str(e)}
-		) from e
-
-	except CategoryHierarchyError as e:
-		raise fastapi.HTTPException(
-			status_code=400,
-			detail={"code": "CATEGORY_HIERARCHY_ERROR", "message": str(e)},
-		) from e
-
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+    try:
+        facets_data = await product_service.get_catalog_facets_service(
+            db, str(category_id), request.query_params.multi_items()
+        )
+        return facets_data
+    except CategoryNotFoundError as e:
+        raise fastapi.HTTPException(
+            status_code=404, detail={"code": "CATEGORY_NOT_FOUND", "message": str(e)}
+        ) from e
+    except CategoryHierarchyError as e:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={"code": "CATEGORY_HIERARCHY_ERROR", "message": str(e)},
+        ) from e
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/collections", response_model=list[Collection])
 async def get_collections(
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> list[Collection]:
-	return await collection_service.get_catalog_collections(db)
+    return await collection_service.get_catalog_collections(db)
 
 
 @router.get("/banners")
 async def get_banners(
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> list[Banner]:
-	"""Get active banners
+    """Get active banners
 
-	Args:
-	        db (Annotated[AsyncSession, fastapi.Depends]): Database session
+    Args:
+            db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
-	Returns:
-	        list[Banner]: List of active banners
-	"""
-	return await banner_service.get_active_banners(db)
+    Returns:
+            list[Banner]: List of active banners
+    """
+    return await banner_service.get_active_banners(db)
 
 
 @router.post("/banner-events", status_code=204)
 async def post_banner_events(
-	request: Request,
-	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
-	body: BannerEventsRequest,
+    request: Request,
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    body: BannerEventsRequest,
 ) -> fastapi.Response:
-	user_id = getattr(request.state, "user_id", None)
-	try:
-		await banner_service.record_banner_events(db, body, user_id)
-	except EmptyEventsError as e:
-		raise fastapi.HTTPException(
-			status_code=400,
-			detail={"code": "EMPTY_EVENTS", "message": str(e)},
-		) from e
-	except BannerNotFoundError as e:
-		raise fastapi.HTTPException(
-			status_code=400,
-			detail={"code": "BANNER_NOT_FOUND", "message": str(e)},
-		) from e
-	return fastapi.Response(status_code=204)
+    user_id = getattr(request.state, "user_id", None)
+    try:
+        await banner_service.record_banner_events(db, body, user_id)
+    except EmptyEventsError as e:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={"code": "EMPTY_EVENTS", "message": str(e)},
+        ) from e
+    except BannerNotFoundError as e:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={"code": "BANNER_NOT_FOUND", "message": str(e)},
+        ) from e
+    return fastapi.Response(status_code=204)
 
 
 @router.get(
-	"/products/{product_id}/similar",
-	response_model=list[CatalogProductCard],
+    "/products/{product_id}/similar",
+    response_model=list[CatalogProductCard],
 )
 async def get_similar_products_api(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	product_id: uuid.UUID,
-	limit: Annotated[int, fastapi.Query(ge=1, le=50)] = 10,
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    product_id: uuid.UUID,
+    limit: Annotated[int, fastapi.Query(ge=1, le=50)] = 10,
 ) -> list[CatalogProductCard]:
-	try:
-		return await product_service.get_similar_products(db, product_id, limit)
-	except ProductNotFoundError as err:
-		raise fastapi.HTTPException(
-			status_code=404,
-			detail={"code": "NOT_FOUND", "message": str(err)},
-		) from err
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+    try:
+        return await product_service.get_similar_products(db, product_id, limit)
+    except ProductNotFoundError as err:
+        raise fastapi.HTTPException(
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": str(err)},
+        ) from err
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/products", response_model=ProductShortListResponse)
 async def get_product_list_api(
-	request: Request,
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	category_id: Optional[uuid.UUID] = None,
-	limit: int = 20,
-	offset: int = 0,
-	sort: str = "rating",
-	q: Optional[str] = None,
+    db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    limit: int = 20,
+    offset: int = 0,
+    q: Optional[str] = None,
+    sort: ProductSortEnum = ProductSortEnum.popularity,
+    filter_extractor: JsonFilterExtractor = fastapi.Depends(),
 ) -> ProductShortListResponse:
-	try:
-		return await product_service.get_products_list(
-			db,
-			limit,
-			offset,
-			str(category_id) if category_id else None,
-			request.query_params.multi_items(),
-			sort,
-			q,
-		)
-	except (InvalidSortError, InvalidSearchQueryError) as e:
-		raise fastapi.HTTPException(
-			status_code=400, detail={"code": "INVALID_REQUEST", "message": str(e)}
-		) from e
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+    try:
+        filters_obj = filter_extractor.params
+        return await product_service.get_products_list(
+            db,
+            limit,
+            offset,
+            filters_obj,
+            sort.value,
+            q,
+        )
+    except (InvalidSortError, InvalidSearchQueryError) as e:
+        raise fastapi.HTTPException(
+            status_code=400, detail={"code": "INVALID_REQUEST", "message": str(e)}
+        ) from e
+    except Exception as e:
+        raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
