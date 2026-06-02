@@ -7,7 +7,11 @@ from fastapi import Request
 import json
 
 from exceptions.banner import BannerNotFoundError, EmptyEventsError
-from exceptions.product import ProductNotFoundError
+from exceptions.product import (
+	InvalidFiltersError,
+	ProductNotFoundError,
+	SearchQueryTooShortError,
+)
 from schemas.banner import Banner, BannerEventsRequest
 from schemas.catalog import CatalogProductCard, CategoryRef, CategoryTreeNode
 from schemas.category import CategoryInfoResponse, FacetsResponse, FilterResponse
@@ -262,7 +266,7 @@ async def get_product_list_api(
 			sort,
 			q,
 		)
-	except ValueError as e:
+	except (ValueError, SearchQueryTooShortError, InvalidFiltersError) as e:
 		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e

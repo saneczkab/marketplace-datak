@@ -112,9 +112,9 @@ async def get_products_list(
 	for p in products:
 		main_image_url = p.images[0].url if p.images else ""
 
-		# SKU is used to determine price
 		skus: List[SkuSchema] = await product_crud.get_product_skus(db, p.id)
 		price = min((sku.price for sku in skus), default=0.0) if skus else 0.0
+		in_stock = any(sku.active_quantity > 0 for sku in skus) if skus else False
 
 		items.append(
 			ProductShort(
@@ -122,7 +122,7 @@ async def get_products_list(
 				title=p.title,
 				image=main_image_url,
 				price=float(price),
-				in_stock=False,
+				in_stock=in_stock,
 				is_in_cart=False,
 			)
 		)

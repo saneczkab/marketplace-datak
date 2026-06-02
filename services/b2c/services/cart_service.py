@@ -26,7 +26,7 @@ from schemas.catalog import ImageRef
 def _sku_unavailable(product: Product, sku: Sku) -> Optional[str]:
 	if product.deleted:
 		return "PRODUCT_DELETED"
-	if product.status == ProductStatusEnum.BLOCKED:
+	if product.status in (ProductStatusEnum.BLOCKED, ProductStatusEnum.ON_MODERATION):
 		return "PRODUCT_BLOCKED"
 	if sku.active_quantity <= 0:
 		return "OUT_OF_STOCK"
