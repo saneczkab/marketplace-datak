@@ -90,14 +90,20 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from api.categories import router as category_router
 	from api.products import router as product_router
 	from api.invoice import router as invoice_router
+	from api.public_catalog import router as public_catalog_router
 	from api.sku import router as sku_router
+	from core.config import settings as app_settings
+	from middlewares.service_key_verification import verify_service_key
 	from middlewares.token_verification import verify_token
+
+	app_settings.B2C_SERVICE_KEY = "test-b2c-service-key"
 
 	test_app = FastAPI(debug=False)
 	test_app.add_exception_handler(HTTPException, http_exception_handler)
 	test_app.add_exception_handler(
 		RequestValidationError, request_validation_exception_handler
 	)
+	test_app.middleware("http")(verify_service_key)
 	test_app.middleware("http")(verify_token)
 	test_app.add_middleware(
 		CORSMiddleware,
@@ -106,6 +112,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		allow_methods=["*"],
 		allow_headers=["*"],
 	)
+	test_app.include_router(public_catalog_router, prefix="/api/v1")
 	test_app.include_router(category_router, prefix="/api/v1")
 	test_app.include_router(product_router, prefix="/api/v1")
 	test_app.include_router(invoice_router, prefix="/api/v1")

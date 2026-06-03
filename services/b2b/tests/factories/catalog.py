@@ -33,6 +33,7 @@ class ProductFactory(factory.Factory):
 	slug = factory.Faker("slug")
 	description = factory.Faker("sentence", nb_words=6)
 	status = ProductStatusEnum.MODERATED
+	deleted = False
 	moderator_comment = ""
 	blocking_reason_title = None
 	field_reports = factory.LazyFunction(list)

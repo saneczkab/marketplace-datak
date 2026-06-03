@@ -12,8 +12,10 @@ from api.categories import router as category_router
 from api.images import router as image_router
 from api.invoice import router as invoice_router
 from api.products import router as product_router
+from api.public_catalog import router as public_catalog_router
 from api.sku import router as sku_router
 from core.config import settings
+from middlewares.service_key_verification import verify_service_key
 from middlewares.token_verification import verify_token
 from services import outbox_worker
 
@@ -77,7 +79,9 @@ async def request_validation_exception_handler(
 	)
 
 
+app.middleware("http")(verify_service_key)
 app.middleware("http")(verify_token)
+app.include_router(public_catalog_router, prefix="/api/v1")
 app.include_router(product_router, prefix="/api/v1")
 app.include_router(category_router, prefix="/api/v1")
 app.include_router(sku_router, prefix="/api/v1")
