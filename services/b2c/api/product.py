@@ -5,7 +5,11 @@ import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db
-from exceptions.product import InvalidFiltersError, ProductNotFoundError, SearchQueryTooShortError
+from exceptions.product import (
+	InvalidFiltersError,
+	ProductNotFoundError,
+	SearchQueryTooShortError,
+)
 from exceptions.sku import SkuNotFoundError
 from schemas.product import ProductCard, ProductShortListResponse
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
