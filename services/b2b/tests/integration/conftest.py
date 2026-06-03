@@ -175,6 +175,27 @@ async def hard_blocked_product(
 
 
 @pytest.fixture()
+async def product_on_moderation_with_one_sku(
+	db_session: AsyncSession,
+) -> CategoryWithProductsData:
+	seller: Seller = SellerFactory.build()
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
+	category = CategoryFactory.build()
+	product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.ON_MODERATION,
+	)
+	sku = SkuFactory.build(product_id=product.id)
+	db_session.add_all([category, product, sku])
+	await db_session.commit()
+	return CategoryWithProductsData([category], [product], [sku])
+
+
+@pytest.fixture()
 async def blocked_product(
 	db_session: AsyncSession,
 ) -> CategoryWithProductsData:

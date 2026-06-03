@@ -16,7 +16,7 @@ async def create(
 	data: dict,
 	product: Product,
 	images: list[dict] | None = None,
-	submit_for_moderation: bool = False,
+	moderation_event: str | None = None,
 ) -> Sku:
 	chars_data = data.pop("characteristics", []) or []
 	data.pop("images", None)
@@ -38,8 +38,8 @@ async def create(
 			image.get("ordering", 0),
 		)
 
-	if submit_for_moderation:
-		await product_crud.submit_for_moderation(db, product)
+	if moderation_event is not None:
+		await product_crud.submit_for_moderation(db, product, event=moderation_event)
 
 	await db.commit()
 	return await get_sku_by_id(db, sku.id)

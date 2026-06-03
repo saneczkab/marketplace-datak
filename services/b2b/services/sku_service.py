@@ -80,8 +80,17 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 
 	sku_images = _process_sku_images(data.images)
 	is_first_sku = await sku_crud.count_skus_by_product_id(db, product.id) == 0
-	submit_for_moderation = is_first_sku and product.status == ProductStatusEnum.CREATED
-	if submit_for_moderation and not sku_images:
+
+	moderation_event: str | None = None
+	if is_first_sku and product.status == ProductStatusEnum.CREATED:
+		moderation_event = "CREATED"
+	elif product.status in (
+		ProductStatusEnum.MODERATED,
+		ProductStatusEnum.BLOCKED,
+	):
+		moderation_event = "EDITED"
+
+	if moderation_event == "CREATED" and not sku_images:
 		raise SkuValidationError("at least one image is required for the first SKU")
 
 	sku_payload = data.model_dump()
@@ -97,7 +106,7 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 		sku_payload,
 		product=product,
 		images=sku_images,
-		submit_for_moderation=submit_for_moderation,
+		moderation_event=moderation_event,
 	)
 	return await build_sku_response(db, sku)
 

@@ -1,10 +1,29 @@
+import uuid
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.integration.conftest import CategoryWithProductsData, auth_headers
+from database.models.outbox import OutboxEvent, OutboxEventStatus
+from tests.integration.conftest import (
+	CategoryWithProductsData,
+	EditProductData,
+	auth_headers,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+async def _outbox_events_for_product(
+	db: AsyncSession, product_id: uuid.UUID
+) -> list[OutboxEvent]:
+	result = await db.execute(
+		select(OutboxEvent).where(
+			OutboxEvent.payload["product_id"].astext == str(product_id)
+		)
+	)
+	return list(result.scalars().all())
 
 
 async def _create_sku(
@@ -46,21 +65,12 @@ async def test_first_sku_enqueues_created_event_to_outbox(
 	product_no_skus: CategoryWithProductsData,
 	db_session: AsyncSession,
 ) -> None:
-	from sqlalchemy import select
-
-	from database.models.outbox import OutboxEvent, OutboxEventStatus
-
 	product = product_no_skus.products[1]
 	headers = await auth_headers(product.seller_id, db_session)
 
 	await _create_sku(client, headers, str(product.id), with_images=True)
 
-	result = await db_session.execute(
-		select(OutboxEvent).where(
-			OutboxEvent.payload["product_id"].astext == str(product.id)
-		)
-	)
-	events = list(result.scalars().all())
+	events = await _outbox_events_for_product(db_session, product.id)
 	assert len(events) == 1
 	assert events[0].payload["event"] == "CREATED"
 	assert events[0].payload["seller_id"] == str(product.seller_id)
@@ -69,10 +79,10 @@ async def test_first_sku_enqueues_created_event_to_outbox(
 
 async def test_second_sku_no_state_change(
 	client: AsyncClient,
-	category_with_products: CategoryWithProductsData,
+	product_on_moderation_with_one_sku: CategoryWithProductsData,
 	db_session: AsyncSession,
 ) -> None:
-	product = category_with_products.products[0]
+	product = product_on_moderation_with_one_sku.products[0]
 	headers = await auth_headers(product.seller_id, db_session)
 
 	await _create_sku(client, headers, str(product.id))
@@ -82,7 +92,58 @@ async def test_second_sku_no_state_change(
 		headers=headers,
 	)
 	assert product_response.status_code == 200
-	assert product_response.json()["status"] == "MODERATED"
+	assert product_response.json()["status"] == "ON_MODERATION"
+
+	events = await _outbox_events_for_product(db_session, product.id)
+	assert events == []
+
+
+async def test_add_sku_to_moderated_returns_on_moderation_and_edited(
+	client: AsyncClient,
+	edit_product_data: EditProductData,
+	db_session: AsyncSession,
+) -> None:
+	product = edit_product_data.moderated_product
+	headers = await auth_headers(edit_product_data.owner.id, db_session)
+
+	await _create_sku(client, headers, str(product.id))
+
+	product_response = await client.get(
+		f"/api/v1/products/{product.id}",
+		headers=headers,
+	)
+	assert product_response.status_code == 200
+	assert product_response.json()["status"] == "ON_MODERATION"
+
+	events = await _outbox_events_for_product(db_session, product.id)
+	assert len(events) == 1
+	assert events[0].payload["event"] == "EDITED"
+	assert events[0].payload["seller_id"] == str(edit_product_data.owner.id)
+	assert events[0].status == OutboxEventStatus.PENDING
+
+
+async def test_add_sku_to_blocked_returns_on_moderation_and_edited(
+	client: AsyncClient,
+	blocked_product: CategoryWithProductsData,
+	db_session: AsyncSession,
+) -> None:
+	product = blocked_product.products[0]
+	headers = await auth_headers(product.seller_id, db_session)
+
+	await _create_sku(client, headers, str(product.id))
+
+	product_response = await client.get(
+		f"/api/v1/products/{product.id}",
+		headers=headers,
+	)
+	assert product_response.status_code == 200
+	assert product_response.json()["status"] == "ON_MODERATION"
+
+	events = await _outbox_events_for_product(db_session, product.id)
+	assert len(events) == 1
+	assert events[0].payload["event"] == "EDITED"
+	assert events[0].payload["seller_id"] == str(product.seller_id)
+	assert events[0].status == OutboxEventStatus.PENDING
 
 
 async def test_add_sku_to_hard_blocked_returns_403(
