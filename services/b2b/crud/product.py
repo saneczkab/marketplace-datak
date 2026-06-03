@@ -60,6 +60,24 @@ async def get_product_characteristics(
 	return list(result.scalars().all())
 
 
+async def get_product_characteristics_for_products(
+	db: AsyncSession, product_ids: list[UUID]
+) -> dict[UUID, list[Characteristic]]:
+	if not product_ids:
+		return {}
+	result = await db.execute(
+		select(Characteristic).where(
+			Characteristic.product_id.in_(product_ids),
+			Characteristic.sku_id.is_(None),
+		)
+	)
+	grouped: dict[UUID, list[Characteristic]] = {}
+	for characteristic in result.scalars().all():
+		if characteristic.product_id is not None:
+			grouped.setdefault(characteristic.product_id, []).append(characteristic)
+	return grouped
+
+
 async def update_product(
 	db: AsyncSession,
 	db_obj: Product,

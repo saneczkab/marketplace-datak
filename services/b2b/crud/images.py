@@ -29,6 +29,27 @@ async def attach_sku_image(
 	return image
 
 
+async def get_product_images_for_products(
+	db: AsyncSession, product_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[Image]]:
+	if not product_ids:
+		return {}
+	result = await db.execute(
+		select(Image)
+		.where(
+			and_(
+				Image.entity_type == ImageEntityTypeEnum.PRODUCT,
+				Image.entity_id.in_(product_ids),
+			)
+		)
+		.order_by(Image.ordering)
+	)
+	grouped: dict[uuid.UUID, list[Image]] = {}
+	for image in result.scalars().all():
+		grouped.setdefault(image.entity_id, []).append(image)
+	return grouped
+
+
 async def get_product_images_by_id(
 	product_id: uuid.UUID, db: AsyncSession
 ) -> list[Image]:
@@ -41,6 +62,27 @@ async def get_product_images_by_id(
 		)
 	)
 	return list(result.scalars().all())
+
+
+async def get_sku_images_for_sku_ids(
+	db: AsyncSession, sku_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[Image]]:
+	if not sku_ids:
+		return {}
+	result = await db.execute(
+		select(Image)
+		.where(
+			and_(
+				Image.entity_type == ImageEntityTypeEnum.SKU,
+				Image.entity_id.in_(sku_ids),
+			)
+		)
+		.order_by(Image.ordering)
+	)
+	grouped: dict[uuid.UUID, list[Image]] = {}
+	for image in result.scalars().all():
+		grouped.setdefault(image.entity_id, []).append(image)
+	return grouped
 
 
 async def get_sku_images_by_id(sku_id: uuid.UUID, db: AsyncSession) -> list[Image]:
