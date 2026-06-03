@@ -28,6 +28,8 @@ def _sku_unavailable(product: Product, sku: Sku) -> Optional[str]:
 		return "PRODUCT_DELETED"
 	if product.status in (ProductStatusEnum.BLOCKED, ProductStatusEnum.ON_MODERATION):
 		return "PRODUCT_BLOCKED"
+	if product.status == ProductStatusEnum.ON_MODERATION:
+		return "ON_MODERATION"
 	if sku.active_quantity <= 0:
 		return "OUT_OF_STOCK"
 	return None

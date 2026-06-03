@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${B2C_BACKEND_PORT}:8000"
+      - "${APP_PORT}:${APP_PORT}"
     env_file:
       - .env
     depends_on:
@@ -17,13 +17,13 @@ services:
     image: postgres:15
     restart: always
     ports:
-      - "${B2C_DB_PORT}:5432"
+      - "${POSTGRES_PORT}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - b2c_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 2s
@@ -33,4 +33,8 @@ services:
       - .env
 
 volumes:
-  postgres_data:
+  b2c_postgres_data:
+
+networks:
+  shared_ms_network:
+    external: true
