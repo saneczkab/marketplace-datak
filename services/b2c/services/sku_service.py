@@ -18,3 +18,11 @@ async def get_sku_by_id(db: AsyncSession, sku_id: uuid.UUID) -> Sku:
 		raise SkuNotFoundError
 
 	return sku
+
+
+async def update_sku_stock(
+	db: AsyncSession, sku_id: uuid.UUID, new_qantity: int
+) -> Sku:
+	sku = await sku_crud.update_sku_stock(db, sku_id, new_qantity)
+
+	return sku

@@ -6,3 +6,7 @@ async def notification_product_blocked(
 ) -> None:
 	"""Notofication placeholder. Will place notification into db"""
 	pass
+
+
+async def notification_sku_out_of_stock(sku_id: uuid.UUID, user_id: uuid.UUID) -> None:
+	pass
