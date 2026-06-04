@@ -286,10 +286,9 @@ async def get_product_list_api(
 	limit: int = 20,
 	offset: int = 0,
 	q: Optional[str] = None,
-	sort: str = fastapi.Query(
-		default="popularity",
-		enum=["price_asc", "price_desc", "popularity", "new"],
-	),
+	sort: Annotated[
+		str, fastapi.Query(enum=["price_asc", "price_desc", "popularity", "new"])
+	] = "popularity",
 	filter_extractor: JsonFilterExtractor = fastapi.Depends(),  # noqa
 ) -> PaginatedCatalogProducts:
 	try:
