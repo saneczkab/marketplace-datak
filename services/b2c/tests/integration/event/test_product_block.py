@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from core.config import settings
 
-from tests.integration.event.confest import product_with_block
+from tests.integration.event.conftest import product_with_block
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -87,3 +87,26 @@ async def test_missing_service_key_returns_401(
 	)
 
 	assert response.status_code == 401
+
+
+async def test_hard_block_product(
+	client: AsyncClient,
+	product_with_block: product_with_block,
+) -> None:
+	service_key = settings.X_SERVICE_KEY
+
+	response = await client.post(
+		"/api/v1/b2b/events",
+		headers={"X-Service-key": service_key},
+		json={
+			"event_type": "PRODUCT_HARD_BLOCKED",
+			"idempotency_key": f"{product_with_block.idempotency_key}",
+			"occured_at": f"{datetime.now(timezone.utc)}",
+			"payload": {
+				"product_id": str(product_with_block.product.id),
+				"reason": product_with_block.reason.reason,
+			},
+		},
+	)
+
+	assert response.status_code == 202

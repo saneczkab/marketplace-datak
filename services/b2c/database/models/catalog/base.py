@@ -14,6 +14,7 @@ class ProductStatusEnum(str, enum.Enum):
 	ON_MODERATION = "ON_MODERATION"
 	MODERATED = "MODERATED"
 	BLOCKED = "BLOCKED"
+	HARD_BLOCKED = "HARD_BLOCKED"
 
 
 class FilterTypeEnum(str, enum.Enum):
