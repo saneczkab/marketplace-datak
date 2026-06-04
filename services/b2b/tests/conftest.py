@@ -90,6 +90,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from api.categories import router as category_router
 	from api.products import router as product_router
 	from api.invoice import router as invoice_router
+	from api.inventory import router as inventory_router
 	from api.public_catalog import router as public_catalog_router
 	from api.sku import router as sku_router
 	from core.config import settings as app_settings
@@ -112,6 +113,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		allow_methods=["*"],
 		allow_headers=["*"],
 	)
+	test_app.include_router(inventory_router, prefix="/api/v1")
 	test_app.include_router(public_catalog_router, prefix="/api/v1")
 	test_app.include_router(category_router, prefix="/api/v1")
 	test_app.include_router(product_router, prefix="/api/v1")

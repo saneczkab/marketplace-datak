@@ -1,6 +1,10 @@
 from database.models.catalog.variants import Sku, Characteristic, Image
 from database.models.catalog.base import Product, Category, ProductStatusEnum
 from database.models.catalog.inventory import Invoice, InvoiceItem
+from database.models.catalog.inventory_operations import (
+	InventoryReserveOperation,
+	InventoryUnreserveOperation,
+)
 from database.models.identity.identity import Seller, Session
 from database.models.outbox import OutboxEvent, OutboxEventStatus
 
@@ -17,4 +21,6 @@ __all__ = [
 	"ProductStatusEnum",
 	"OutboxEvent",
 	"OutboxEventStatus",
+	"InventoryReserveOperation",
+	"InventoryUnreserveOperation",
 ]

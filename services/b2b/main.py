@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException, Request
 
 from api.auth import router as auth_router
+from api.inventory import router as inventory_router
 from api.categories import router as category_router
 from api.images import router as image_router
 from api.invoice import router as invoice_router
@@ -81,6 +82,7 @@ async def request_validation_exception_handler(
 
 app.middleware("http")(verify_service_key)
 app.middleware("http")(verify_token)
+app.include_router(inventory_router, prefix="/api/v1")
 app.include_router(public_catalog_router, prefix="/api/v1")
 app.include_router(product_router, prefix="/api/v1")
 app.include_router(category_router, prefix="/api/v1")
