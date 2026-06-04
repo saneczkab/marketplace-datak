@@ -1,9 +1,5 @@
 import fastapi
-import json
 import uuid
-from enum import Enum
-from json import JSONDecodeError
-from pydantic import ValidationError
 from typing import Annotated, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
@@ -13,7 +9,6 @@ from exceptions.product import (
 	InvalidSortError,
 	InvalidSearchQueryError,
 	ProductNotFoundError,
-	InvalidFilterError,
 )
 from exceptions.category import CategoryNotFoundError, CategoryHierarchyError
 from schemas.banner import Banner, BannerEventsRequest
@@ -26,7 +21,6 @@ from schemas.catalog import (
 from schemas.category import CategoryInfoResponse, FacetsResponse, FilterResponse
 
 from schemas.collection import Collection
-from schemas.product import ProductFilterParams
 from services import (
 	banner_service,
 	collection_service,
@@ -36,13 +30,6 @@ from services import (
 from core.db import get_db
 
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
-
-
-class ProductSortEnum(str, Enum):
-	price_asc = "price_asc"
-	price_desc = "price_desc"
-	popularity = "popularity"
-	new = "new"
 
 
 class JsonFilterExtractor:
@@ -95,29 +82,9 @@ class JsonFilterExtractor:
 			),
 		] = None,
 	) -> None:
-		query_params = request.query_params.multi_items()
-		parsed_filters = product_service.parse_deep_filters(query_params)
-		if filter:
-			try:
-				parsed_json = json.loads(filter) if isinstance(filter, str) else filter
-				if not isinstance(parsed_json, dict):
-					raise InvalidFilterError(
-						"Invalid filter format or schema parameters"
-					)
-				parsed_filters.update(parsed_json)
-			except (JSONDecodeError, ValidationError) as e:
-				raise InvalidFilterError(
-					"Invalid filter format or schema parameters"
-				) from e
-		if parsed_filters:
-			try:
-				self.params = ProductFilterParams.model_validate(parsed_filters)
-			except ValidationError as e:
-				raise InvalidFilterError(
-					"Invalid filter format or schema parameters"
-				) from e
-		else:
-			self.params = ProductFilterParams()
+		self.params = product_service.parse_catalog_filters(
+			query_params=request.query_params.multi_items(), filter_str=filter
+		)
 
 
 @router.get("/categories/tree", response_model=list[CategoryTreeNode])
@@ -319,7 +286,10 @@ async def get_product_list_api(
 	limit: int = 20,
 	offset: int = 0,
 	q: Optional[str] = None,
-	sort: ProductSortEnum = ProductSortEnum.popularity,
+	sort: str = fastapi.Query(
+		default="popularity",
+		enum=["price_asc", "price_desc", "popularity", "new"],
+	),
 	filter_extractor: JsonFilterExtractor = fastapi.Depends(),  # noqa
 ) -> PaginatedCatalogProducts:
 	try:
@@ -329,7 +299,7 @@ async def get_product_list_api(
 			limit,
 			offset,
 			filters_obj,
-			sort.value,
+			sort,
 			q,
 		)
 	except (InvalidSortError, InvalidSearchQueryError) as e:

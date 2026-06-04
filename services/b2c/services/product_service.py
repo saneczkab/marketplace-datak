@@ -1,4 +1,7 @@
 import uuid
+import json
+from json import JSONDecodeError
+from pydantic import ValidationError
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +14,7 @@ from exceptions.product import (
 	ProductNotFoundError,
 	InvalidSortError,
 	InvalidSearchQueryError,
+	InvalidFilterError,
 )
 from schemas.catalog import CatalogProductCard, PaginatedCatalogProducts
 from schemas.product import (
@@ -85,7 +89,7 @@ async def get_products_list(
 
 	if q:
 		search_stripped = q.strip()
-		if 0 < len(search_stripped) < 3:
+		if 0 < len(search_stripped) <= 3:
 			raise InvalidSearchQueryError("Search query must be at least 3 characters")
 		if len(search_stripped) > 255:
 			raise InvalidSearchQueryError("Search query must be at most 255 characters")
@@ -136,9 +140,9 @@ async def get_catalog_facets_service(
 	category_id: str,
 	raw_query_params: list[tuple[str, str]],  # noqa
 ) -> FacetsResponse:
-	parsed_category_id = uuid.UUID(category_id)
+	str_category_id = str(category_id)
 
-	return FacetsResponse(category_id=parsed_category_id, filters=[], facets=[])
+	return FacetsResponse(category_id=str_category_id, filters=[], facets=[])
 
 
 async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:
@@ -192,3 +196,32 @@ def parse_deep_filters(query_params: list[tuple[str, str]]) -> dict:
 		path = inner.split("][")
 		_assign_nested_value(deep_filters, path, v)
 	return deep_filters
+
+
+def parse_catalog_filters(
+	query_params: list[tuple[str, str]], filter_str: Optional[str] = None
+) -> ProductFilterParams:
+	parsed_filters = parse_deep_filters(query_params)
+
+	if filter_str:
+		try:
+			parsed_json = (
+				json.loads(filter_str) if isinstance(filter_str, str) else filter_str
+			)
+			if not isinstance(parsed_json, dict):
+				raise InvalidFilterError("Invalid filter format or schema parameters")
+			parsed_filters.update(parsed_json)
+		except (JSONDecodeError, ValidationError) as e:
+			raise InvalidFilterError(
+				"Invalid filter format or schema parameters"
+			) from e
+
+	if parsed_filters:
+		try:
+			return ProductFilterParams.model_validate(parsed_filters)
+		except ValidationError as e:
+			raise InvalidFilterError(
+				"Invalid filter format or schema parameters"
+			) from e
+
+	return ProductFilterParams()

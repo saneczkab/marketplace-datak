@@ -1,6 +1,7 @@
 import uuid
 from collections import deque
 from typing import List, Tuple, Optional
+from itertools import product
 
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,7 +63,11 @@ async def get_product_skus(
 		.where(Sku.product_id == product_id)
 		.options(selectinload(Sku.images))
 	)
-	return list(result.scalars().all())
+	skus = list(result.scalars().all())
+	for sku in skus:
+		sku.in_stock = sku.active_quantity > 0
+
+	return skus
 
 
 async def get_products_list(
@@ -74,7 +79,9 @@ async def get_products_list(
 	sort: str,
 	q: Optional[str],
 ) -> Tuple[List[Product], int]:
-	query = select(Product).options(selectinload(Product.images))
+	query = select(Product).options(
+		selectinload(Product.images), selectinload(Product.skus)
+	)
 	count_query = select(func.count(func.distinct(Product.id)))
 
 	# Условие видимости: status = MODERATED AND active_quantity > 0
@@ -220,13 +227,19 @@ async def get_products_list(
 	products = list((await db.execute(query)).scalars().all())
 	total = (await db.execute(count_query)).scalar() or 0
 
+	if hasattr(product, "skus") and product.skus is not None:
+		for sku in product.skus:
+			sku.in_stock = getattr(sku, "active_quantity", 0) > 0
+
 	return products, total
 
 
 async def get_product_full(db: AsyncSession, id: uuid.UUID) -> Optional[Product]:
 	stmt = (
 		select(Product)
-		.where(Product.id == id)
+		.where(
+			Product.id == id,
+		)
 		.options(
 			selectinload(Product.images),
 			selectinload(Product.characteristics),
@@ -234,7 +247,17 @@ async def get_product_full(db: AsyncSession, id: uuid.UUID) -> Optional[Product]
 			selectinload(Product.skus).selectinload(Sku.characteristics),
 		)
 	)
-	return (await db.execute(stmt)).scalar_one_or_none()
+	product = (await db.execute(stmt)).scalar_one_or_none()
+
+	if product and (product.status != ProductStatusEnum.MODERATED or product.deleted):
+		return None
+
+	if product:
+		if hasattr(product, "skus") and product.skus is not None:
+			for sku in product.skus:
+				sku.in_stock = getattr(sku, "active_quantity", 0) > 0
+
+	return product
 
 
 async def _fetch_similar_products_batch(

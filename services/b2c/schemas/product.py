@@ -14,7 +14,7 @@ from schemas.catalog import CatalogProductCard
 class ProductShort(BaseModel):
 	id: uuid.UUID
 	title: str
-	image: str = Field(format="uri")
+	image: str = Field(json_schema_extra={"format": "uri"})
 	price: float
 	in_stock: bool
 	is_in_cart: bool
