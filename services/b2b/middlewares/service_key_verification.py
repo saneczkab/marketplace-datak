@@ -5,11 +5,13 @@ from core.config import settings
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-SERVICE_KEY_PATH_PREFIX = "/api/v1/public"
+SERVICE_KEY_PATH_PREFIXES = ("/api/v1/public", "/api/v1/inventory")
 
 
 async def verify_service_key(request: Request, call_next: Callable) -> JSONResponse:
-	if not request.url.path.startswith(SERVICE_KEY_PATH_PREFIX):
+	if not any(
+		request.url.path.startswith(prefix) for prefix in SERVICE_KEY_PATH_PREFIXES
+	):
 		return await call_next(request)
 
 	service_key = request.headers.get("X-Service-Key")

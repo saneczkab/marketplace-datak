@@ -12,6 +12,7 @@ from database.models.outbox import OutboxEvent, OutboxEventStatus
 PublishFn = Callable[[str, dict], Awaitable[None]]
 
 MODERATION_PRODUCT_CREATED = "moderation.product.created"
+B2C_EVENT_ROUTING_KEY = "b2c.events"
 
 
 def build_moderation_product_created_payload(
@@ -28,6 +29,19 @@ def build_moderation_product_created_payload(
 		"event": event,
 		"date": occurred_at,
 	}
+
+
+async def enqueue_b2c_event(db: AsyncSession, message: dict) -> OutboxEvent:
+	outbox_event = OutboxEvent(
+		idempotency_key=UUID(message["idempotency_key"]),
+		event_type=message["event_type"],
+		routing_key=B2C_EVENT_ROUTING_KEY,
+		payload=message,
+		status=OutboxEventStatus.PENDING,
+	)
+	db.add(outbox_event)
+	await db.flush()
+	return outbox_event
 
 
 async def enqueue_moderation_product_created(

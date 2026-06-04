@@ -408,6 +408,54 @@ async def view_product_data(db_session: AsyncSession) -> ViewProductData:
 
 
 PUBLIC_CATALOG_SERVICE_KEY_HEADERS = {"X-Service-Key": "test-b2c-service-key"}
+INVENTORY_SERVICE_KEY_HEADERS = PUBLIC_CATALOG_SERVICE_KEY_HEADERS
+
+
+@dataclass(frozen=True, slots=True)
+class ReserveInventoryData:
+	product: Product
+	sku_a: Sku
+	sku_b: Sku
+	sku_low_stock: Sku
+	sku_oos_candidate: Sku
+
+
+@pytest.fixture()
+async def reserve_inventory_data(db_session: AsyncSession) -> ReserveInventoryData:
+	category = CategoryFactory.build()
+	db_session.add(category)
+	await db_session.flush()
+
+	product = ProductFactory.build(
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+		deleted=False,
+	)
+	db_session.add(product)
+	await db_session.flush()
+
+	sku_a = SkuFactory.build(
+		product_id=product.id, active_quantity=10, reserved_quantity=0
+	)
+	sku_b = SkuFactory.build(
+		product_id=product.id, active_quantity=5, reserved_quantity=0
+	)
+	sku_low_stock = SkuFactory.build(
+		product_id=product.id, active_quantity=3, reserved_quantity=0
+	)
+	sku_oos_candidate = SkuFactory.build(
+		product_id=product.id, active_quantity=2, reserved_quantity=0
+	)
+	db_session.add_all([sku_a, sku_b, sku_low_stock, sku_oos_candidate])
+	await db_session.commit()
+
+	return ReserveInventoryData(
+		product=product,
+		sku_a=sku_a,
+		sku_b=sku_b,
+		sku_low_stock=sku_low_stock,
+		sku_oos_candidate=sku_oos_candidate,
+	)
 
 
 @dataclass(frozen=True, slots=True)
