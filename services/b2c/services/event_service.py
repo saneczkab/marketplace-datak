@@ -30,6 +30,10 @@ async def handle_b2b_event(event: schema_B2BEvent, db: AsyncSession) -> None:
 			await handle_product_blocked(event.payload, db, True)
 		case "SKU_OUT_OF_STOCK":
 			await handle_sku_out_of_stock(event.payload, db)
+		case "BACK_IN_STOCK":
+			pass
+		case "PRICE_CHANGED":
+			await handle_price_changed(event.payload, db)
 
 
 async def handle_product_blocked(
@@ -71,6 +75,11 @@ async def handle_sku_out_of_stock(payload: EventSkuStock, db: AsyncSession) -> N
 		await cart_service.remove_cart_item(
 			db, user_id=cart.user_id, sku_id=payload.sku_id
 		)
+
+
+async def handle_sku_back_in_stock(payload: EventSkuStock, db: AsyncSession) -> None:
+	await sku_service.update_sku_stock(db, payload.sku_id, payload.available_quantity)
+	await notification_service.notification_sku_back_in_stock(payload.sku_id)
 
 
 async def handle_price_changed(payload: EventSkuStock, db: AsyncSession) -> None:
