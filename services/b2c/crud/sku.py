@@ -30,3 +30,16 @@ async def update_sku_stock(
 	await db.commit()
 	await db.refresh(sku)
 	return sku
+
+
+async def update_sku_price(db: AsyncSession, sku_id: uuid.UUID, new_price: int) -> Sku:
+	result = await db.execute(select(Sku).where(Sku.id == sku_id))
+	sku = result.scalar_one_or_none()
+
+	if not sku:
+		raise SkuNotFoundError
+
+	sku.price = new_price
+	await db.commit
+	await db.refresh(sku)
+	return sku

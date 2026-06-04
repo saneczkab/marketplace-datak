@@ -26,3 +26,9 @@ async def update_sku_stock(
 	sku = await sku_crud.update_sku_stock(db, sku_id, new_qantity)
 
 	return sku
+
+
+async def update_sku_price(db: AsyncSession, sku_id: uuid.UUID, new_price: int) -> Sku:
+	sku = await sku_crud.update_sku_price(db, sku_id, new_price)
+
+	return sku

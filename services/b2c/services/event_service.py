@@ -73,5 +73,9 @@ async def handle_sku_out_of_stock(payload: EventSkuStock, db: AsyncSession) -> N
 		)
 
 
-async def sku_stock_change(payload: EventSkuStock, db: AsyncSession) -> None:
-	pass
+async def handle_price_changed(payload: EventSkuStock, db: AsyncSession) -> None:
+	await sku_service.update_sku_price(db, payload.sku_id, payload.new_price)
+
+	await notification_service.notification_sku_price_change(
+		payload.sku_id, payload.old_price, payload.new_price
+	)

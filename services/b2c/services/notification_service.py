@@ -10,3 +10,12 @@ async def notification_product_blocked(
 
 async def notification_sku_out_of_stock(sku_id: uuid.UUID, user_id: uuid.UUID) -> None:
 	pass
+
+
+async def notification_sku_price_change(
+	sku_id: uuid.UUID, old_price: int, new_price: int
+) -> None:
+	"""
+	Also needs to trigger price-drop notifications or something
+	"""
+	pass
