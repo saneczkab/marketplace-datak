@@ -28,6 +28,8 @@ async def handle_b2b_event(event: schema_B2BEvent, db: AsyncSession) -> None:
 			await handle_product_blocked(event.payload, db, False)
 		case "PRODUCT_HARD_BLOCKED":
 			await handle_product_blocked(event.payload, db, True)
+		case "PRODUCT_DELETED":
+			pass
 		case "SKU_OUT_OF_STOCK":
 			await handle_sku_out_of_stock(event.payload, db)
 		case "BACK_IN_STOCK":
@@ -88,3 +90,9 @@ async def handle_price_changed(payload: EventSkuStock, db: AsyncSession) -> None
 	await notification_service.notification_sku_price_change(
 		payload.sku_id, payload.old_price, payload.new_price
 	)
+
+
+async def handle_product_deleted(payload: EventProductRef, db: AsyncSession) -> None:
+
+	await product_service.delete_product(payload.product_id, db)
+	await notification_service.notification_product_deleted()

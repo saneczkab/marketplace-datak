@@ -17,6 +17,7 @@ from schemas.product import (
 	Product,
 	ProductShortListResponse,
 )
+from services import sku_service
 from services.schemas_builder import build_catalog_product_cards
 from schemas.sku import SkuShort
 from schemas.sku import Sku as SkuSchema
@@ -162,3 +163,12 @@ async def mark_product_blocked(
 		payload.product_id, blocked_reason.id, hard_blocked, db
 	)
 	return product
+
+
+async def delete_product(product_id: uuid.UUID, db: AsyncSession) -> None:
+	skus = await get_product_skus(db, product_id)
+
+	for sku in skus:
+		await sku_service.delete_sku(db, sku.id)
+
+	await product_crud.delete_product(product_id, db)

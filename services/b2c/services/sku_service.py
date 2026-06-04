@@ -32,3 +32,7 @@ async def update_sku_price(db: AsyncSession, sku_id: uuid.UUID, new_price: int) 
 	sku = await sku_crud.update_sku_price(db, sku_id, new_price)
 
 	return sku
+
+
+async def delete_sku(db: AsyncSession, sku_id: uuid.UUID) -> None:
+	await sku_crud.delete_sku(db, sku_id)

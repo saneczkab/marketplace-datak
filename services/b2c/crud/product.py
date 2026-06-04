@@ -355,3 +355,15 @@ async def get_blocked_reason_id(reason: str, db: AsyncSession) -> ProductBlockRe
 		select(ProductBlockReason).where(ProductBlockReason.reason == reason)
 	)
 	return result.scalar_one_or_none()
+
+
+async def delete_product(product_id: uuid.UUID, db: AsyncSession) -> None:
+	product = (
+		await db.execute(select(Product).where(Product.id == product_id))
+	).scalar_one_or_none()
+
+	if not product:
+		return
+
+	product.deleted = True
+	await db.commit()

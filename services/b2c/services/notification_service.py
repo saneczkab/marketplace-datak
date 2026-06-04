@@ -23,3 +23,7 @@ async def notification_sku_price_change(
 	Also needs to trigger price-drop notifications or something
 	"""
 	pass
+
+
+async def notification_product_deleted() -> None:
+	pass

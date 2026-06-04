@@ -43,3 +43,13 @@ async def update_sku_price(db: AsyncSession, sku_id: uuid.UUID, new_price: int) 
 	await db.commit
 	await db.refresh(sku)
 	return sku
+
+
+async def delete_sku(db: AsyncSession, sku_id: uuid.UUID) -> None:
+	result = await db.execute(select(Sku).where(Sku.id) == sku_id)
+	sku = result.scalar_one_or_none()
+
+	if not sku:
+		return  # I don't think we need to raise error here, we're deleting it anyway
+	db.delete(sku)
+	await db.commit()
