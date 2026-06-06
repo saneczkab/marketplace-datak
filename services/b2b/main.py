@@ -16,9 +16,9 @@ from api.products import router as product_router
 from api.public_catalog import router as public_catalog_router
 from api.sku import router as sku_router
 from core.config import settings
+from core.messaging import run_outbox_worker_forever
 from middlewares.service_key_verification import verify_service_key
 from middlewares.token_verification import verify_token
-from services import outbox_worker
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):  # noqa
 	worker_task: asyncio.Task | None = None
 	if settings.OUTBOX_WORKER_ENABLED:
-		worker_task = asyncio.create_task(outbox_worker.run_forever())
+		worker_task = asyncio.create_task(run_outbox_worker_forever())
 		logger.info("Outbox worker task scheduled")
 	yield
 	if worker_task is not None:
