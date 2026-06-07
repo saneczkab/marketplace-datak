@@ -1,7 +1,7 @@
 """moderation_event
 
 Revision ID: 809035676680
-Revises: bbab6851ac09
+Revises: 52a3dd662571
 Create Date: 2026-06-07 08:07:14.208914
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "809035676680"
-down_revision: Union[str, Sequence[str], None] = "bbab6851ac09"
+down_revision: Union[str, Sequence[str], None] = "52a3dd662571"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

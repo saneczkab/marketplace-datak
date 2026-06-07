@@ -12,7 +12,9 @@ from database.models.outbox import OutboxEvent, OutboxEventStatus
 PublishFn = Callable[[str, dict], Awaitable[None]]
 
 MODERATION_PRODUCT_CREATED = "moderation.product.created"
+MODERATION_PRODUCT_DELETED = "moderation.product.deleted"
 B2C_EVENT_ROUTING_KEY = "b2c.events"
+B2C_PRODUCT_DELETED = "b2c.product.deleted"
 PRODUCT_BLOCKED_EVENT_TYPE = "PRODUCT_BLOCKED"
 
 
@@ -27,6 +29,38 @@ def build_moderation_product_created_payload(
 		"idempotency_key": str(idempotency_key),
 		"product_id": str(product_id),
 		"seller_id": str(seller_id),
+		"event": event,
+		"date": occurred_at,
+	}
+
+
+def build_moderation_product_deleted_payload(
+	product_id: UUID,
+	seller_id: UUID,
+	idempotency_key: UUID,
+	event: str = "DELETED",
+) -> dict:
+	occurred_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+	return {
+		"idempotency_key": str(idempotency_key),
+		"product_id": str(product_id),
+		"seller_id": str(seller_id),
+		"event": event,
+		"date": occurred_at,
+	}
+
+
+def build_b2c_product_deleted_payload(
+	product_id: UUID,
+	sku_ids: list[UUID],
+	idempotency_key: UUID,
+	event: str = "PRODUCT_DELETED",
+) -> dict:
+	occurred_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+	return {
+		"idempotency_key": str(idempotency_key),
+		"product_id": str(product_id),
+		"sku_ids": [str(sku_id) for sku_id in sku_ids],
 		"event": event,
 		"date": occurred_at,
 	}
@@ -91,6 +125,52 @@ async def enqueue_moderation_product_created(
 		idempotency_key=idempotency_key,
 		event_type=MODERATION_PRODUCT_CREATED,
 		routing_key=MODERATION_PRODUCT_CREATED,
+		payload=payload,
+		status=OutboxEventStatus.PENDING,
+	)
+	db.add(outbox_event)
+	await db.flush()
+	return outbox_event
+
+
+async def enqueue_moderation_product_deleted(
+	db: AsyncSession,
+	product_id: UUID,
+	seller_id: UUID,
+) -> OutboxEvent:
+	idempotency_key = uuid.uuid4()
+	payload = build_moderation_product_deleted_payload(
+		product_id=product_id,
+		seller_id=seller_id,
+		idempotency_key=idempotency_key,
+	)
+	outbox_event = OutboxEvent(
+		idempotency_key=idempotency_key,
+		event_type=MODERATION_PRODUCT_DELETED,
+		routing_key=MODERATION_PRODUCT_DELETED,
+		payload=payload,
+		status=OutboxEventStatus.PENDING,
+	)
+	db.add(outbox_event)
+	await db.flush()
+	return outbox_event
+
+
+async def enqueue_b2c_product_deleted(
+	db: AsyncSession,
+	product_id: UUID,
+	sku_ids: list[UUID],
+) -> OutboxEvent:
+	idempotency_key = uuid.uuid4()
+	payload = build_b2c_product_deleted_payload(
+		product_id=product_id,
+		sku_ids=sku_ids,
+		idempotency_key=idempotency_key,
+	)
+	outbox_event = OutboxEvent(
+		idempotency_key=idempotency_key,
+		event_type=B2C_PRODUCT_DELETED,
+		routing_key=B2C_EVENT_ROUTING_KEY,
 		payload=payload,
 		status=OutboxEventStatus.PENDING,
 	)
