@@ -285,7 +285,7 @@ async def get_product_list_api(
 	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 	limit: int = 20,
 	offset: int = 0,
-	q: Optional[str] = None,
+	q: Annotated[Optional[str], fastapi.Query(max_length=200)] = None,
 	sort: Annotated[
 		str, fastapi.Query(enum=["price_asc", "price_desc", "popularity", "new"])
 	] = "popularity",

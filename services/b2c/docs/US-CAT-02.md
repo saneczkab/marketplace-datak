@@ -2,18 +2,20 @@
 
 ## Что сделано
 
-Реализован поиск товаров для B2C каталога: покупатель может искать товары по названию и описанию через строку поиска, не зная точную категорию. Поиск корректно обрабатывает короткие запросы, специальные символы (например, `iPhone%15` или `кофе'`) и пустые результаты.
+Реализован текстовый поиск для B2C каталога: покупатель ищет товары по названию и описанию через параметр `q` на том же эндпоинте, что и листинг каталога (US-CAT-01). Поиск совместим с фильтрами категории, цены и атрибутов.
 
-*Примечание*: В квесте указано, что данные должны браться из B2B через проксирование, но в текущей реализации данные берутся напрямую из базы данных B2C сервиса. 
+Данные каталога читаются из локальной БД B2C, без отдельного обращения к B2B - это архитектурное решение - хранить данные в B2C и через очередь сообщений управлять обновлениями данных в сервисах.
+
+Поиск выполняется по полям `title` и `description` через SQL `ILIKE` с экранированием спецсимволов `%` и `_`. Условие видимости то же, что в каталоге: `status = MODERATED`, `deleted = false`, хотя бы один SKU с `active_quantity > 0`.
 
 ### API
 
 Перечень реализованных эндпоинтов:
 
-- `GET /api/v1/products`
-  - **Query/Path params**: `category_id` (обязательный), `search` (опционально, минимум 4 символа после trim), `limit` (default `20`), `offset` (default `0`), `filters` (JSON-строка, опционально), `sort` (default `rating`)
-  - **Код 200**: `ProductShortListResponse` — список товаров, соответствующих поисковому запросу, с полями `items[]` (id, title, image, price, in_stock, is_in_cart), `total_count`, `limit`, `offset`. Пустой список, если ничего не найдено
-  - **Код 400**: `Search query must be at least 3 characters` (поисковый запрос короче 4 символов после trim)
+- `GET /api/v1/catalog/products`
+  - **Query params (поиск)**: `q` (опционально, min 3 символа после trim, max 200), совместим с `filter[category_id]`, `filter[price_min]`, `filter[attributes][...]`, `sort`, `limit`, `offset` - см. **US-CAT-01**
+  - **Код 200**: `PaginatedCatalogProducts` - совпадения по `title` или `description`; при отсутствии результатов `items: []`, `total_count: 0`
+  - **Код 400**: `{"code": "INVALID_REQUEST", "message": "Search query must be at least 3 characters"}` (запрос короче 3 символов после trim) / `Search query must be at most 200 characters` (превышен лимит длины)
   - **Код 500**: текст ошибки (прочие сбои)
 
 ## Запуск
@@ -30,11 +32,9 @@ make build up migrate
 make test
 ```
 
-- `tests/integration/test_catalog.py::test_search_title_returns_matching_products` — поиск по названию товара возвращает соответствующие результаты
-- `tests/integration/test_catalog.py::test_search_description_returns_matching_products` — поиск по описанию товара возвращает соответствующие результаты
-- `tests/integration/test_catalog.py::test_short_query_returns_400` — короткий поисковый запрос (< 4 символов) возвращает 400
-- `tests/integration/test_catalog.py::test_empty_results_returns_200` — пустой результат поиска возвращает 200 с пустым списком items
-- `tests/integration/test_catalog.py::test_special_chars_do_not_break_query` — специальные символы (`!@#$%^&*()`) в поисковом запросе не ломают SQL-запрос и возвращают корректный ответ
+- `tests/integration/catalog/test_catalog.py::test_search_returns_matching_products` - поиск возвращает товары по title и description
+- `tests/integration/catalog/test_catalog.py::test_short_query_returns_400` - запрос короче 3 символов возвращает 400
+- `tests/integration/catalog/test_catalog.py::test_empty_results_returns_200` - нет совпадений → 200 с пустым списком
+- `tests/integration/catalog/test_catalog.py::test_special_chars_do_not_break_query` - спецсимволы (`iPhone%15`, `кофе'`, …) не ломают запрос
 
 Тесты успешно проходят (см. джобу tests).
-

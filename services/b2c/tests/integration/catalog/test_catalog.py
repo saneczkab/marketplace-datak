@@ -102,38 +102,34 @@ async def test_invalid_sort_returns_400(
 	assert "Allowed:" in body["message"]
 
 
-async def test_search_description_returns_matching_products(
+async def test_search_returns_matching_products(
 	client: AsyncClient, category_with_products: CategoryWithProductsData
 ) -> None:
-	response = await client.get(
-		"/api/v1/catalog/products?filter[category_id]="
-		+ str(category_with_products.category.id),
-		params={"q": "Description 1"},
-	)
-	assert response.status_code == 200
-	body = response.json()
-	items = body["items"]
-	assert len(items) == 2
-	assert items[0]["id"] == str(category_with_products.products[0].id)
-	assert items[1]["id"] == str(category_with_products.products[1].id)
+	category_id = str(category_with_products.category.id)
+	base_url = f"/api/v1/catalog/products?filter[category_id]={category_id}"
+
+	response_title = await client.get(base_url, params={"q": "Product 1"})
+	assert response_title.status_code == 200
+	items_title = response_title.json()["items"]
+	assert len(items_title) == 1
+	assert items_title[0]["id"] == str(category_with_products.products[0].id)
+
+	response_description = await client.get(base_url, params={"q": "Description 1"})
+	assert response_description.status_code == 200
+	items_description = response_description.json()["items"]
+	assert len(items_description) == 2
+	ids = {item["id"] for item in items_description}
+	assert ids == {
+		str(category_with_products.products[0].id),
+		str(category_with_products.products[1].id),
+	}
+
+	response_min_length = await client.get(base_url, params={"q": "Pro"})
+	assert response_min_length.status_code == 200
+	assert len(response_min_length.json()["items"]) >= 1
 
 
-async def test_search_title_returns_matching_products(
-	client: AsyncClient, category_with_products: CategoryWithProductsData
-) -> None:
-	response = await client.get(
-		"/api/v1/catalog/products?filter[category_id]="
-		+ str(category_with_products.category.id),
-		params={"q": "Product 1"},
-	)
-	assert response.status_code == 200
-	body = response.json()
-	items = body["items"]
-	assert len(items) == 1
-	assert items[0]["id"] == str(category_with_products.products[0].id)
-
-
-@pytest.mark.parametrize("search", ["t", "te", "tes"])
+@pytest.mark.parametrize("search", ["t", "te"])
 async def test_short_query_returns_400(
 	client: AsyncClient, category_with_products: CategoryWithProductsData, search: str
 ) -> None:
@@ -143,6 +139,9 @@ async def test_short_query_returns_400(
 		params={"q": search},
 	)
 	assert response.status_code == 400
+	body = response.json()
+	assert body["code"] == "INVALID_REQUEST"
+	assert "at least 3 characters" in body["message"]
 
 
 async def test_empty_results_returns_200(
@@ -158,17 +157,19 @@ async def test_empty_results_returns_200(
 	assert body["items"] == []
 
 
+@pytest.mark.parametrize("search", ["iPhone%15", "кофе'", "!@#$%^&*()"])
 async def test_special_chars_do_not_break_query(
-	client: AsyncClient, category_with_products: CategoryWithProductsData
+	client: AsyncClient,
+	category_with_products: CategoryWithProductsData,
+	search: str,
 ) -> None:
 	response = await client.get(
 		"/api/v1/catalog/products?filter[category_id]="
 		+ str(category_with_products.category.id),
-		params={"q": "!@#$%^&*()"},
+		params={"q": search},
 	)
 	assert response.status_code == 200
-	body = response.json()
-	assert body["items"] == []
+	assert response.json()["items"] == []
 
 
 async def test_products_list_filters_only_visible_products(

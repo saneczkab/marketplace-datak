@@ -87,12 +87,19 @@ async def get_products_list(
 			f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}"
 		)
 
-	if q:
+	search_query: Optional[str] = None
+	if q is not None:
 		search_stripped = q.strip()
-		if 0 < len(search_stripped) <= 3:
-			raise InvalidSearchQueryError("Search query must be at least 3 characters")
-		if len(search_stripped) > 255:
-			raise InvalidSearchQueryError("Search query must be at most 255 characters")
+		if search_stripped:
+			if len(search_stripped) < 3:
+				raise InvalidSearchQueryError(
+					"Search query must be at least 3 characters"
+				)
+			if len(search_stripped) > 200:
+				raise InvalidSearchQueryError(
+					"Search query must be at most 200 characters"
+				)
+			search_query = search_stripped
 
 	category_id = filters.category_id
 
@@ -113,7 +120,7 @@ async def get_products_list(
 		category_id=category_id,
 		filter=crud_filters if crud_filters else None,
 		sort=sort,
-		q=q,
+		q=search_query,
 	)
 
 	if not products:
