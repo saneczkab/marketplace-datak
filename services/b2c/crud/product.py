@@ -1,7 +1,6 @@
 import uuid
 from collections import deque
 from typing import List, Tuple, Optional
-from itertools import product
 
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -227,9 +226,10 @@ async def get_products_list(
 	products = list((await db.execute(query)).scalars().all())
 	total = (await db.execute(count_query)).scalar() or 0
 
-	if hasattr(product, "skus") and product.skus is not None:
-		for sku in product.skus:
-			sku.in_stock = getattr(sku, "active_quantity", 0) > 0
+	for item in products:
+		if item.skus is not None:
+			for sku in item.skus:
+				sku.in_stock = sku.active_quantity > 0
 
 	return products, total
 

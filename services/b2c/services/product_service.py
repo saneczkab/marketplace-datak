@@ -136,13 +136,21 @@ async def get_products_list(
 
 
 async def get_catalog_facets_service(
-	db: AsyncSession,  # noqa
+	db: AsyncSession,
 	category_id: str,
-	raw_query_params: list[tuple[str, str]],  # noqa
+	raw_query_params: list[tuple[str, str]],
 ) -> FacetsResponse:
-	str_category_id = str(category_id)
+	from services.category_service import get_category_facets
 
-	return FacetsResponse(category_id=str_category_id, filters=[], facets=[])
+	parsed = parse_deep_filters(raw_query_params)
+	applied_filters: dict | None = None
+	attributes = parsed.get("attributes")
+	if isinstance(attributes, dict) and attributes:
+		applied_filters = attributes
+
+	return await get_category_facets(
+		db, uuid.UUID(category_id), applied_filters=applied_filters
+	)
 
 
 async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:
