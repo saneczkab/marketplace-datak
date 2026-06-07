@@ -6,6 +6,7 @@ import fastapi
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import HTTPBearer
 from core import db
+from database.models.orders.order import OrderStatusEnum
 from exceptions.order import (
 	AddressNotFoundError,
 	EmptyCartError,
@@ -17,7 +18,12 @@ from exceptions.order import (
 	ReserveFailedError,
 )
 from schemas.cart import CartValidationResponse
-from schemas.order import OrderCancelRequest, OrderCreateRequest, OrderResponse
+from schemas.order import (
+	OrderCancelRequest,
+	OrderCreateRequest,
+	OrderResponse,
+	PaginatedOrders,
+)
 from services import order_service
 
 
@@ -151,4 +157,60 @@ async def cancel_order(
 				"code": "CANCEL_NOT_ALLOWED",
 				"message": "Can't cancel order in this state",
 			},
+		) from err
+
+
+@router.get(
+	"/{order_id}",
+	status_code=200,
+	response_model=OrderResponse,
+)
+async def get_order_by_id_for_buyer(
+	order_id: uuid.UUID,
+	http_request: fastapi.Request,
+	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+) -> OrderResponse:
+	"""Get order by id for buyer. Throws 404 OrderNotFoundError if order not found.
+
+	Args:
+		order_id (uuid.UUID): Order ID
+		http_request (fastapi.Request): HTTP request
+		db_session (Annotated[AsyncSession, fastapi.Depends]): Database session
+
+	Returns:
+		OrderResponse: Order response
+	"""
+	user_id = uuid.UUID(str(getattr(http_request.state, "user_id", None)))
+	try:
+		return await order_service.get_order_by_id_for_buyer(
+			db_session, order_id, user_id
+		)
+	except OrderNotFoundError as err:
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": "Order not found"},
+		) from err
+
+
+@router.get(
+	"",
+	status_code=200,
+	response_model=PaginatedOrders,
+)
+async def get_buyer_orders(
+	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	request: fastapi.Request,
+	limit: Annotated[int, fastapi.Query(ge=1, le=100)] = 20,
+	offset: Annotated[int, fastapi.Query(ge=0)] = 0,
+	status: Annotated[OrderStatusEnum | None, fastapi.Query()] = None,
+) -> PaginatedOrders:
+	user_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	try:
+		return await order_service.get_buyer_orders(
+			db_session, user_id, limit, offset, status
+		)
+	except OrderNotFoundError as err:
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": "Order not found"},
 		) from err

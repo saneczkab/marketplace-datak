@@ -81,19 +81,19 @@ async def add_cart_item(
 			db, user_id, session_id, body.sku_id, body.quantity
 		)
 	except SkuNotFoundError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=404,
-			content={"code": "NOT_FOUND", "message": str(err)},
+			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
 	except SkuUnavailableError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=404,
-			content={"code": "NOT_FOUND", "message": str(err)},
+			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
 	except InsufficientStockError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=409,
-			content={"code": "INSUFFICIENT_STOCK", "message": str(err)},
+			detail={"code": "INSUFFICIENT_STOCK", "message": str(err)},
 		) from err
 
 
@@ -110,24 +110,24 @@ async def update_cart_item(
 			db, user_id, session_id, sku_id, body.quantity
 		)
 	except CartItemNotFoundError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=404,
-			content={"code": "NOT_FOUND", "message": str(err)},
+			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
 	except SkuNotFoundError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=404,
-			content={"code": "NOT_FOUND", "message": str(err)},
+			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
 	except SkuUnavailableError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=404,
-			content={"code": "NOT_FOUND", "message": str(err)},
+			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
 	except InsufficientStockError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=409,
-			content={"code": "INSUFFICIENT_STOCK", "message": str(err)},
+			detail={"code": "INSUFFICIENT_STOCK", "message": str(err)},
 		) from err
 
 
@@ -141,9 +141,9 @@ async def delete_cart_item(
 	try:
 		return await cart_service.remove_cart_item(db, user_id, session_id, sku_id)
 	except CartItemNotFoundError as err:
-		raise JSONResponse(
+		raise fastapi.HTTPException(
 			status_code=404,
-			content={"code": "NOT_FOUND", "message": str(err)},
+			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
 
 
