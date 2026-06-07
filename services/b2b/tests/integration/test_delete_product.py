@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models.catalog.base import Product, ProductStatusEnum
 from database.models.outbox import OutboxEvent, OutboxEventStatus
 from crud.outbox import MODERATION_PRODUCT_DELETED, B2C_PRODUCT_DELETED
-from tests.integration.conftest import CategoryWithProductsData, auth_headers
+from tests.integration.conftest import (
+	CategoryWithProductsData,
+	EditProductData,
+	auth_headers,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -85,6 +89,11 @@ async def test_delete_emits_product_deleted_to_b2c(
 	db_session: AsyncSession,
 ) -> None:
 	product = category_with_products.products[0]
+	expected_sku_ids = [
+		str(sku.id)
+		for sku in category_with_products.skus
+		if sku.product_id == product.id
+	]
 	headers = await auth_headers(product.seller_id, db_session)
 
 	response = await client.delete(
@@ -99,6 +108,7 @@ async def test_delete_emits_product_deleted_to_b2c(
 	assert events[0].payload["event"] == "PRODUCT_DELETED"
 	assert events[0].payload["product_id"] == str(product.id)
 	assert events[0].status == OutboxEventStatus.PENDING
+	assert set(events[0].payload["sku_ids"]) == set(expected_sku_ids)
 
 
 async def test_delete_already_deleted_returns_404(
@@ -142,4 +152,30 @@ async def test_deleted_product_not_in_seller_list(
 	)
 	assert response.status_code == 200
 	body = response.json()
-	assert product.id not in [product["id"] for product in body]
+	assert str(product.id) not in [product["id"] for product in body]
+
+
+async def test_delete_product_no_auth_returns_401(
+	client: AsyncClient,
+	category_with_products: CategoryWithProductsData,
+) -> None:
+	product = category_with_products.products[0]
+	response = await client.delete(
+		f"/api/v1/products/{product.id}",
+	)
+	assert response.status_code == 401
+
+
+async def test_delete_others_product_returns_403(
+	client: AsyncClient,
+	edit_product_data: EditProductData,
+	db_session: AsyncSession,
+) -> None:
+	product = edit_product_data.other_seller_product
+	headers = await auth_headers(edit_product_data.owner.id, db_session)
+
+	response = await client.delete(
+		f"/api/v1/products/{product.id}",
+		headers=headers,
+	)
+	assert response.status_code == 403
