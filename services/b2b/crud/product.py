@@ -4,7 +4,7 @@ from uuid import UUID
 
 from crud import outbox as outbox_crud
 from database.models.catalog.base import Product, ProductStatusEnum
-from database.models.catalog.variants import Characteristic, Sku
+from database.models.catalog.variants import Characteristic
 
 
 async def submit_for_moderation(
@@ -100,16 +100,11 @@ async def update_product(
 	return db_obj
 
 
-async def get_product_skus(db: AsyncSession, product_id: UUID) -> list[Sku]:
-	result = await db.execute(select(Sku).where(Sku.product_id == product_id))
-	return list(result.scalars().all())
-
-
 async def soft_delete_product(db: AsyncSession, db_obj: Product) -> Product:
 	db_obj.deleted = True
 	db_obj.status = ProductStatusEnum.DELETED
 	db.add(db_obj)
-	await db.flush()
+	await db.commit()
 	await db.refresh(db_obj)
 	return db_obj
 

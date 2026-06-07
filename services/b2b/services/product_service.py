@@ -3,7 +3,6 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud import images as images_crud
-from crud import outbox as outbox_crud
 from crud import product as product_crud
 from crud import session as session_crud
 from crud import sku as sku_crud
@@ -185,14 +184,4 @@ async def remove_product(db: AsyncSession, product_id: UUID, seller_id: UUID) ->
 	if product.deleted or product.status == ProductStatusEnum.DELETED:
 		raise ProductAlreadyDeletedError("Product already deleted")
 
-	sku_rows = await product_crud.get_product_skus(db, product.id)
 	await product_crud.soft_delete_product(db, product)
-	await outbox_crud.enqueue_moderation_product_deleted(
-		db, product.id, product.seller_id
-	)
-	await outbox_crud.enqueue_b2c_product_deleted(
-		db,
-		product.id,
-		[sku.id for sku in sku_rows],
-	)
-	await db.commit()
