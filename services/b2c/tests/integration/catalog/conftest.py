@@ -13,6 +13,7 @@ from database.models.catalog.base import (
 	FilterTypeEnum,
 	FilterValues,
 	Product,
+	ProductFilterValue,
 	ProductStatusEnum,
 )
 from database.models.catalog.variants import Sku
@@ -176,8 +177,18 @@ async def category_with_products(
 		id=_fixed_uuid(),
 		product_id=product_2.id,
 		name="Sku 2",
-		price=100,
+		price=200,
 		active_quantity=1,
+	)
+	pfv_1 = ProductFilterValue(
+		id=_fixed_uuid(),
+		product_id=product_1.id,
+		filter_value_id=filter_value_1.id,
+	)
+	pfv_2 = ProductFilterValue(
+		id=_fixed_uuid(),
+		product_id=product_2.id,
+		filter_value_id=filter_value_2.id,
 	)
 
 	db_session.add_all(
@@ -193,6 +204,8 @@ async def category_with_products(
 			sku_2,
 		]
 	)
+	await db_session.flush()
+	db_session.add_all([pfv_1, pfv_2])
 	await db_session.commit()
 	return CategoryWithProductsData(
 		category=category,

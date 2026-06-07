@@ -1,31 +1,90 @@
 import fastapi
-
 import uuid
 from typing import Annotated, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
-import json
 
 from exceptions.banner import BannerNotFoundError, EmptyEventsError
-from exceptions.product import ProductNotFoundError
+from exceptions.product import (
+	InvalidSortError,
+	InvalidSearchQueryError,
+	ProductNotFoundError,
+)
+from exceptions.category import CategoryNotFoundError, CategoryHierarchyError
 from schemas.banner import Banner, BannerEventsRequest
-from schemas.catalog import CatalogProductCard, CategoryRef, CategoryTreeNode
+from schemas.catalog import (
+	CatalogProductCard,
+	CategoryRef,
+	CategoryTreeNode,
+	PaginatedCatalogProducts,
+)
 from schemas.category import CategoryInfoResponse, FacetsResponse, FilterResponse
-from exceptions.category import CategoryNotFoundError
-from core import db
-
 
 from schemas.collection import Collection
-from schemas.product import ProductShortListResponse
 from services import (
 	banner_service,
-	category_service,
 	collection_service,
 	product_service,
+	category_service,
 )
 from core.db import get_db
 
 router = fastapi.APIRouter(prefix="/api/v1/catalog")
+
+
+class JsonFilterExtractor:
+	def __init__(
+		self,  # noqa
+		request: Request,
+		filter: Annotated[
+			Optional[str],
+			fastapi.Query(
+				description="Фильтрация по параметрам",
+				json_schema_extra={
+					"type": "object",
+					"properties": {
+						"category_id": {
+							"type": "string",
+							"format": "uuid",
+							"default": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+						},
+						"price_min": {"type": "integer", "default": 0},
+						"price_max": {"type": "integer", "default": 0},
+						"seller_id": {
+							"type": "string",
+							"format": "uuid",
+							"default": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+						},
+						"attributes": {
+							"type": "object",
+							"properties": {
+								"additionalProp1": {
+									"type": "string",
+									"default": "string",
+								},
+								"additionalProp2": {
+									"type": "string",
+									"default": "string",
+								},
+								"additionalProp3": {
+									"type": "string",
+									"default": "string",
+								},
+							},
+							"default": {
+								"additionalProp1": "string",
+								"additionalProp2": "string",
+								"additionalProp3": "string",
+							},
+						},
+					},
+				},
+			),
+		] = None,
+	) -> None:
+		self.params = product_service.parse_catalog_filters(
+			query_params=request.query_params.multi_items(), filter_str=filter
+		)
 
 
 @router.get("/categories/tree", response_model=list[CategoryTreeNode])
@@ -35,10 +94,10 @@ async def get_categories_tree(
 	"""Get categories tree
 
 	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
+	    db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
 	Returns:
-		list[CategoryTreeNode]: Categories tree
+	    list[CategoryTreeNode]: Categories tree
 	"""
 	try:
 		return await category_service.get_categories_tree(db)
@@ -58,10 +117,10 @@ async def get_categories_flat(
 	"""Get flat categories
 
 	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
+	    db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
 	Returns:
-		list[CategoryRef]: Flat categories
+	    list[CategoryRef]: Flat categories
 	"""
 	try:
 		return await category_service.get_categories_flat(db)
@@ -78,12 +137,12 @@ async def get_category_info(
 	"""Get category info
 
 	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
-		category_id (str): Category ID
-		include_product_count (bool, optional): Include product count
+	    db (Annotated[AsyncSession, fastapi.Depends]): Database session
+	    category_id (str): Category ID
+	    include_product_count (bool, optional): Include product count
 
 	Returns:
-		CategoryInfoResponse: Category info
+	    CategoryInfoResponse: Category info
 	"""
 	try:
 		return await category_service.get_category_info(
@@ -111,11 +170,11 @@ async def get_category_filters(
 	"""Get category filters
 
 	Args:
-		db (Annotated[AsyncSession, fastapi.Depends]): Database session
-		category_id (str): Category ID
+	    db (Annotated[AsyncSession, fastapi.Depends]): Database session
+	    category_id (str): Category ID
 
 	Returns:
-		FilterResponse: Category filters
+	    FilterResponse: Category filters
 	"""
 	try:
 		return await category_service.get_category_filters(db, category_id)
@@ -133,39 +192,28 @@ async def get_category_filters(
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
-# @router.get("/facets")
+@router.get("/facets", response_model=FacetsResponse)
 async def get_facets(
 	request: Request,
-	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	category_id: uuid.UUID,
-	filters: str | None = None,
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 ) -> FacetsResponse:
 	try:
-		qp = request.query_params
-		deep: dict = {}
-		for k, v in qp.multi_items():
-			if k.startswith("filters[") and k.endswith("]"):
-				inner = k[len("filters[") : -1]
-				if inner in deep:
-					if isinstance(deep[inner], list):
-						deep[inner].append(v)
-					else:
-						deep[inner] = [deep[inner], v]
-				else:
-					deep[inner] = v
-
-		filters_param = json.dumps(deep, ensure_ascii=False) if deep else filters
-
-		return await category_service.get_category_facets(
-			db_session, category_id, filters_param
+		facets_data = await product_service.get_catalog_facets_service(
+			db, str(category_id), request.query_params.multi_items()
 		)
+		return facets_data
 	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=404, detail={"code": "CATEGORY_NOT_FOUND", "message": str(e)}
+		) from e
+	except CategoryHierarchyError as e:
+		raise fastapi.HTTPException(
+			status_code=400,
+			detail={"code": "CATEGORY_HIERARCHY_ERROR", "message": str(e)},
+		) from e
 	except Exception as e:
-		import traceback
-
-		traceback.print_exc()
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/collections", response_model=list[Collection])
@@ -182,10 +230,10 @@ async def get_banners(
 	"""Get active banners
 
 	Args:
-	    db (Annotated[AsyncSession, fastapi.Depends]): Database session
+	        db (Annotated[AsyncSession, fastapi.Depends]): Database session
 
 	Returns:
-	    list[Banner]: List of active banners
+	        list[Banner]: List of active banners
 	"""
 	return await banner_service.get_active_banners(db)
 
@@ -217,7 +265,7 @@ async def post_banner_events(
 	response_model=list[CatalogProductCard],
 )
 async def get_similar_products_api(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 	product_id: uuid.UUID,
 	limit: Annotated[int, fastapi.Query(ge=1, le=50)] = 10,
 ) -> list[CatalogProductCard]:
@@ -232,37 +280,30 @@ async def get_similar_products_api(
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/products", response_model=ProductShortListResponse)
+@router.get("/products", response_model=PaginatedCatalogProducts)
 async def get_product_list_api(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	category_id: Optional[uuid.UUID] = None,
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
 	limit: int = 20,
 	offset: int = 0,
-	filter: Optional[str] = None,
-	sort: str = "popularity",
-	q: str = None,
-) -> ProductShortListResponse:
-	filters_param = None
-	if filter:
-		try:
-			filters_obj = json.loads(filter)
-			filters_param = json.dumps(filters_obj, ensure_ascii=False)
-		except json.JSONDecodeError as e:
-			raise fastapi.HTTPException(
-				status_code=400, detail="Invalid JSON in filters parameter"
-			) from e
-
+	q: Optional[str] = None,
+	sort: Annotated[
+		str, fastapi.Query(enum=["price_asc", "price_desc", "popularity", "new"])
+	] = "popularity",
+	filter_extractor: JsonFilterExtractor = fastapi.Depends(),  # noqa
+) -> PaginatedCatalogProducts:
 	try:
+		filters_obj = filter_extractor.params
 		return await product_service.get_products_list(
 			db,
 			limit,
 			offset,
-			str(category_id) if category_id else None,
-			filters_param,
+			filters_obj,
 			sort,
 			q,
 		)
-	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+	except (InvalidSortError, InvalidSearchQueryError) as e:
+		raise fastapi.HTTPException(
+			status_code=400, detail={"code": "INVALID_REQUEST", "message": str(e)}
+		) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e

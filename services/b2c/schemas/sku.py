@@ -13,6 +13,7 @@ class Sku(BaseModel):
 	id: uuid.UUID
 	name: str
 	price: float
+	in_stock: bool
 	quantity: int = Field(alias="active_quantity")
 	characteristics: list[Characteristic]
 	images: list[Image]
