@@ -196,4 +196,3 @@ async def remove_product(db: AsyncSession, product_id: UUID, seller_id: UUID) ->
 		[sku.id for sku in sku_rows],
 	)
 	await db.commit()
-	return None
