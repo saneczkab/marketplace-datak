@@ -165,7 +165,7 @@ async def get_pending_event_by_id(
 	event = await db.get(OutboxEvent, event_id)
 	if event is None or event.status != OutboxEventStatus.PENDING:
 		return None
-	return OutboxEvent if False else event
+	return event
 
 
 async def mark_event_sent(db: AsyncSession, event: OutboxEvent) -> None:

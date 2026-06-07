@@ -174,9 +174,7 @@ async def patch_existing_product(
 	return build_product_response(updated_product)
 
 
-async def remove_product(
-	db: AsyncSession, product_id: UUID, seller_id: UUID
-) -> dict[str, str]:
+async def remove_product(db: AsyncSession, product_id: UUID, seller_id: UUID) -> None:
 	product = await product_crud.get_product_by_id_only(db, product_id)
 	if not product:
 		raise ProductNotFoundError("Product not found")
@@ -198,5 +196,4 @@ async def remove_product(
 		[sku.id for sku in sku_rows],
 	)
 	await db.commit()
-
-	return {"ok": True}
+	return None
