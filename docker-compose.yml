@@ -1,6 +1,7 @@
 include:
   - path: ./services/b2b/docker-compose.yml
   - path: ./services/b2c/docker-compose.yml
+  - path: ./services/moderation/docker-compose.yml
 
 services:
   rabbitmq:
