@@ -13,6 +13,7 @@ PublishFn = Callable[[str, dict], Awaitable[None]]
 
 MODERATION_PRODUCT_CREATED = "moderation.product.created"
 B2C_EVENT_ROUTING_KEY = "b2c.events"
+PRODUCT_BLOCKED_EVENT_TYPE = "PRODUCT_BLOCKED"
 
 
 def build_moderation_product_created_payload(
@@ -42,6 +43,35 @@ async def enqueue_b2c_event(db: AsyncSession, message: dict) -> OutboxEvent:
 	db.add(outbox_event)
 	await db.flush()
 	return outbox_event
+
+
+def build_product_blocked_payload(
+	product_id: UUID,
+	sku_ids: list[UUID],
+	occurred_at: datetime | None = None,
+) -> dict:
+	when = occurred_at or datetime.now(timezone.utc)
+	if when.tzinfo is None:
+		when = when.replace(tzinfo=timezone.utc)
+	return {
+		"event_type": PRODUCT_BLOCKED_EVENT_TYPE,
+		"idempotency_key": str(uuid.uuid4()),
+		"occurred_at": when.isoformat().replace("+00:00", "Z"),
+		"payload": {
+			"product_id": str(product_id),
+			"sku_ids": [str(sku_id) for sku_id in sku_ids],
+		},
+	}
+
+
+async def enqueue_product_blocked(
+	db: AsyncSession,
+	product_id: UUID,
+	sku_ids: list[UUID],
+	occurred_at: datetime | None = None,
+) -> OutboxEvent:
+	message = build_product_blocked_payload(product_id, sku_ids, occurred_at)
+	return await enqueue_b2c_event(db, message)
 
 
 async def enqueue_moderation_product_created(

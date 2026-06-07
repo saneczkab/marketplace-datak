@@ -409,6 +409,51 @@ async def view_product_data(db_session: AsyncSession) -> ViewProductData:
 
 PUBLIC_CATALOG_SERVICE_KEY_HEADERS = {"X-Service-Key": "test-b2c-service-key"}
 INVENTORY_SERVICE_KEY_HEADERS = PUBLIC_CATALOG_SERVICE_KEY_HEADERS
+MODERATION_SERVICE_KEY_HEADERS = {"X-Service-Key": "test-moderation-service-key"}
+
+
+@dataclass(frozen=True, slots=True)
+class ModerationEventData:
+	seller: Seller
+	product: Product
+	sku: Sku
+	blocked_product: Product
+
+
+@pytest.fixture()
+async def moderation_event_data(db_session: AsyncSession) -> ModerationEventData:
+	seller: Seller = SellerFactory.build()
+	db_session.add(seller)
+	await db_session.flush()
+
+	category = CategoryFactory.build()
+	db_session.add(category)
+	await db_session.flush()
+
+	product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.ON_MODERATION,
+	)
+	blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.ON_MODERATION,
+	)
+	db_session.add_all([product, blocked_product])
+	await db_session.flush()
+
+	sku = SkuFactory.build(product_id=product.id)
+	blocked_sku = SkuFactory.build(product_id=blocked_product.id)
+	db_session.add_all([sku, blocked_sku])
+	await db_session.commit()
+
+	return ModerationEventData(
+		seller=seller,
+		product=product,
+		sku=sku,
+		blocked_product=blocked_product,
+	)
 
 
 @dataclass(frozen=True, slots=True)
