@@ -52,4 +52,6 @@ async def get_breadcrumbs(
 		) from e
 
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=503, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e

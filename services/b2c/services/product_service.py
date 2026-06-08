@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.product as product_crud
 import crud.category as category_crud
 import crud.review as review_crud
-from database.models import Sku
+from database.models import Sku, ProductStatusEnum
 from exceptions.product import (
 	ProductNotFoundError,
 	InvalidSortError,
@@ -18,8 +18,11 @@ from exceptions.product import (
 )
 from schemas.catalog import CatalogProductCard, PaginatedCatalogProducts
 from schemas.product import (
-	Product,
 	ProductFilterParams,
+	ProductCard,
+	ProductCardImage,
+	ProductCardSku,
+	ProductCardCharacteristic,
 )
 from services.schemas_builder import build_catalog_product_cards
 from schemas.sku import SkuShort
@@ -160,11 +163,45 @@ async def get_catalog_facets_service(
 	)
 
 
-async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:
+async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> ProductCard:
 	product = await product_crud.get_product_full(db, id)
 	if not product:
 		raise ProductNotFoundError("Product not found")
-	return Product.model_validate(product)
+	if product.status != ProductStatusEnum.MODERATED or product.deleted:
+		raise ProductNotFoundError("Product not found")
+
+	images = sorted(product.images or [], key=lambda img: img.ordering)
+	characteristics = [
+		ProductCardCharacteristic(name=c.name, value=c.value)
+		for c in (product.characteristics or [])
+	]
+	skus = [
+		ProductCardSku(
+			id=sku.id,
+			name=sku.name,
+			price=sku.price,
+			discount=sku.discount,
+			active_quantity=sku.active_quantity,
+			in_stock=sku.active_quantity > 0,
+			image=sku.images[0].url if sku.images else None,
+			characteristics=[
+				ProductCardCharacteristic(name=c.name, value=c.value)
+				for c in (sku.characteristics or [])
+			],
+		)
+		for sku in (product.skus or [])
+	]
+
+	return ProductCard(
+		id=product.id,
+		slug=product.slug,
+		title=product.title,
+		description=product.description,
+		images=[ProductCardImage(url=img.url, ordering=img.ordering) for img in images],
+		status=product.status,
+		characteristics=characteristics,
+		skus=skus,
+	)
 
 
 async def get_similar_products(

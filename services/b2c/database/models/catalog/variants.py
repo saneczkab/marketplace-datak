@@ -34,7 +34,7 @@ class Sku(Base):
 	)
 	name: Mapped[str] = mapped_column(String(255))
 	price: Mapped[int] = mapped_column(BigInteger)
-	discount: Mapped[int] = mapped_column(default=0, server_default="0")
+	discount: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
 	active_quantity: Mapped[int] = mapped_column(default=0, server_default="0")
 	reserved_quantity: Mapped[int] = mapped_column(default=0, server_default="0")
 	created_at: Mapped[datetime] = mapped_column(

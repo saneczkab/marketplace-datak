@@ -28,6 +28,9 @@ check:
 test:
 	uv run python -m pytest -q
 
+test-k:
+	uv run python -m pytest -q -k "$(k)"
+
 seed:
 	docker-compose exec b2c-backend uv run python ./scripts/seed.py
 
