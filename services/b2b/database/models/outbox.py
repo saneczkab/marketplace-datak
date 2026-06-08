@@ -16,7 +16,7 @@ class OutboxEventStatus(str, enum.Enum):
 
 class OutboxEvent(Base):
 	__tablename__ = "outbox_events"
-	__table_args__ = {"schema": "catalog"}
+	__table_args__ = {"schema": "events"}
 
 	id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")

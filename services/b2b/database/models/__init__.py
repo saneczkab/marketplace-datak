@@ -7,6 +7,7 @@ from database.models.catalog.inventory_operations import (
 )
 from database.models.identity.identity import Seller, Session
 from database.models.outbox import OutboxEvent, OutboxEventStatus
+from database.models.inbox import InboxEvent, InboxEventStatusEnum
 
 __all__ = [
 	"Sku",
@@ -23,4 +24,6 @@ __all__ = [
 	"OutboxEventStatus",
 	"InventoryReserveOperation",
 	"InventoryUnreserveOperation",
+	"InboxEvent",
+	"InboxEventStatusEnum",
 ]
