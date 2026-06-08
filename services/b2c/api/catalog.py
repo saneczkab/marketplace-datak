@@ -52,7 +52,9 @@ async def get_categories_tree(
 			detail={"code": "NOT_FOUND", "message": str(e)},
 		) from e
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=503, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/categories", response_model=list[CategoryRef])
@@ -70,7 +72,9 @@ async def get_categories_flat(
 	try:
 		return await category_service.get_categories_flat(db)
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=503, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/categories/{category_id}", response_model=CategoryInfoResponse)
@@ -104,7 +108,9 @@ async def get_category_info(
 			detail={"code": "NOT_FOUND", "message": str(e)},
 		) from e
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=503, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/categories/{category_id}/filters", response_model=FilterResponse)
@@ -134,7 +140,9 @@ async def get_category_filters(
 			detail={"code": "NOT_FOUND", "message": str(e)},
 		) from e
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=503, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/facets")
@@ -164,12 +172,13 @@ async def get_facets(
 			db_session, category_id, filters_param
 		)
 	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=404, detail={"code": "NOT_FOUND", "message": str(e)}
+		) from e
 	except Exception as e:
-		import traceback
-
-		traceback.print_exc()
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=503, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/collections", response_model=list[Collection])
@@ -233,7 +242,9 @@ async def get_similar_products_api(
 			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=500, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/products", response_model=ProductShortListResponse)
@@ -253,7 +264,8 @@ async def get_product_list_api(
 			filters_param = json.dumps(filters_obj, ensure_ascii=False)
 		except json.JSONDecodeError as e:
 			raise fastapi.HTTPException(
-				status_code=400, detail="Invalid JSON in filters parameter"
+				status_code=400,
+				detail={"code": "BAD_REQUEST", "message": "Invalid JSON in filters parameter"},
 			) from e
 
 	try:
@@ -267,6 +279,10 @@ async def get_product_list_api(
 			q,
 		)
 	except (ValueError, SearchQueryTooShortError, InvalidFiltersError) as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=500, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e

@@ -29,13 +29,17 @@ async def register(
 	try:
 		return await auth_service.register(data, db)
 	except UserAlreadyExistsError as e:  # noqa
-		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=409, detail={"code": "CONFLICT", "message": str(e)}
+		) from e
 	except UserPasswordTooWeakError as e:
 		raise fastapi.HTTPException(
-			status_code=400, detail="Password is too weak"
+			status_code=400, detail={"code": "WEAK_PASSWORD", "message": "Password is too weak"}
 		) from e
 	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 
 
 @router.post("/login")
@@ -58,11 +62,17 @@ async def login(
 	try:
 		return await auth_service.login(data, db, x_session_id)
 	except (ValidationError, UserNotFoundError, UserInvalidPasswordError) as e:  # noqa
-		raise fastapi.HTTPException(status_code=400, detail="Invalid login data") from e
+		raise fastapi.HTTPException(
+			status_code=400, detail={"code": "INVALID_CREDENTIALS", "message": "Invalid login data"}
+		) from e
 	except UserLoginConflictError as e:
-		raise fastapi.HTTPException(status_code=409, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=409, detail={"code": "CONFLICT", "message": str(e)}
+		) from e
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=500, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/me")
@@ -74,7 +84,9 @@ async def get_session_info(
 	try:
 		return await auth_service.get_session_info(token, db)
 	except SessionNotFoundError as e:
-		raise fastapi.HTTPException(status_code=401, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=401, detail={"code": "UNAUTHORIZED", "message": str(e)}
+		) from e
 
 
 @router.post("/logout")
@@ -86,7 +98,9 @@ async def logout(
 	try:
 		await auth_service.logout(token, db)
 	except SessionNotFoundError as e:
-		raise fastapi.HTTPException(status_code=401, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=401, detail={"code": "UNAUTHORIZED", "message": str(e)}
+		) from e
 
 
 @router.post("/refresh")
@@ -96,6 +110,10 @@ async def refresh(
 	try:
 		return await auth_service.refresh_session(refresh_token, db)
 	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 	except SessionNotFoundError as e:
-		raise fastapi.HTTPException(status_code=401, detail=f"{e}") from e
+		raise fastapi.HTTPException(
+			status_code=401, detail={"code": "UNAUTHORIZED", "message": str(e)}
+		) from e

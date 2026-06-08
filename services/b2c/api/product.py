@@ -39,9 +39,13 @@ async def get_product_list_api(
 			search,
 		)
 	except (InvalidFiltersError, SearchQueryTooShortError, ValueError) as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=500, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
 
 
 @router.get("/{product_id}/skus/{sku_id}", response_model=SkuSchema)
@@ -61,7 +65,9 @@ async def get_sku_by_id_api(
 		sku = await sku_service.get_sku_by_id(db, sku_id)
 		return SkuSchema.model_validate(sku)
 	except SkuNotFoundError as err:
-		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
+		raise fastapi.HTTPException(
+			status_code=404, detail={"code": "NOT_FOUND", "message": str(err)}
+		) from err
 
 
 @router.get("/{product_id}/skus", response_model=list[SkuShortSchema])
@@ -80,7 +86,9 @@ async def get_product_skus_short_api(
 		skus_validated = (SkuShortSchema.model_validate(sku) for sku in skus)
 		return list(skus_validated)
 	except ProductNotFoundError as err:
-		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
+		raise fastapi.HTTPException(
+			status_code=404, detail={"code": "NOT_FOUND", "message": str(err)}
+		) from err
 
 
 @router.get("/{id}", response_model=ProductCard)
@@ -90,6 +98,10 @@ async def get_product_api(
 	try:
 		return await product_service.get_product_by_id(db, id)
 	except ProductNotFoundError as err:
-		raise fastapi.HTTPException(status_code=404, detail=str(err)) from err
+		raise fastapi.HTTPException(
+			status_code=404, detail={"code": "NOT_FOUND", "message": str(err)}
+		) from err
 	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=500, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
