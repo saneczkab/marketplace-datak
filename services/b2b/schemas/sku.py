@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, ConfigDict
-from uuid import UUID
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CharacteristicSchema(BaseModel):
@@ -20,13 +21,43 @@ class ImageSchema(BaseModel):
 	model_config = ConfigDict(from_attributes=True)
 
 
+class ImageAttachRequest(BaseModel):
+	image_id: Optional[UUID] = None
+	url: str = Field(..., min_length=1)
+	ordering: int = 0
+
+
+class SkuImageCreate(BaseModel):
+	url: str = Field(..., min_length=1)
+	ordering: int = 0
+
+
+class SkuImageResponse(BaseModel):
+	id: UUID
+	url: str
+	ordering: int
+
+	model_config = ConfigDict(from_attributes=True)
+
+
 class SkuCreate(BaseModel):
 	product_id: UUID
-	name: str
-	price: int
-	active_quantity: int = 0
-	characteristics: Optional[List[CharacteristicSchema]] = []
-	images: Optional[List[ImageSchema]] = []
+	name: str = Field(..., min_length=1, max_length=255)
+	price: int = Field(..., ge=0)
+	discount: int = Field(default=0, ge=0)
+	cost_price: Optional[int] = Field(default=None, ge=0)
+	article: Optional[str] = None
+	images: List[SkuImageCreate] = []
+	characteristics: List[CharacteristicSchema] = []
+
+
+class SkuUpdate(BaseModel):
+	name: Optional[str] = Field(None, min_length=1, max_length=255)
+	price: Optional[int] = Field(None, ge=0)
+	discount: Optional[int] = Field(None, ge=0)
+	cost_price: Optional[int] = Field(None, ge=0)
+	article: Optional[str] = None
+	characteristics: Optional[List[CharacteristicSchema]] = None
 
 
 class SkuResponse(BaseModel):
@@ -34,11 +65,15 @@ class SkuResponse(BaseModel):
 	product_id: UUID
 	name: str
 	price: int
-	active_quantity: int = Field(serialization_alias="activeQuantity")
+	discount: int = 0
+	cost_price: Optional[int] = None
+	stock_quantity: int = 0
+	active_quantity: int = 0
+	reserved_quantity: int = 0
+	article: Optional[str] = None
+	characteristics: List[CharacteristicSchema] = []
+	images: List[ImageSchema] = []
 	created_at: datetime
 	updated_at: datetime
 
-	characteristics: List[CharacteristicSchema] = []
-	images: List[ImageSchema] = []
-
-	model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+	model_config = ConfigDict(from_attributes=True)

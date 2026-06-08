@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, String, Text, DateTime, ForeignKey, Index, text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from database.core import Base
 
@@ -35,10 +35,16 @@ class Product(Base):
 		default=ProductStatusEnum.CREATED, server_default="CREATED"
 	)
 	deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-	blocked_reason_id: Mapped[uuid.UUID] = mapped_column(
+	blocked_reason_id: Mapped[uuid.UUID | None] = mapped_column(
 		UUID, nullable=True, server_default=None
 	)
-	moderator_comment: Mapped[str] = mapped_column(String(1000))
+	blocking_reason_title: Mapped[str | None] = mapped_column(
+		String(255), nullable=True
+	)
+	moderator_comment: Mapped[str] = mapped_column(
+		String(1000), default="", server_default=""
+	)
+	field_reports: Mapped[list] = mapped_column(JSONB, server_default="[]")
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)

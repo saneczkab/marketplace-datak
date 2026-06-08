@@ -1,17 +1,26 @@
+import uuid
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from core.db import get_db
+from exceptions.product import (
+	ProductForbiddenError,
+	ProductNotFoundError,
+	ProductNotOwnerError,
+)
 from schemas.product import (
 	ProductCreate,
+	ProductDetailResponse,
 	ProductResponse,
-	ProductUpdate,
 	ProductSellerRead,
+	ProductUpdate,
 )
 from services import product_service
-from uuid import UUID
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 router = APIRouter(prefix="/products", tags=["B2B Products"])
 security = HTTPBearer()
@@ -22,49 +31,88 @@ async def create_product(
 	product_in: ProductCreate,
 	db: Annotated[AsyncSession, Depends(get_db)],
 	credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-) -> ProductSellerRead:
+) -> ProductResponse:
 	seller_id = credentials.credentials
 	try:
 		return await product_service.create_new_product(db, product_in, seller_id)
 	except ValidationError as e:
-		raise HTTPException(status_code=422, detail=f"{e}") from e
+		raise HTTPException(
+			status_code=422,
+			detail={"code": "VALIDATION_ERROR", "message": "Request validation failed"},
+		) from e
 	except Exception as e:
-		raise HTTPException(status_code=500, detail=f"{e}") from e
+		raise HTTPException(
+			status_code=500,
+			detail={"code": "INTERNAL_ERROR", "message": "Internal server error"},
+		) from e
 
 
 @router.get("/", response_model=list[ProductSellerRead])
 async def get_my_products(
+	request: Request,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
 ) -> list[ProductSellerRead]:
-	return await product_service.get_all_seller_products(db, seller_id)
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	products = await product_service.get_all_seller_products(db, seller_id)
+	return [ProductSellerRead.model_validate(p) for p in products]
 
 
-@router.get("/{product_id}", response_model=ProductSellerRead)
+@router.get("/{product_id}", response_model=ProductDetailResponse)
 async def get_product(
+	request: Request,
 	product_id: UUID,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
-) -> ProductSellerRead:
-	return await product_service.get_product_for_seller(db, product_id, seller_id)
+) -> ProductDetailResponse:
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	try:
+		return await product_service.get_product_for_seller(db, product_id, seller_id)
+	except ProductNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
 
 
-@router.patch("/{product_id}", response_model=ProductSellerRead)
+@router.patch("/{product_id}", response_model=ProductResponse)
 async def patch_product(
+	request: Request,
 	product_id: UUID,
 	product_in: ProductUpdate,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
-) -> ProductSellerRead:
-	return await product_service.patch_existing_product(
-		db, product_id, seller_id, product_in
-	)
+) -> ProductResponse:
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	try:
+		return await product_service.patch_existing_product(
+			db, product_id, seller_id, product_in
+		)
+	except ProductNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+	except ProductForbiddenError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "FORBIDDEN", "message": str(e)},
+		) from e
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_200_OK)
 async def delete_product(
+	request: Request,
 	product_id: UUID,
 	db: Annotated[AsyncSession, Depends(get_db)],
-	seller_id: UUID,
 ) -> dict[str, str]:
-	return await product_service.remove_product(db, product_id, seller_id)
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	try:
+		return await product_service.remove_product(db, product_id, seller_id)
+	except ProductNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e

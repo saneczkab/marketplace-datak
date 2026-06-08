@@ -18,6 +18,12 @@ class settings(BaseSettings):  # noqa
 	RABBITMQ_PORT: str
 	RABBITMQ_USER: str
 	RABBITMQ_PASSWORD: str
+	RABBITMQ_EXCHANGE: str
+
+	OUTBOX_WORKER_ENABLED: bool
+	OUTBOX_POLL_INTERVAL_SECONDS: float
+
+	B2C_SERVICE_KEY: str = ""
 
 	model_config = {"env_file": ".env", "extra": "allow"}
 
