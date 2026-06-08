@@ -52,9 +52,9 @@ class Filter(BaseModel):
 	slug: str
 	name: str
 	type: FilterTypesEnum
-	value: str | float
-	min: float | None
-	max: float | None
+	value: list[str] | None = None
+	min: float | None = None
+	max: float | None = None
 
 
 class FilterResponse(BaseModel):

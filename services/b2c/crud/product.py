@@ -62,7 +62,11 @@ async def get_product_skus(
 		.where(Sku.product_id == product_id)
 		.options(selectinload(Sku.images))
 	)
-	return list(result.scalars().all())
+	skus = list(result.scalars().all())
+	for sku in skus:
+		sku.in_stock = sku.active_quantity > 0
+
+	return skus
 
 
 async def get_products_list(
@@ -74,7 +78,9 @@ async def get_products_list(
 	sort: str,
 	q: Optional[str],
 ) -> Tuple[List[Product], int]:
-	query = select(Product).options(selectinload(Product.images))
+	query = select(Product).options(
+		selectinload(Product.images), selectinload(Product.skus)
+	)
 	count_query = select(func.count(func.distinct(Product.id)))
 
 	# Условие видимости: status = MODERATED AND active_quantity > 0
@@ -96,11 +102,80 @@ async def get_products_list(
 		count_query = count_query.where(Product.category_id.in_(category_ids))
 
 	if filter:
-		for key, value in filter.items():
-			column = getattr(Product, key, None)
-			if column is not None:
-				query = query.where(column == value)
-				count_query = count_query.where(column == value)
+		from database.models.catalog.base import (
+			CategoryFilters,
+			FilterValues,
+			ProductFilterValue,
+		)
+
+		seller_id = filter.get("seller_id")
+		if seller_id:
+			query = query.where(Product.seller_id == seller_id)
+			count_query = count_query.where(Product.seller_id == seller_id)
+
+		price_min = filter.get("price_min")
+		if price_min is not None:
+			query = query.where(
+				Product.id.in_(select(Sku.product_id).where(Sku.price >= price_min))
+			)
+			count_query = count_query.where(
+				Product.id.in_(select(Sku.product_id).where(Sku.price >= price_min))
+			)
+
+		price_max = filter.get("price_max")
+		if price_max is not None:
+			query = query.where(
+				Product.id.in_(select(Sku.product_id).where(Sku.price <= price_max))
+			)
+			count_query = count_query.where(
+				Product.id.in_(select(Sku.product_id).where(Sku.price <= price_max))
+			)
+
+		attributes = filter.get("attributes")
+		if attributes:
+			for attr_key, attr_value in attributes.items():
+				if attr_value is None or attr_value == "":
+					continue
+
+				values = attr_value if isinstance(attr_value, list) else [attr_value]
+				filter_id = None
+
+				try:
+					filter_id = uuid.UUID(str(attr_key))
+				except ValueError:
+					conditions = [CategoryFilters.slug == str(attr_key)]
+					if category_id:
+						conditions.append(CategoryFilters.category_id == category_id)
+					query_result = await db.execute(
+						select(CategoryFilters.id).where(*conditions)
+					)
+					filter_id = query_result.scalar()
+
+				if not filter_id:
+					query = query.where(False)
+					count_query = count_query.where(False)
+					break
+
+				res = await db.execute(
+					select(FilterValues.id).where(
+						FilterValues.filter_id == filter_id,
+						FilterValues.value.in_(values),
+					)
+				)
+				fv_ids = res.scalars().all()
+
+				if not fv_ids:
+					query = query.where(False)
+					count_query = count_query.where(False)
+					break
+
+				condition = Product.id.in_(
+					select(ProductFilterValue.product_id).where(
+						ProductFilterValue.filter_value_id.in_(fv_ids)
+					)
+				)
+				query = query.where(condition)
+				count_query = count_query.where(condition)
 
 	if q:
 		search_val = q.strip()
@@ -151,13 +226,20 @@ async def get_products_list(
 	products = list((await db.execute(query)).scalars().all())
 	total = (await db.execute(count_query)).scalar() or 0
 
+	for item in products:
+		if item.skus is not None:
+			for sku in item.skus:
+				sku.in_stock = sku.active_quantity > 0
+
 	return products, total
 
 
 async def get_product_full(db: AsyncSession, id: uuid.UUID) -> Optional[Product]:
 	stmt = (
 		select(Product)
-		.where(Product.id == id)
+		.where(
+			Product.id == id,
+		)
 		.options(
 			selectinload(Product.images),
 			selectinload(Product.characteristics),
@@ -165,7 +247,17 @@ async def get_product_full(db: AsyncSession, id: uuid.UUID) -> Optional[Product]
 			selectinload(Product.skus).selectinload(Sku.characteristics),
 		)
 	)
-	return (await db.execute(stmt)).scalar_one_or_none()
+	product = (await db.execute(stmt)).scalar_one_or_none()
+
+	if product and (product.status != ProductStatusEnum.MODERATED or product.deleted):
+		return None
+
+	if product:
+		if hasattr(product, "skus") and product.skus is not None:
+			for sku in product.skus:
+				sku.in_stock = getattr(sku, "active_quantity", 0) > 0
+
+	return product
 
 
 async def _fetch_similar_products_batch(
@@ -206,7 +298,6 @@ async def get_similar_products(
 	exclude_id: uuid.UUID,
 	limit: int,
 ) -> list[Product]:
-
 	exclude_ids = {exclude_id}
 	category_ids = await get_category_descendants(db, category_id)
 	products = await _fetch_similar_products_batch(db, category_ids, exclude_ids, limit)

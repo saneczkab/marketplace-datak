@@ -4,11 +4,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
 from exceptions.product import (
+	ProductAlreadyDeletedError,
 	ProductForbiddenError,
 	ProductNotFoundError,
 	ProductNotOwnerError,
@@ -22,8 +24,12 @@ from schemas.product import (
 )
 from services import product_service
 
-router = APIRouter(prefix="/products", tags=["B2B Products"])
 security = HTTPBearer()
+router = APIRouter(
+	prefix="/products",
+	tags=["B2B Products"],
+	dependencies=[Depends(security)],
+)
 
 
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
@@ -102,17 +108,22 @@ async def patch_product(
 		) from e
 
 
-@router.delete("/{product_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
 	request: Request,
 	product_id: UUID,
 	db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict[str, str]:
+) -> None:
 	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
-		return await product_service.remove_product(db, product_id, seller_id)
-	except ProductNotFoundError as e:
+		await product_service.remove_product(db, product_id, seller_id)
+	except (ProductNotFoundError, ProductAlreadyDeletedError) as e:
 		raise HTTPException(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
 		) from e

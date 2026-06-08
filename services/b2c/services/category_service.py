@@ -25,8 +25,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud.category as category_crud
 import crud.product as product_crud
-from database.models.catalog.base import Category
+from database.models.catalog.base import Category, FilterTypeEnum
 from services.schemas_builder import build_category_ref
+
+
+def _filter_type_to_schema(filter_type: FilterTypeEnum | str) -> FilterTypesEnum:
+	raw = (
+		filter_type.value
+		if isinstance(filter_type, FilterTypeEnum)
+		else str(filter_type)
+	)
+	return FilterTypesEnum(raw.lower())
+
 
 # Cache file path
 CACHE_DIR = Path("cache")
@@ -216,16 +226,17 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 
 	filters_schemas = [
 		Filter(
-			id=filter.id,
-			name=filter.name,
-			type=filter.type,
-			value=await category_crud.get_filter_values(db, filter.id)
-			if filter.type == "LIST"
+			id=filter_item.id,
+			slug=filter_item.slug,
+			name=filter_item.name,
+			type=_filter_type_to_schema(filter_item.type),
+			value=await category_crud.get_filter_values(db, filter_item.id)
+			if filter_item.type == FilterTypeEnum.LIST or filter_item.type == "LIST"
 			else None,
-			min=filter.min,
-			max=filter.max,
+			min=filter_item.min,
+			max=filter_item.max,
 		)
-		for filter in filters
+		for filter_item in filters
 	]
 
 	return FilterResponse(items=filters_schemas)
@@ -234,11 +245,8 @@ async def get_category_filters(db: AsyncSession, category_id: str) -> FilterResp
 async def get_category_facets(
 	db: AsyncSession,
 	category_id: uuid.UUID,
-	filters: str | None = None,  # TODO: Why is it here? # noqa
+	applied_filters: dict | None = None,
 ) -> FacetsResponse:
-	from database.models.catalog.base import FilterTypeEnum
-
-	# Возвращает список фасетов (фильтров) для указанной категории и для каждого значения — количество товаров (count), соответствующих этому значению при текущих применённых фильтрах. Вызывается при загрузке страницы категории и при каждом изменении фильтров на клиенте (чтобы обновить счётчики рядом с опциями фильтров).
 	category = await category_crud.get_category_by_id(db, category_id)
 	if not category:
 		raise CategoryNotFoundError(f"Category with id {category_id} not found")
@@ -248,7 +256,7 @@ async def get_category_facets(
 	filters_list = []
 	for filter_item in available_filters:
 		filter_values = None
-		if filter_item.type == FilterTypeEnum.LIST:
+		if filter_item.type == FilterTypeEnum.LIST or filter_item.type == "LIST":
 			filter_values = await category_crud.get_filter_values(db, filter_item.id)
 
 		filters_list.append(
@@ -256,8 +264,8 @@ async def get_category_facets(
 				id=filter_item.id,
 				slug=filter_item.slug,
 				name=filter_item.name,
-				type=FilterTypesEnum(str(filter_item.type).lower()),
-				value=filter_item.value,
+			type=_filter_type_to_schema(filter_item.type),
+				value=filter_values,
 				min=filter_item.min,
 				max=filter_item.max,
 			)
@@ -266,11 +274,15 @@ async def get_category_facets(
 	facets: list[Facet] = []
 	for filter_item in available_filters:
 		facet_values: list[FacetValue] = []
-		if filter_item.type == FilterTypeEnum.LIST:
+		if filter_item.type == FilterTypeEnum.LIST or filter_item.type == "LIST":
 			filter_values = await category_crud.get_filter_values(db, filter_item.id)
 			for value in filter_values:
 				count = await product_crud.count_products_by_filter(
-					db, category_id, filter_item.id, value
+					db,
+					category_id,
+					filter_item.id,
+					value,
+					applied_filters=applied_filters,
 				)
 				facet_values.append(FacetValue(value=value, count=count))
 		facets.append(Facet(name=filter_item.name, values=facet_values))

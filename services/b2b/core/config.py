@@ -23,6 +23,9 @@ class settings(BaseSettings):  # noqa
 	OUTBOX_WORKER_ENABLED: bool
 	OUTBOX_POLL_INTERVAL_SECONDS: float
 
+	B2C_SERVICE_KEY: str = ""
+	MODERATION_SERVICE_KEY: str = ""
+
 	model_config = {"env_file": ".env", "extra": "allow"}
 
 

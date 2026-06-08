@@ -6,9 +6,13 @@ class ProductNotFoundError(ProductError):
 	"""Raised when a product is not found."""
 
 
-class InvalidFiltersError(ProductError):
-	"""Raised when the filters parameter contains invalid JSON."""
+class InvalidSortError(Exception):
+	"""An exception is thrown if an invalid sort parameter is passed."""
 
 
-class SearchQueryTooShortError(ProductError):
-	"""Raised when the search query is shorter than the minimum allowed length."""
+class InvalidSearchQueryError(Exception):
+	"""An exception is thrown if the search query 'q' is too short or too long."""
+
+
+class InvalidFilterError(Exception):
+	"""An exception is thrown if the filter parameters are invalid or corrupted."""

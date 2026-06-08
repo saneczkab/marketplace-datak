@@ -2,23 +2,28 @@
 
 ## Что сделано
 
-Реализован каталог товаров для B2C: получение списка товаров с фильтрацией, сортировкой, поиском и пагинацией, а также получение фасетов (счётчиков товаров по значениям фильтров) для динамического обновления UI фильтров.
+Реализован каталог товаров для B2C: получение списка товаров с фильтрацией, сортировкой и пагинацией, а также получение фасетов (счётчиков товаров по значениям фильтров) для динамического обновления UI фильтров.
+
+Данные каталога читаются из локальной БД B2C, без отдельного обращения к B2B - это архитектурное решение - хранить данные в B2C и через очередь сообщений управлять обновлениями данных в сервисах.
+
+В списке отображаются только видимые товары: `status = MODERATED`, `deleted = false`, хотя бы один SKU с `active_quantity > 0`.
 
 ### API
 
 Перечень реализованных эндпоинтов:
 
-- `GET /api/v1/products`
-  - **Query/Path params**: `category_id` (обязательный), `limit` (default `20`), `offset` (default `0`), `filters` (JSON-строка, опционально), `sort` (default `rating`, допустимые значения: `rating`, `popularity`, `price_asc`, `price_desc`, `date_desc`, `discount_desc`), `search` (опционально, минимум 4 символа после trim)
-  - **Код 200**: `ProductShortListResponse` — список товаров с полями `items[]` (id, title, image, price, in_stock, is_in_cart), `total_count`, `limit`, `offset`
-  - **Код 400**: `Invalid sort parameter. Allowed: ...` (невалидный параметр сортировки) / `Search query must be at least 3 characters` (поисковый запрос короче 3 символов)
+- `GET /api/v1/catalog/products`
+  - **Query params**: `limit` (default `20`, max `100`), `offset` (default `0`), `sort` (default `popularity`, допустимые значения: `price_asc`, `price_desc`, `popularity`, `new`), `q` (опционально - текстовый поиск, см. парный квест **US-CAT-02**)
+  - **Фильтры** (deepObject, OpenAPI `CatalogFilter`): `filter[category_id]`, `filter[price_min]`, `filter[price_max]`, `filter[seller_id]`, `filter[attributes][<slug или uuid>]` - например `filter[category_id]=...&filter[price_min]=10000&filter[attributes][brand]=Apple`
+  - **Код 200**: `PaginatedCatalogProducts` - `items[]` (`CatalogProductCard`: `id`, `name`, `min_price`, `has_stock`, `images`, …), `total_count`, `limit`, `offset`
+  - **Код 400**: `{"code": "INVALID_REQUEST", "message": "Invalid sort parameter. Allowed: ..."}` (невалидный параметр сортировки)
   - **Код 500**: текст ошибки (прочие сбои)
 
-- `GET /api/v1/catalog/facets/`
-  - **Query/Path params**: `category_id` (обязательный UUID), `filters` (опционально, JSON-строка применённых фильтров)
-  - **Код 200**: `FacetsResponse` — объект с полями `category_id`, `filters[]` (список доступных фильтров с метаданными: id, name, type, value/min/max), `facets[]` (список фасетов с полями name и values[], где каждое value содержит value и count — количество товаров)
-  - **Код 404**: `Category with id <id> not found` (категория не найдена)
-  - **Код 503**: текст ошибки (прочие сбои)
+- `GET /api/v1/catalog/facets`
+  - **Query params**: `category_id` (обязательный UUID), `filter[attributes][<slug или uuid>]` (опционально - уже применённые фильтры для пересчёта счётчиков)
+  - **Код 200**: `FacetsResponse` - `category_id`, `filters[]` (метаданные фильтров: `id`, `slug`, `name`, `type`, `value` / `min` / `max`), `facets[]` (`name`, `values[]` с полями `value` и `count`)
+  - **Код 404**: `{"code": "CATEGORY_NOT_FOUND", "message": "..."}` (категория не найдена)
+  - **Код 500**: текст ошибки (прочие сбои)
 
 ## Запуск
 
@@ -34,16 +39,12 @@ make build up migrate
 make test
 ```
 
-- `tests/integration/test_catalog.py::test_facets_returns_empty_list_for_empty_category` — фасеты возвращают пустой список для категории без товаров
-- `tests/integration/test_catalog.py::test_facets_return_counts_per_filter_value` — фасеты возвращают корректные счётчики для каждого значения фильтра
-- `tests/integration/test_catalog.py::test_catalog_returns_filtered_sorted_products` — каталог возвращает отфильтрованные и отсортированные товары
-- `tests/integration/test_catalog.py::test_invalid_sort_returns_400` — невалидный параметр сортировки возвращает 400
-- `tests/integration/test_catalog.py::test_search_description_returns_matching_products` — поиск по описанию возвращает соответствующие товары
-- `tests/integration/test_catalog.py::test_search_title_returns_matching_products` — поиск по названию возвращает соответствующие товары
-- `tests/integration/test_catalog.py::test_short_query_returns_400` — короткий поисковый запрос (< 4 символов) возвращает 400
-- `tests/integration/test_catalog.py::test_empty_results_returns_200` — пустой результат поиска возвращает 200 с пустым списком
-- `tests/integration/test_catalog.py::test_special_chars_do_not_break_query` — специальные символы в поиске не ломают запрос
-- `tests/integration/test_catalog.py::test_products_list_filters_only_visible_products` — список товаров фильтрует только видимые товары (по статусу и наличию на складе)
+- `tests/integration/catalog/test_catalog.py::test_facets_returns_empty_list_for_empty_category` - фасеты возвращают пустой список для категории без товаров
+- `tests/integration/catalog/test_catalog.py::test_facets_return_counts_per_filter_value` - фасеты возвращают корректные счётчики для каждого значения фильтра
+- `tests/integration/catalog/test_catalog.py::test_catalog_returns_filtered_sorted_products` - каталог возвращает отфильтрованные и отсортированные товары (фильтр по категории, сортировка, пагинация)
+- `tests/integration/catalog/test_catalog.py::test_invalid_sort_returns_400` - невалидный параметр сортировки возвращает 400
+- `tests/integration/catalog/test_catalog.py::test_products_list_filters_only_visible_products` - список товаров фильтрует только видимые товары (по статусу и наличию на складе)
+
+Требуемый в квесте тест `b2b_unavailable_returns_502` не реализован: данные каталога читаются из локальной БД B2C, без отдельного обращения к B2B - см. архитектурное решение выше.
 
 Тесты успешно проходят (см. джобу tests).
-

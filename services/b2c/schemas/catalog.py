@@ -1,5 +1,6 @@
 import uuid
 from typing import List
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,7 +15,7 @@ class CategoryRef(BaseModel):
 
 
 class CategoryTreeNode(CategoryRef):
-	children: List[CategoryTreeNode] = Field(default_factory=list)
+	children: List["CategoryTreeNode"] = Field(default_factory=list)
 	model_config = ConfigDict(from_attributes=True)
 
 
@@ -54,3 +55,10 @@ class PaginatedCatalogProducts(BaseModel):
 	limit: int
 	offset: int
 	model_config = ConfigDict(from_attributes=True)
+
+
+class ProductSortEnum(str, Enum):
+	price_asc = "price_asc"
+	price_desc = "price_desc"
+	popularity = "popularity"
+	new = "new"

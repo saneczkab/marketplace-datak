@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import Annotated, Optional
 
@@ -6,19 +7,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db
 from exceptions.product import (
-	InvalidFiltersError,
+	InvalidFilterError,
+	InvalidSearchQueryError,
+	InvalidSortError,
 	ProductNotFoundError,
-	SearchQueryTooShortError,
 )
 from exceptions.sku import SkuNotFoundError
-from schemas.product import ProductCard, ProductShortListResponse
+from schemas.catalog import PaginatedCatalogProducts
+from schemas.product import ProductCard
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
 from services import product_service, sku_service
 
 router = fastapi.APIRouter(prefix="/api/v1/products")
 
 
-@router.get("", response_model=ProductShortListResponse)
+@router.get("", response_model=PaginatedCatalogProducts)
 async def get_product_list_api(
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	category_id: Optional[uuid.UUID] = None,
@@ -27,18 +30,24 @@ async def get_product_list_api(
 	filter: Optional[str] = None,
 	sort: str = "popularity",
 	search: Optional[str] = None,
-) -> ProductShortListResponse:
+) -> PaginatedCatalogProducts:
 	try:
-		return await product_service.get_products_list(
-			db,
-			limit,
-			offset,
-			str(category_id) if category_id else None,
-			filter,
-			sort,
-			search,
+		base: dict = {}
+		if category_id:
+			base["category_id"] = str(category_id)
+		if filter:
+			try:
+				base.update(json.loads(filter))
+			except json.JSONDecodeError as e:
+				raise fastapi.HTTPException(
+					status_code=400,
+					detail={"code": "BAD_REQUEST", "message": "Invalid JSON in filter parameter"},
+				) from e
+		filters = product_service.parse_catalog_filters(
+			query_params=[], filter_str=json.dumps(base) if base else None
 		)
-	except (InvalidFiltersError, SearchQueryTooShortError, ValueError) as e:
+		return await product_service.get_products_list(db, limit, offset, filters, sort, search)
+	except (InvalidSortError, InvalidSearchQueryError, InvalidFilterError) as e:
 		raise fastapi.HTTPException(
 			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
 		) from e
