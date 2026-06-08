@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import Any, List
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -46,6 +46,25 @@ class CatalogProductCard(BaseModel):
 	reviews_count: int = Field(default=0, ge=0)
 	images: List[ImageRef]
 	seller: CatalogProductSeller | None = None
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CatalogSku(BaseModel):
+	id: uuid.UUID
+	name: str | None = None
+	sku_code: str | None = None
+	price: int
+	old_price: int | None = None
+	available_quantity: int = Field(ge=0)
+	attributes: dict[str, Any] = Field(default_factory=dict)
+	images: List[ImageRef] = Field(default_factory=list)
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CatalogProductDetail(CatalogProductCard):
+	description: str
+	attributes: dict[str, Any] = Field(default_factory=dict)
+	skus: List[CatalogSku]
 	model_config = ConfigDict(from_attributes=True)
 
 

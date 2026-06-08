@@ -21,6 +21,7 @@ from tests.factories.catalog import (
 	CategoryFactory,
 	CategoryFiltersFactory,
 	FilterValuesFactory,
+	ImageFactory,
 	ProductFactory,
 	SkuFactory,
 )
@@ -387,26 +388,70 @@ async def products_data(db_session: AsyncSession) -> ProductData:
 	db_session.add_all([category, *products])
 	await db_session.commit()
 
+	product_image = ImageFactory.build(
+		id=_fixed_uuid(),
+		product_id=products[0].id,
+		sku_id=None,
+		url="https://cdn.example.com/product.jpg",
+		ordering=0,
+	)
 	sku_1 = Sku(
 		id=_fixed_uuid(),
 		product_id=products[0].id,
 		name="sku1",
-		price=100,
-		active_quantity=1,
+		price=10000,
+		discount=1000,
+		active_quantity=5,
+		reserved_quantity=2,
 	)
 	sku_2 = Sku(
 		id=_fixed_uuid(),
 		product_id=products[0].id,
 		name="sku2",
-		price=200,
+		price=20000,
+		discount=0,
 		active_quantity=1,
+		reserved_quantity=0,
 	)
-	db_session.add_all([sku_1, sku_2])
+	sku_image = ImageFactory.build(
+		id=_fixed_uuid(),
+		product_id=products[0].id,
+		sku_id=sku_1.id,
+		url="https://cdn.example.com/sku1.jpg",
+		ordering=0,
+	)
+	db_session.add_all([product_image, sku_1, sku_2, sku_image])
 	await db_session.commit()
 
 	stmt = (
 		select(Product)
 		.where(Product.id == products[0].id)
+		.options(selectinload(Product.images), selectinload(Product.skus))
+	)
+	base_product = (await db_session.execute(stmt)).scalar_one()
+	return ProductData(
+		base_product=base_product,
+		skus=tuple(sorted(base_product.skus, key=lambda sku: sku.name)),
+	)
+
+
+@pytest.fixture()
+async def deleted_product_data(db_session: AsyncSession) -> ProductData:
+	category = CategoryFactory.build(
+		id=_fixed_uuid(),
+		parent_id=None,
+	)
+	product = ProductFactory.build(
+		id=_fixed_uuid(),
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+		deleted=True,
+	)
+	db_session.add_all([category, product])
+	await db_session.commit()
+	stmt = (
+		select(Product)
+		.where(Product.id == product.id)
 		.options(selectinload(Product.images), selectinload(Product.skus))
 	)
 	base_product = (await db_session.execute(stmt)).scalar_one()

@@ -15,6 +15,7 @@ from exceptions.category import CategoryNotFoundError, CategoryHierarchyError
 from schemas.banner import Banner, BannerEventsRequest
 from schemas.catalog import (
 	CatalogProductCard,
+	CatalogProductDetail,
 	CategoryRef,
 	CategoryTreeNode,
 	PaginatedCatalogProducts,
@@ -282,6 +283,24 @@ async def get_similar_products_api(
 ) -> list[CatalogProductCard]:
 	try:
 		return await product_service.get_similar_products(db, product_id, limit)
+	except ProductNotFoundError as err:
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(err)},
+		) from err
+	except Exception as e:
+		raise fastapi.HTTPException(
+			status_code=500, detail={"code": "INTERNAL_ERROR", "message": str(e)}
+		) from e
+
+
+@router.get("/products/{product_id}", response_model=CatalogProductDetail)
+async def get_product_detail_api(
+	db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+	product_id: uuid.UUID,
+) -> CatalogProductDetail:
+	try:
+		return await product_service.get_product_by_id(db, product_id)
 	except ProductNotFoundError as err:
 		raise fastapi.HTTPException(
 			status_code=404,

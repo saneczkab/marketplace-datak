@@ -2,11 +2,13 @@ import uuid
 
 from crud.review import ProductReviewStats
 from database.models.catalog.base import Category, Product
-from database.models.catalog.variants import Sku
+from database.models.catalog.variants import Characteristic, Sku
 from database.models.orders.order import Order
 from schemas.catalog import (
 	CatalogProductCard,
+	CatalogProductDetail,
 	CatalogProductSeller,
+	CatalogSku,
 	CategoryRef,
 	ImageRef,
 )
@@ -49,7 +51,10 @@ def build_category_ref(
 
 
 def product_images(product: Product) -> list[ImageRef]:
-	images = sorted(product.images or [], key=lambda image: image.ordering)
+	images = sorted(
+		[image for image in (product.images or []) if image.sku_id is None],
+		key=lambda image: image.ordering,
+	)
 	return [
 		ImageRef(
 			id=image.id,
@@ -60,6 +65,54 @@ def product_images(product: Product) -> list[ImageRef]:
 		)
 		for index, image in enumerate(images)
 	]
+
+
+def sku_images(sku: Sku) -> list[ImageRef]:
+	images = sorted(sku.images or [], key=lambda image: image.ordering)
+	return [
+		ImageRef(
+			id=image.id,
+			url=image.url,
+			alt="",
+			ordering=image.ordering,
+			is_main=index == 0,
+		)
+		for index, image in enumerate(images)
+	]
+
+
+def characteristics_to_attributes(
+	characteristics: list[Characteristic] | None,
+) -> dict[str, str]:
+	if not characteristics:
+		return {}
+	return {
+		characteristic.name: characteristic.value for characteristic in characteristics
+	}
+
+
+def sku_available_quantity(sku: Sku) -> int:
+	return max(0, sku.active_quantity - sku.reserved_quantity)
+
+
+def sku_prices(sku: Sku) -> tuple[int, int | None]:
+	if sku.discount > 0:
+		return sku.price - sku.discount, sku.price
+	return sku.price, None
+
+
+def build_catalog_sku(sku: Sku) -> CatalogSku:
+	price, old_price = sku_prices(sku)
+	return CatalogSku(
+		id=sku.id,
+		name=sku.name,
+		sku_code=str(sku.id),
+		price=price,
+		old_price=old_price,
+		available_quantity=sku_available_quantity(sku),
+		attributes=characteristics_to_attributes(sku.characteristics),
+		images=sku_images(sku),
+	)
 
 
 def sku_stats(skus: list[Sku]) -> tuple[int, bool]:
@@ -96,6 +149,20 @@ def build_catalog_product_card(
 		reviews_count=review_stats.reviews_count if review_stats else 0,
 		images=product_images(product),
 		seller=seller,
+	)
+
+
+def build_catalog_product_detail(
+	product: Product,
+	categories_map: dict[uuid.UUID, Category],
+	review_stats: ProductReviewStats | None,
+) -> CatalogProductDetail:
+	card = build_catalog_product_card(product, categories_map, review_stats)
+	return CatalogProductDetail(
+		**card.model_dump(),
+		description=product.description or "",
+		attributes=characteristics_to_attributes(product.characteristics),
+		skus=[build_catalog_sku(sku) for sku in (product.skus or [])],
 	)
 
 

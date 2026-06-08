@@ -16,15 +16,16 @@ from exceptions.product import (
 	InvalidSearchQueryError,
 	InvalidFilterError,
 )
-from schemas.catalog import CatalogProductCard, PaginatedCatalogProducts
-from schemas.product import (
-	ProductFilterParams,
-	ProductCard,
-	ProductCardImage,
-	ProductCardSku,
-	ProductCardCharacteristic,
+from schemas.catalog import (
+	CatalogProductCard,
+	CatalogProductDetail,
+	PaginatedCatalogProducts,
 )
-from services.schemas_builder import build_catalog_product_cards
+from schemas.product import ProductFilterParams
+from services.schemas_builder import (
+	build_catalog_product_cards,
+	build_catalog_product_detail,
+)
 from schemas.sku import SkuShort
 from schemas.image import Image
 from schemas.category import FacetsResponse
@@ -163,44 +164,22 @@ async def get_catalog_facets_service(
 	)
 
 
-async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> ProductCard:
+async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> CatalogProductDetail:
 	product = await product_crud.get_product_full(db, id)
 	if not product:
 		raise ProductNotFoundError("Product not found")
 	if product.status != ProductStatusEnum.MODERATED or product.deleted:
 		raise ProductNotFoundError("Product not found")
 
-	images = sorted(product.images or [], key=lambda img: img.ordering)
-	characteristics = [
-		ProductCardCharacteristic(name=c.name, value=c.value)
-		for c in (product.characteristics or [])
-	]
-	skus = [
-		ProductCardSku(
-			id=sku.id,
-			name=sku.name,
-			price=sku.price,
-			discount=sku.discount,
-			active_quantity=sku.active_quantity,
-			in_stock=sku.active_quantity > 0,
-			image=sku.images[0].url if sku.images else None,
-			characteristics=[
-				ProductCardCharacteristic(name=c.name, value=c.value)
-				for c in (sku.characteristics or [])
-			],
-		)
-		for sku in (product.skus or [])
-	]
+	categories_map = await category_crud.get_all_categories_map(db)
+	review_stats_by_product = await review_crud.get_reviews_stats_by_product_ids(
+		db, [product.id]
+	)
 
-	return ProductCard(
-		id=product.id,
-		slug=product.slug,
-		title=product.title,
-		description=product.description,
-		images=[ProductCardImage(url=img.url, ordering=img.ordering) for img in images],
-		status=product.status,
-		characteristics=characteristics,
-		skus=skus,
+	return build_catalog_product_detail(
+		product,
+		categories_map,
+		review_stats_by_product.get(product.id),
 	)
 
 

@@ -264,7 +264,7 @@ async def get_category_facets(
 				id=filter_item.id,
 				slug=filter_item.slug,
 				name=filter_item.name,
-			type=_filter_type_to_schema(filter_item.type),
+				type=_filter_type_to_schema(filter_item.type),
 				value=filter_values,
 				min=filter_item.min,
 				max=filter_item.max,

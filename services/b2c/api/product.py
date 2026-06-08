@@ -14,7 +14,6 @@ from exceptions.product import (
 )
 from exceptions.sku import SkuNotFoundError
 from schemas.catalog import PaginatedCatalogProducts
-from schemas.product import ProductCard
 from schemas.sku import Sku as SkuSchema, SkuShort as SkuShortSchema
 from services import product_service, sku_service
 
@@ -41,12 +40,17 @@ async def get_product_list_api(
 			except json.JSONDecodeError as e:
 				raise fastapi.HTTPException(
 					status_code=400,
-					detail={"code": "BAD_REQUEST", "message": "Invalid JSON in filter parameter"},
+					detail={
+						"code": "BAD_REQUEST",
+						"message": "Invalid JSON in filter parameter",
+					},
 				) from e
 		filters = product_service.parse_catalog_filters(
 			query_params=[], filter_str=json.dumps(base) if base else None
 		)
-		return await product_service.get_products_list(db, limit, offset, filters, sort, search)
+		return await product_service.get_products_list(
+			db, limit, offset, filters, sort, search
+		)
 	except (InvalidSortError, InvalidSearchQueryError, InvalidFilterError) as e:
 		raise fastapi.HTTPException(
 			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
@@ -98,19 +102,3 @@ async def get_product_skus_short_api(
 		raise fastapi.HTTPException(
 			status_code=404, detail={"code": "NOT_FOUND", "message": str(err)}
 		) from err
-
-
-@router.get("/{id}", response_model=ProductCard)
-async def get_product_api(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)], id: uuid.UUID
-) -> ProductCard:
-	try:
-		return await product_service.get_product_by_id(db, id)
-	except ProductNotFoundError as err:
-		raise fastapi.HTTPException(
-			status_code=404, detail={"code": "NOT_FOUND", "message": str(err)}
-		) from err
-	except Exception as e:
-		raise fastapi.HTTPException(
-			status_code=500, detail={"code": "INTERNAL_ERROR", "message": str(e)}
-		) from e

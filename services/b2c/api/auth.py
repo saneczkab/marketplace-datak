@@ -34,7 +34,8 @@ async def register(
 		) from e
 	except UserPasswordTooWeakError as e:
 		raise fastapi.HTTPException(
-			status_code=400, detail={"code": "WEAK_PASSWORD", "message": "Password is too weak"}
+			status_code=400,
+			detail={"code": "WEAK_PASSWORD", "message": "Password is too weak"},
 		) from e
 	except ValueError as e:
 		raise fastapi.HTTPException(
@@ -63,7 +64,8 @@ async def login(
 		return await auth_service.login(data, db, x_session_id)
 	except (ValidationError, UserNotFoundError, UserInvalidPasswordError) as e:  # noqa
 		raise fastapi.HTTPException(
-			status_code=400, detail={"code": "INVALID_CREDENTIALS", "message": "Invalid login data"}
+			status_code=400,
+			detail={"code": "INVALID_CREDENTIALS", "message": "Invalid login data"},
 		) from e
 	except UserLoginConflictError as e:
 		raise fastapi.HTTPException(
