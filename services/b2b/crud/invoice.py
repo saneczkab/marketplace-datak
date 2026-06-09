@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload
 from uuid import UUID
-from database.models.catalog.inventory import Invoice, InvoiceItem
+from database.models.catalog.inventory import Invoice, InvoiceItem, InvoiceStatusEnum
+from database.models.catalog.variants import Sku
 from schemas.invoice import InvoiceCreate
 
 
@@ -31,7 +32,15 @@ async def create_invoice(
 		.execution_options(populate_existing=True)
 	)
 
-	return result.unique().scalar_one()
+	invoice = result.unique().scalar_one()
+
+	for item in invoice.items:
+		sku_result = await db.execute(select(Sku).filter(Sku.id == item.sku_id))
+		sku = sku_result.scalar_one_or_none()
+		if sku:
+			item.sku_name = sku.name
+
+	return invoice
 
 
 async def get_invoice_by_id(db: AsyncSession, invoice_id: UUID) -> Invoice | None:
@@ -42,25 +51,54 @@ async def get_invoice_by_id(db: AsyncSession, invoice_id: UUID) -> Invoice | Non
 		.filter(Invoice.id == invoice_id)
 	)
 
-	return result.unique().scalar_one_or_none()
+	invoice = result.unique().scalar_one_or_none()
+
+	if invoice:
+		for item in invoice.items:
+			sku_result = await db.execute(select(Sku).filter(Sku.id == item.sku_id))
+			sku = sku_result.scalar_one_or_none()
+			if sku:
+				item.sku_name = sku.name
+
+	return invoice
 
 
 async def get_all_invoices(
-	db: AsyncSession, skip: int = 0, limit: int = 100
+	db: AsyncSession,
+	seller_id: UUID,
+	skip: int = 0,
+	limit: int = 100,
+	status: InvoiceStatusEnum | None = None,
 ) -> tuple[int, list[Invoice]]:
-	"""Gets a list of all invoices with pagination."""
-	total_result = await db.execute(select(func.count(Invoice.id)))
+	"""Gets a list of seller's invoices with pagination and status filter."""
+
+	count_query = select(func.count(Invoice.id)).filter(Invoice.seller_id == seller_id)
+	select_query = select(Invoice).filter(Invoice.seller_id == seller_id)
+
+	if status:
+		count_query = count_query.filter(Invoice.status == status)
+		select_query = select_query.filter(Invoice.status == status)
+
+	total_result = await db.execute(count_query)
 	total = total_result.scalar_one()
 
 	result = await db.execute(
-		select(Invoice).options(joinedload(Invoice.items)).offset(skip).limit(limit)
+		select_query.options(joinedload(Invoice.items)).offset(skip).limit(limit)
 	)
+	invoices = result.unique().scalars().all()
 
-	return total, result.unique().scalars().all()
+	for invoice in invoices:
+		for item in invoice.items:
+			sku_result = await db.execute(select(Sku).filter(Sku.id == item.sku_id))
+			sku = sku_result.scalar_one_or_none()
+			if sku:
+				item.sku_name = sku.name
+
+	return total, invoices
 
 
 async def update_invoice_status(
-	db: AsyncSession, invoice_id: UUID, status: str
+	db: AsyncSession, invoice_id: UUID, status: InvoiceStatusEnum
 ) -> Invoice | None:
 	"""Updates the status of the invoice and sets the acceptance date."""
 	result = await db.execute(select(Invoice).filter(Invoice.id == invoice_id))
@@ -68,7 +106,7 @@ async def update_invoice_status(
 
 	if db_invoice:
 		db_invoice.status = status
-		if status == "ACCEPTED":
+		if status == InvoiceStatusEnum.ACCEPTED:
 			db_invoice.accepted_at = func.now()
 		await db.commit()
 		await db.refresh(db_invoice)
@@ -76,7 +114,7 @@ async def update_invoice_status(
 
 
 async def update_invoice_to_accepted(db: AsyncSession, invoice: Invoice) -> Invoice:
-	invoice.status = "ACCEPTED"
+	invoice.status = InvoiceStatusEnum.ACCEPTED
 	invoice.accepted_at = func.now()
 
 	await db.commit()

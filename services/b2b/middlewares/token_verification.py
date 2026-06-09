@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from jose import JWTError
 
 PRIVATE_PATHS: list[str] = []
-PRIVATE_PATHS_PREFIXES = ["/api/v1/products", "/api/v1/skus"]
+PRIVATE_PATHS_PREFIXES = ["/api/v1/products", "/api/v1/skus", "/api/v1/invoices"]
 
 
 async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
@@ -27,6 +27,7 @@ async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
 	try:
 		decoded = decode_access_token(token)
 		request.state.user_id = decoded.get("user_id")
+		request.state.seller_id = decoded.get("seller_id")
 	except JWTError:
 		return JSONResponse(
 			status_code=401,

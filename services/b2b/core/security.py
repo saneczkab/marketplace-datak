@@ -30,7 +30,6 @@ def create_access_token(user_id: uuid.UUID) -> str:
 
 
 def decode_access_token(token: str) -> dict:
-
 	if token.startswith("Bearer "):
 		token = token[7:]
 

@@ -8,13 +8,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.schema import CheckConstraint
 
 from database.core import Base
+from database.models import Sku
 
 
 class InvoiceStatusEnum(str, enum.Enum):
-	DRAFT = "CREATED"
-	PENDING = "PENDING"
+	CREATED = "CREATED"
+	PARTIALLY_ACCEPTED = "PARTIALLY_ACCEPTED"
 	ACCEPTED = "ACCEPTED"
-	REJECTED = "REJECTED"
+	CANCELLED = "CANCELLED"
 
 
 class Invoice(Base):
@@ -26,7 +27,7 @@ class Invoice(Base):
 	)
 	seller_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 	status: Mapped[InvoiceStatusEnum] = mapped_column(
-		default=InvoiceStatusEnum.DRAFT, server_default="CREATED"
+		default=InvoiceStatusEnum.CREATED, server_default="CREATED"
 	)
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
@@ -45,6 +46,14 @@ class InvoiceItem(Base):
 	__tablename__ = "invoice_items"
 	__table_args__ = (
 		CheckConstraint("quantity > 0", name="chk_invoice_quantity_positive"),
+		CheckConstraint(
+			"accepted_quantity IS NULL OR accepted_quantity >= 0",
+			name="chk_invoice_accepted_quantity_non_negative",
+		),
+		CheckConstraint(
+			"accepted_quantity IS NULL OR accepted_quantity <= quantity",
+			name="chk_invoice_accepted_quantity_not_exceeding",
+		),
 		{"schema": "catalog"},
 	)
 
@@ -56,5 +65,9 @@ class InvoiceItem(Base):
 	)
 	sku_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("catalog.skus.id"))
 	quantity: Mapped[int] = mapped_column(Integer)
+	accepted_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 	invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="items")
+	sku: Mapped["Sku"] = relationship("Sku", foreign_keys=[sku_id])
+
+	sku_name: str = ""
