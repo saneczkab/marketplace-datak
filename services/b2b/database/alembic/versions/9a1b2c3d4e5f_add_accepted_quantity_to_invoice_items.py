@@ -21,14 +21,36 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
 	"""Upgrade schema."""
-	# Add accepted_quantity column
+	op.execute("ALTER TYPE invoicestatusenum RENAME TO invoicestatusenum_old")
+	op.execute(
+		"CREATE TYPE invoicestatusenum AS ENUM "
+		"('CREATED', 'PARTIALLY_ACCEPTED', 'ACCEPTED', 'CANCELLED')"
+	)
+	op.execute("ALTER TABLE catalog.invoices ALTER COLUMN status DROP DEFAULT")
+	op.execute(
+		"""
+		ALTER TABLE catalog.invoices
+		ALTER COLUMN status TYPE invoicestatusenum
+		USING (
+			CASE status::text
+				WHEN 'DRAFT' THEN 'CREATED'
+				WHEN 'PENDING' THEN 'CREATED'
+				WHEN 'ACCEPTED' THEN 'ACCEPTED'
+				WHEN 'REJECTED' THEN 'CANCELLED'
+				ELSE 'CREATED'
+			END
+		)::invoicestatusenum
+		"""
+	)
+	op.execute("ALTER TABLE catalog.invoices ALTER COLUMN status SET DEFAULT 'CREATED'")
+	op.execute("DROP TYPE invoicestatusenum_old")
+
 	op.add_column(
 		"invoice_items",
 		sa.Column("accepted_quantity", sa.Integer(), nullable=True),
 		schema="catalog",
 	)
 
-	# Add check constraints for accepted_quantity
 	op.create_check_constraint(
 		"chk_invoice_accepted_quantity_non_negative",
 		"invoice_items",
@@ -46,7 +68,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
 	"""Downgrade schema."""
-	# Drop check constraints
 	op.drop_constraint(
 		"chk_invoice_accepted_quantity_not_exceeding",
 		"invoice_items",
@@ -61,5 +82,28 @@ def downgrade() -> None:
 		type_="check",
 	)
 
-	# Drop column
 	op.drop_column("invoice_items", "accepted_quantity", schema="catalog")
+
+	op.execute("ALTER TYPE invoicestatusenum RENAME TO invoicestatusenum_new")
+	op.execute(
+		"CREATE TYPE invoicestatusenum AS ENUM "
+		"('DRAFT', 'PENDING', 'ACCEPTED', 'REJECTED')"
+	)
+	op.execute("ALTER TABLE catalog.invoices ALTER COLUMN status DROP DEFAULT")
+	op.execute(
+		"""
+		ALTER TABLE catalog.invoices
+		ALTER COLUMN status TYPE invoicestatusenum
+		USING (
+			CASE status::text
+				WHEN 'CREATED' THEN 'PENDING'
+				WHEN 'PARTIALLY_ACCEPTED' THEN 'PENDING'
+				WHEN 'ACCEPTED' THEN 'ACCEPTED'
+				WHEN 'CANCELLED' THEN 'REJECTED'
+				ELSE 'DRAFT'
+			END
+		)::invoicestatusenum
+		"""
+	)
+	op.execute("ALTER TABLE catalog.invoices ALTER COLUMN status SET DEFAULT 'DRAFT'")
+	op.execute("DROP TYPE invoicestatusenum_new")
