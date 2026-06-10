@@ -10,11 +10,16 @@ class InvoiceItemCreate(BaseModel):
 	quantity: int
 
 
+class InvoiceAcceptItem(BaseModel):
+	invoice_item_id: UUID
+	accepted_quantity: int
+
+
 class InvoiceItemResponse(BaseModel):
+	id: UUID
 	sku_id: UUID
-	sku_name: str
 	quantity: int
-	accepted_quantity: int | None = None
+	accepted_quantity: int
 
 	model_config = ConfigDict(from_attributes=True)
 
@@ -23,20 +28,25 @@ class InvoiceCreate(BaseModel):
 	items: List[InvoiceItemCreate]
 
 
+class InvoiceAccept(BaseModel):
+	accepted_items: List[InvoiceAcceptItem]
+
+
 class InvoiceResponse(BaseModel):
 	id: UUID
 	seller_id: UUID
 	status: InvoiceStatusEnum
 	items: List[InvoiceItemResponse]
 	created_at: datetime
+	updated_at: datetime
 	accepted_at: datetime | None = None
-	updated_at: datetime | None = None
+	accepted_by: UUID | None = None
 
 	model_config = ConfigDict(from_attributes=True)
 
 
 class InvoiceListResponse(BaseModel):
-	total: int
 	items: List[InvoiceResponse]
+	total_count: int
 	limit: int
 	offset: int

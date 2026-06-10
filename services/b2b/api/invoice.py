@@ -4,7 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from core.db import get_db
 from database.models.catalog.inventory import InvoiceStatusEnum
-from schemas.invoice import InvoiceCreate, InvoiceResponse, InvoiceListResponse
+from schemas.invoice import (
+	InvoiceCreate,
+	InvoiceResponse,
+	InvoiceListResponse,
+	InvoiceAccept,
+)
 from services import invoice_service
 from exceptions.invoice import (
 	InvoiceError,
@@ -21,16 +26,14 @@ from exceptions.sku import SkuNotFoundError
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
 
-def get_seller_id_from_request(request: Request) -> UUID:
-	seller_id = getattr(request.state, "seller_id", None) or getattr(
-		request.state, "user_id", None
-	)
-	if not seller_id:
+def _get_seller_id(request: Request) -> UUID:
+	user_id = getattr(request.state, "user_id", None)
+	if not user_id:
 		raise HTTPException(
 			status_code=401,
 			detail={"code": "UNAUTHORIZED", "message": "Missing authentication"},
 		)
-	return UUID(str(seller_id))
+	return UUID(str(user_id))
 
 
 @router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
@@ -40,7 +43,7 @@ async def create_invoice_endpoint(
 	db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvoiceResponse:
 	try:
-		seller_id = get_seller_id_from_request(request)
+		seller_id = _get_seller_id(request)
 		return await invoice_service.create_new_invoice(db, invoice_data, seller_id)
 	except EmptyInvoiceError as e:
 		raise HTTPException(
@@ -76,7 +79,9 @@ async def create_invoice_endpoint(
 			},
 		) from e
 	except InvoiceError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
@@ -86,29 +91,43 @@ async def get_invoice_endpoint(
 	try:
 		return await invoice_service.get_invoice(db, invoice_id)
 	except InvoiceNotFoundError as e:
-		raise HTTPException(status_code=404, detail=str(e)) from e
+		raise HTTPException(
+			status_code=404, detail={"code": "NOT_FOUND", "message": str(e)}
+		) from e
 	except InvoiceError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 
 
 @router.post("/{invoice_id}/accept", response_model=InvoiceResponse)
 async def accept_invoice_endpoint(
-	invoice_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+	invoice_id: UUID,
+	accept_data: InvoiceAccept,
+	request: Request,
+	db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvoiceResponse:
 	try:
-		return await invoice_service.accept_invoice(db, invoice_id)
+		operator_id = _get_seller_id(request)
+
+		return await invoice_service.accept_invoice(
+			db, invoice_id=invoice_id, accept_data=accept_data, accepted_by=operator_id
+		)
 	except InvoiceNotFoundError as e:
-		raise HTTPException(status_code=404, detail=str(e)) from e
+		raise HTTPException(
+			status_code=404, detail={"code": "NOT_FOUND", "message": str(e)}
+		) from e
 	except InvalidInvoiceStatusError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=409, detail={"code": "CONFLICT", "message": str(e)}
+		) from e
 	except InvoiceError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 
 
-@router.get(
-	"",
-	response_model=InvoiceListResponse,
-)
+@router.get("", response_model=InvoiceListResponse)
 async def get_all_invoices_endpoint(
 	request: Request,
 	db: Annotated[AsyncSession, Depends(get_db)],
@@ -116,13 +135,11 @@ async def get_all_invoices_endpoint(
 	offset: Annotated[int, Query()] = 0,
 	status: Annotated[InvoiceStatusEnum | None, Query()] = None,
 ) -> InvoiceListResponse:
-	seller_id = get_seller_id_from_request(request)
+	seller_id = _get_seller_id(request)
 
-	total, invoices = await invoice_service.get_all_invoices(
+	return await invoice_service.get_all_invoices(
 		db, seller_id=seller_id, skip=offset, limit=limit, status=status
 	)
-
-	return {"total": total, "items": invoices, "limit": limit, "offset": offset}
 
 
 @router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -132,9 +149,15 @@ async def delete_invoice_endpoint(
 	try:
 		await invoice_service.delete_invoice(db, invoice_id)
 	except InvoiceNotFoundError as e:
-		raise HTTPException(status_code=404, detail=str(e)) from e
+		raise HTTPException(
+			status_code=404, detail={"code": "NOT_FOUND", "message": str(e)}
+		) from e
 	except InvalidInvoiceStatusError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=400, detail={"code": "INVALID_STATUS", "message": str(e)}
+		) from e
 	except InvoiceError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=400, detail={"code": "BAD_REQUEST", "message": str(e)}
+		) from e
 	return None
