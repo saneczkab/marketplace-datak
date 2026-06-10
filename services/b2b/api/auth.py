@@ -49,7 +49,6 @@ async def logout(
 	refresh_token: str,
 	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 ) -> None:
-
 	try:
 		await auth_service.logout(refresh_token, db)
 	except Exception as e:
