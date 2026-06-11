@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -8,12 +8,13 @@ from schemas.category import CategoryInFavorite
 from schemas.characteristic import Characteristic, CharacteristicInFavorite
 from schemas.image import Image, ImageInFavorite
 from schemas.sku import Sku, SkuInFavorite
+from schemas.catalog import CatalogProductCard
 
 
 class ProductShort(BaseModel):
 	id: uuid.UUID
 	title: str
-	image: str = Field(format="uri")
+	image: str = Field(json_schema_extra={"format": "uri"})
 	price: float
 	in_stock: bool
 	is_in_cart: bool
@@ -36,7 +37,7 @@ class ProductShortListResponse(BaseModel):
 	total_count: int
 	limit: int
 	offset: int
-	items: List[ProductShort]
+	items: List[CatalogProductCard]
 	model_config = ConfigDict(from_attributes=True)
 
 
@@ -50,3 +51,30 @@ class ProductInFavorite(BaseModel):
 	characteristics: List[CharacteristicInFavorite]
 	skus: List[SkuInFavorite]
 	model_config = ConfigDict(from_attributes=True)
+
+
+SimilarProductsResponse = ProductShortListResponse
+
+
+class ProductFilterParams(BaseModel):
+	category_id: uuid.UUID | None = Field(default=None)
+	price_min: int | None = Field(default=None)
+	price_max: int | None = Field(default=None)
+	seller_id: uuid.UUID | None = Field(default=None)
+	attributes: dict[str, Any] | None = Field(default_factory=dict)
+
+	model_config = ConfigDict(
+		json_schema_extra={
+			"example": {
+				"category_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+				"price_min": 0,
+				"price_max": 0,
+				"seller_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+				"attributes": {
+					"additionalProp1": "string",
+					"additionalProp2": "string",
+					"additionalProp3": "string",
+				},
+			}
+		}
+	)

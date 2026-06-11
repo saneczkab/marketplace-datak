@@ -1,6 +1,8 @@
-import json
 import uuid
-from typing import Optional, List
+import json
+from json import JSONDecodeError
+from pydantic import ValidationError
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,15 +15,27 @@ from exceptions.product import ProductNotFoundError
 from schemas.catalog import CatalogProductCard
 from schemas.event import EventProductRef
 from schemas.product import (
-	ProductShort,
 	Product,
-	ProductShortListResponse,
 )
 from services import sku_service
 from services.schemas_builder import build_catalog_product_cards
+from database.models import ProductStatusEnum
+from exceptions.product import (
+	InvalidSortError,
+	InvalidSearchQueryError,
+	InvalidFilterError,
+)
+from schemas.catalog import (
+	CatalogProductDetail,
+	PaginatedCatalogProducts,
+)
+from schemas.product import ProductFilterParams
+from services.schemas_builder import (
+	build_catalog_product_detail,
+)
 from schemas.sku import SkuShort
-from schemas.sku import Sku as SkuSchema
 from schemas.image import Image
+from schemas.category import FacetsResponse
 
 
 async def get_product_skus(db: AsyncSession, product_id: uuid.UUID) -> list[Sku]:
@@ -69,68 +83,111 @@ async def get_products_list(
 	db: AsyncSession,
 	limit: int,
 	offset: int,
-	category_id: Optional[str],
-	filters_json: Optional[str],
+	filters: ProductFilterParams,
 	sort: str,
 	q: Optional[str],
-) -> ProductShortListResponse:
-	# Валидация sort согласно спецификации
+) -> PaginatedCatalogProducts:
 	valid_sorts = [
-		"rating",
-		"popularity",
 		"price_asc",
 		"price_desc",
-		"date_desc",
-		"discount_desc",
+		"popularity",
+		"new",
 	]
 	if sort not in valid_sorts:
-		raise ValueError(f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}")
-
-	if q:
-		search_stripped = q.strip()
-
-		if len(search_stripped) > 0 and len(search_stripped) < 3:
-			raise ValueError("Search query must be at least 3 characters")
-
-		if len(search_stripped) > 255:
-			raise ValueError("Search query must be at most 255 characters")
-
-	cat_uuid = uuid.UUID(category_id) if category_id else None
-	filter = json.loads(filters_json) if filters_json else {}
-
-	products, total_count = await product_crud.get_products_list(
-		db, limit, offset, cat_uuid, filter, sort, q
-	)
-
-	items = []
-	for p in products:
-		main_image_url = p.images[0].url if p.images else ""
-
-		# SKU is used to determine price
-		skus: List[SkuSchema] = await product_crud.get_product_skus(db, p.id)
-		price = min((sku.price for sku in skus), default=0.0) if skus else 0.0
-
-		items.append(
-			ProductShort(
-				id=p.id,
-				title=p.title,
-				image=main_image_url,
-				price=float(price),
-				in_stock=False,
-				is_in_cart=False,
-			)
+		raise InvalidSortError(
+			f"Invalid sort parameter. Allowed: {', '.join(valid_sorts)}"
 		)
 
-	return ProductShortListResponse(
-		items=items, total_count=total_count, limit=limit, offset=offset
+	search_query: Optional[str] = None
+	if q is not None:
+		search_stripped = q.strip()
+		if search_stripped:
+			if len(search_stripped) < 3:
+				raise InvalidSearchQueryError(
+					"Search query must be at least 3 characters"
+				)
+			if len(search_stripped) > 200:
+				raise InvalidSearchQueryError(
+					"Search query must be at most 200 characters"
+				)
+			search_query = search_stripped
+
+	category_id = filters.category_id
+
+	crud_filters = {}
+	if filters.seller_id:
+		crud_filters["seller_id"] = filters.seller_id
+	if filters.price_min is not None:
+		crud_filters["price_min"] = filters.price_min
+	if filters.price_max is not None:
+		crud_filters["price_max"] = filters.price_max
+	if filters.attributes:
+		crud_filters["attributes"] = filters.attributes
+
+	products, total = await product_crud.get_products_list(
+		db=db,
+		limit=limit,
+		offset=offset,
+		category_id=category_id,
+		filter=crud_filters if crud_filters else None,
+		sort=sort,
+		q=search_query,
+	)
+
+	if not products:
+		return PaginatedCatalogProducts(
+			items=[], total_count=total, limit=limit, offset=offset
+		)
+
+	categories_map = await category_crud.get_all_categories_map(db)
+	review_stats_by_product = await review_crud.get_reviews_stats_by_product_ids(
+		db, [product.id for product in products]
+	)
+
+	catalog_cards = build_catalog_product_cards(
+		products, categories_map, review_stats_by_product
+	)
+
+	return PaginatedCatalogProducts(
+		items=catalog_cards, total_count=total, limit=limit, offset=offset
 	)
 
 
-async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> Product:
+async def get_catalog_facets_service(
+	db: AsyncSession,
+	category_id: str,
+	raw_query_params: list[tuple[str, str]],
+) -> FacetsResponse:
+	from services.category_service import get_category_facets
+
+	parsed = parse_deep_filters(raw_query_params)
+	applied_filters: dict | None = None
+	attributes = parsed.get("attributes")
+	if isinstance(attributes, dict) and attributes:
+		applied_filters = attributes
+
+	return await get_category_facets(
+		db, uuid.UUID(category_id), applied_filters=applied_filters
+	)
+
+
+async def get_product_by_id(db: AsyncSession, id: uuid.UUID) -> CatalogProductDetail:
 	product = await product_crud.get_product_full(db, id)
 	if not product:
 		raise ProductNotFoundError("Product not found")
-	return Product.model_validate(product)
+	if product.status != ProductStatusEnum.MODERATED or product.deleted:
+		raise ProductNotFoundError("Product not found")
+
+	categories_map = await category_crud.get_all_categories_map(db)
+	review_stats_by_product = await review_crud.get_reviews_stats_by_product_ids(
+		db, [product.id]
+	)
+
+	return build_catalog_product_detail(
+		product,
+		categories_map,
+		review_stats_by_product.get(product.id),
+	)
 
 
 async def get_similar_products(
@@ -172,3 +229,59 @@ async def delete_product(product_id: uuid.UUID, db: AsyncSession) -> None:
 		await sku_service.delete_sku(db, sku.id)
 
 	await product_crud.delete_product(product_id, db)
+
+
+def _assign_nested_value(target: dict, path: list[str], value: str) -> None:
+	current = target
+	for key in path[:-1]:
+		if key not in current or not isinstance(current[key], dict):
+			current[key] = {}
+		current = current[key]
+	final_key = path[-1]
+	if final_key in current:
+		if isinstance(current[final_key], list):
+			current[final_key].append(value)
+		else:
+			current[final_key] = [current[final_key], value]
+	else:
+		current[final_key] = value
+
+
+def parse_deep_filters(query_params: list[tuple[str, str]]) -> dict:
+	deep_filters: dict = {}
+	for k, v in query_params:
+		if not k.startswith("filter[") or not k.endswith("]"):
+			continue
+		inner = k[len("filter[") : -1]
+		path = inner.split("][")
+		_assign_nested_value(deep_filters, path, v)
+	return deep_filters
+
+
+def parse_catalog_filters(
+	query_params: list[tuple[str, str]], filter_str: Optional[str] = None
+) -> ProductFilterParams:
+	parsed_filters = parse_deep_filters(query_params)
+
+	if filter_str:
+		try:
+			parsed_json = (
+				json.loads(filter_str) if isinstance(filter_str, str) else filter_str
+			)
+			if not isinstance(parsed_json, dict):
+				raise InvalidFilterError("Invalid filter format or schema parameters")
+			parsed_filters.update(parsed_json)
+		except (JSONDecodeError, ValidationError) as e:
+			raise InvalidFilterError(
+				"Invalid filter format or schema parameters"
+			) from e
+
+	if parsed_filters:
+		try:
+			return ProductFilterParams.model_validate(parsed_filters)
+		except ValidationError as e:
+			raise InvalidFilterError(
+				"Invalid filter format or schema parameters"
+			) from e
+
+	return ProductFilterParams()

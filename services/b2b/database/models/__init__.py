@@ -1,6 +1,7 @@
 from database.models.catalog.variants import Sku, Characteristic, Image
 from database.models.catalog.base import Product, Category, ProductStatusEnum
 from database.models.catalog.inventory import Invoice, InvoiceItem
+from database.models.catalog.moderation_processed_events import ModerationProcessedEvent
 from database.models.catalog.inventory_operations import (
 	InventoryReserveOperation,
 	InventoryUnreserveOperation,
@@ -26,4 +27,5 @@ __all__ = [
 	"InventoryUnreserveOperation",
 	"InboxEvent",
 	"InboxEventStatusEnum",
+	"ModerationProcessedEvent",
 ]

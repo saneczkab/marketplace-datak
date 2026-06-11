@@ -3,12 +3,14 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud import images as images_crud
+from crud import outbox as outbox_crud
 from crud import product as product_crud
 from crud import session as session_crud
 from crud import sku as sku_crud
 from database.models import Session
 from database.models.catalog.base import Product, ProductStatusEnum
 from exceptions.product import (
+	ProductAlreadyDeletedError,
 	ProductForbiddenError,
 	ProductNotFoundError,
 	ProductNotOwnerError,
@@ -119,9 +121,11 @@ async def _get_owned_product(
 
 
 async def create_new_product(
-	db: AsyncSession, product_in: ProductCreate, seller_token: UUID
+	db: AsyncSession, product_in: ProductCreate, seller_token: str
 ) -> ProductResponse:
-	session: Session = await session_crud.get_session_by_access_token(seller_token, db)
+	session: Session = await session_crud.get_session_by_access_token(
+		str(seller_token), db
+	)
 
 	product = Product(
 		seller_id=session.user_id,
@@ -170,13 +174,25 @@ async def patch_existing_product(
 	return build_product_response(updated_product)
 
 
-async def remove_product(
-	db: AsyncSession, product_id: UUID, seller_id: UUID
-) -> dict[str, str]:
-	product = await product_crud.get_product_by_id(db, product_id, seller_id)
+async def remove_product(db: AsyncSession, product_id: UUID, seller_id: UUID) -> None:
+	product = await product_crud.get_product_by_id_only(db, product_id)
 	if not product:
 		raise ProductNotFoundError("Product not found")
+	if product.seller_id != seller_id:
+		raise ProductNotOwnerError(
+			"Product does not belong to the authenticated seller"
+		)
+	if product.deleted or product.status == ProductStatusEnum.DELETED:
+		raise ProductAlreadyDeletedError("Product already deleted")
 
+	sku_rows = await product_crud.get_product_skus(db, product.id)
 	await product_crud.soft_delete_product(db, product)
-
-	return {"detail": "Product deleted successfully"}
+	await outbox_crud.enqueue_moderation_product_deleted(
+		db, product.id, product.seller_id
+	)
+	await outbox_crud.enqueue_b2c_product_deleted(
+		db,
+		product.id,
+		[sku.id for sku in sku_rows],
+	)
+	await db.commit()
