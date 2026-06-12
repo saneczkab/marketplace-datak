@@ -29,15 +29,6 @@ async def add_product(product: Product, db: AsyncSession) -> Product:
 	return product
 
 
-async def get_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
-	result = await db.execute(
-		select(Product).where(
-			Product.seller_id == seller_id, Product.deleted.is_(False)
-		)
-	)
-	return list(result.scalars().all())
-
-
 async def list_seller_products_page(
 	db: AsyncSession,
 	seller_id: UUID,

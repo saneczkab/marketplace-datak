@@ -1,5 +1,5 @@
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
 from database.models import ProductStatusEnum
@@ -30,19 +30,6 @@ class ProductUpdate(BaseModel):
 	description: Optional[str] = Field(None, max_length=5000)
 	category_id: Optional[UUID] = None
 	characteristics: Optional[List[Characteristic]] = None
-
-
-class ProductSellerRead(BaseModel):
-	id: UUID
-	title: str
-	slug: str
-	description: str | None
-	status: ProductStatusEnum
-	category_id: UUID
-	created_at: datetime
-	updated_at: datetime
-
-	model_config = ConfigDict(from_attributes=True)
 
 
 class CategoryShort(BaseModel):

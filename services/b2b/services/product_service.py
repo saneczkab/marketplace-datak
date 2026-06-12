@@ -156,10 +156,6 @@ async def get_product_for_seller(
 	return await build_product_detail_response(db, product)
 
 
-async def get_all_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
-	return await product_crud.get_seller_products(db, seller_id)
-
-
 async def list_seller_products(
 	db: AsyncSession,
 	seller_id: UUID,
