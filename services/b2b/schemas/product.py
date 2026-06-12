@@ -45,6 +45,35 @@ class ProductSellerRead(BaseModel):
 	model_config = ConfigDict(from_attributes=True)
 
 
+class CategoryShort(BaseModel):
+	id: UUID
+	name: str
+
+
+class ProductListImage(BaseModel):
+	url: str
+	ordering: int
+
+
+class ProductSellerListItem(BaseModel):
+	id: UUID
+	title: str
+	status: ProductStatusEnum
+	deleted: bool
+	category: CategoryShort
+	images: List[ProductListImage]
+	skus_count: int
+	total_active_quantity: int
+	created_at: datetime
+
+
+class ProductSellerListResponse(BaseModel):
+	items: List[ProductSellerListItem]
+	total_count: int
+	limit: int
+	offset: int
+
+
 class ProductImageResponse(BaseModel):
 	id: UUID
 	url: str
