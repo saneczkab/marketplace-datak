@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from crud import category as category_crud
 from crud import images as images_crud
 from crud import outbox as outbox_crud
 from crud import product as product_crud
@@ -17,12 +18,16 @@ from exceptions.product import (
 )
 from schemas.product import (
 	BlockingReason,
+	CategoryShort,
 	CharacteristicsResponse,
 	FieldReport,
 	ProductCreate,
 	ProductDetailResponse,
 	ProductImageResponse,
+	ProductListImage,
 	ProductResponse,
+	ProductSellerListItem,
+	ProductSellerListResponse,
 	ProductUpdate,
 )
 from services.sku_service import build_sku_response
@@ -153,6 +158,58 @@ async def get_product_for_seller(
 
 async def get_all_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
 	return await product_crud.get_seller_products(db, seller_id)
+
+
+async def list_seller_products(
+	db: AsyncSession,
+	seller_id: UUID,
+	limit: int,
+	offset: int,
+	status: ProductStatusEnum | None = None,
+	search: str | None = None,
+) -> ProductSellerListResponse:
+	products, total = await product_crud.list_seller_products_page(
+		db, seller_id, limit, offset, status, search
+	)
+
+	product_ids = [product.id for product in products]
+	images_by_product = await images_crud.get_product_images_for_products(
+		db, product_ids
+	)
+	aggregates = await product_crud.get_sku_aggregates_for_products(db, product_ids)
+	category_ids = list({product.category_id for product in products})
+	categories = await category_crud.get_categories_by_ids(db, category_ids)
+
+	items = []
+	for product in products:
+		skus_count, total_active_quantity = aggregates.get(product.id, (0, 0))
+		category = categories.get(product.category_id)
+		items.append(
+			ProductSellerListItem(
+				id=product.id,
+				title=product.title,
+				status=product.status,
+				deleted=product.deleted,
+				category=CategoryShort(
+					id=product.category_id,
+					name=category.name if category else "",
+				),
+				images=[
+					ProductListImage(url=img.url, ordering=img.ordering)
+					for img in images_by_product.get(product.id, [])
+				],
+				skus_count=skus_count,
+				total_active_quantity=total_active_quantity,
+				created_at=product.created_at,
+			)
+		)
+
+	return ProductSellerListResponse(
+		items=items,
+		total_count=total,
+		limit=limit,
+		offset=offset,
+	)
 
 
 async def patch_existing_product(
