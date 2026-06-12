@@ -22,6 +22,7 @@ from schemas.product import (
 	ProductResponse,
 	ProductSellerListResponse,
 	ProductUpdate,
+	SellerProductStatusFilter,
 )
 from services import product_service
 
@@ -60,12 +61,15 @@ async def get_my_products(
 	db: Annotated[AsyncSession, Depends(get_db)],
 	limit: Annotated[int, Query(ge=1, le=100)] = 20,
 	offset: Annotated[int, Query(ge=0)] = 0,
-	status_filter: Annotated[ProductStatusEnum | None, Query(alias="status")] = None,
+	status_filter: Annotated[
+		SellerProductStatusFilter | None, Query(alias="status")
+	] = None,
 	search: str | None = None,
 ) -> ProductSellerListResponse:
 	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	status_arg = ProductStatusEnum(status_filter.value) if status_filter else None
 	return await product_service.list_seller_products(
-		db, seller_id, limit, offset, status_filter, search
+		db, seller_id, limit, offset, status_arg, search
 	)
 
 

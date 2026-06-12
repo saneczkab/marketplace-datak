@@ -1,3 +1,4 @@
+import enum
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from uuid import UUID
@@ -59,6 +60,14 @@ class ProductSellerListResponse(BaseModel):
 	total_count: int
 	limit: int
 	offset: int
+
+
+class SellerProductStatusFilter(str, enum.Enum):
+	CREATED = "CREATED"
+	ON_MODERATION = "ON_MODERATION"
+	MODERATED = "MODERATED"
+	BLOCKED = "BLOCKED"
+	HARD_BLOCKED = "HARD_BLOCKED"
 
 
 class ProductImageResponse(BaseModel):

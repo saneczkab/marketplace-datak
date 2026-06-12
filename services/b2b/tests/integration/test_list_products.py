@@ -98,6 +98,7 @@ async def test_search_by_title_case_insensitive(
 	ids = {i["id"] for i in body["items"]}
 	assert str(data.moderated_product.id) in ids
 	assert str(data.blocked_product.id) not in ids
+	assert body["total_count"] == 1
 
 
 async def test_response_includes_sku_aggregates(
@@ -117,6 +118,34 @@ async def test_response_includes_sku_aggregates(
 	assert moderated["skus_count"] == 2
 	assert moderated["total_active_quantity"] == 15
 	assert moderated["category"]["name"] == "Смартфоны"
+
+
+async def test_status_filter_rejects_deleted(
+	client: AsyncClient,
+	seller_list_data: SellerListData,
+	db_session: AsyncSession,
+) -> None:
+	data = seller_list_data
+	headers = await auth_headers(data.owner.id, db_session)
+
+	response = await client.get("/api/v1/products?status=DELETED", headers=headers)
+	assert response.status_code == 422
+
+
+async def test_search_wildcard_chars_are_literal(
+	client: AsyncClient,
+	seller_list_data: SellerListData,
+	db_session: AsyncSession,
+) -> None:
+	data = seller_list_data
+	headers = await auth_headers(data.owner.id, db_session)
+
+	response = await client.get(
+		"/api/v1/products", params={"search": "%"}, headers=headers
+	)
+	assert response.status_code == 200
+	body = response.json()
+	assert body["total_count"] == 0
 
 
 async def test_pagination_limit_offset_works(

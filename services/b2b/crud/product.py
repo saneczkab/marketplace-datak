@@ -41,8 +41,10 @@ async def list_seller_products_page(
 	if status is not None:
 		conditions.append(Product.status == status)
 	if search and search.strip():
-		term = f"%{search.strip()}%"
-		conditions.append(Product.title.ilike(term))
+		escaped = (
+			search.strip().replace("/", "//").replace("%", "/%").replace("_", "/_")
+		)
+		conditions.append(Product.title.ilike(f"%{escaped}%", escape="/"))
 
 	total = (
 		await db.execute(select(func.count(Product.id)).where(*conditions))
