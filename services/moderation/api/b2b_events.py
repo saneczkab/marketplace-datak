@@ -10,7 +10,6 @@ from exceptions.b2b_event import (
 	TicketAlreadyExistsError,
 	TicketNotFoundError,
 )
-from exceptions.catalog import CatalogProductNotFoundError
 from schemas.b2b_event import IncomingB2BEvent
 from services import b2b_event_service
 
@@ -24,24 +23,13 @@ async def receive_b2b_event_endpoint(
 ) -> Response:
 	try:
 		await b2b_event_service.receive_event(db, request)
-	except TicketAlreadyExistsError as exc:
+	except (
+		TicketNotFoundError,
+		B2BEventValidationError,
+		ValidationError,
+		TicketAlreadyExistsError,
+	) as exc:
 		raise HTTPException(
 			status_code=400,
 			detail={"code": "VALIDATION_ERROR", "message": str(exc)},
 		) from exc
-	except TicketNotFoundError as exc:
-		raise HTTPException(
-			status_code=400,
-			detail={"code": "VALIDATION_ERROR", "message": str(exc)},
-		) from exc
-	except CatalogProductNotFoundError as exc:
-		raise HTTPException(
-			status_code=500,
-			detail={"code": "INTERNAL_ERROR", "message": str(exc)},
-		) from exc
-	except (B2BEventValidationError, ValidationError) as exc:
-		raise HTTPException(
-			status_code=400,
-			detail={"code": "VALIDATION_ERROR", "message": str(exc)},
-		) from exc
-	return Response(status_code=202)
