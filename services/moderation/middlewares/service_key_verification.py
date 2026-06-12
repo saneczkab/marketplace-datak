@@ -1,0 +1,50 @@
+import secrets
+from typing import Callable
+from core.config import settings
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+
+SERVICE_KEY_PATH_PREFIXES: dict[str, str] = {
+	"/api/v1/b2b": "B2B_SERVICE_KEY",
+}
+
+
+def _expected_service_key(setting_name: str) -> str:
+	return getattr(settings, setting_name, "") or ""
+
+
+async def verify_service_key(request: Request, call_next: Callable) -> JSONResponse:
+	matched_prefix: str | None = None
+
+	setting_name: str | None = None
+
+	for prefix, key_setting in SERVICE_KEY_PATH_PREFIXES.items():
+		if request.url.path.startswith(prefix):
+			matched_prefix = prefix
+
+			setting_name = key_setting
+
+			break
+
+	if matched_prefix is None:
+		return await call_next(request)
+
+	service_key = request.headers.get("X-Service-Key")
+
+	expected = _expected_service_key(setting_name or "")
+
+	if (
+		not service_key
+		or not expected
+		or not secrets.compare_digest(service_key, expected)
+	):
+		return JSONResponse(
+			status_code=401,
+			content={
+				"code": "UNAUTHORIZED",
+				"message": "Invalid or missing service key",
+			},
+		)
+
+	return await call_next(request)

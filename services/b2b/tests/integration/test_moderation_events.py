@@ -34,7 +34,6 @@ def _moderated_body(
 
 def _blocked_body(
 	product_id: uuid.UUID,
-	*,
 	hard_block: bool = False,
 	idempotency_key: uuid.UUID | None = None,
 	field_reports: list[dict] | None = None,
