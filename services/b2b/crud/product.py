@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from uuid import UUID
 
 from crud import outbox as outbox_crud
@@ -36,6 +36,53 @@ async def get_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product
 		)
 	)
 	return list(result.scalars().all())
+
+
+async def list_seller_products_page(
+	db: AsyncSession,
+	seller_id: UUID,
+	limit: int,
+	offset: int,
+	status: ProductStatusEnum | None = None,
+	search: str | None = None,
+) -> tuple[list[Product], int]:
+	conditions = [Product.seller_id == seller_id]
+	if status is not None:
+		conditions.append(Product.status == status)
+	if search and search.strip():
+		term = f"%{search.strip()}%"
+		conditions.append(Product.title.ilike(term))
+
+	total = (
+		await db.execute(select(func.count(Product.id)).where(*conditions))
+	).scalar() or 0
+
+	query = (
+		select(Product)
+		.where(*conditions)
+		.order_by(Product.created_at.desc())
+		.offset(offset)
+		.limit(limit)
+	)
+	products = list((await db.execute(query)).scalars().all())
+	return products, int(total)
+
+
+async def get_sku_aggregates_for_products(
+	db: AsyncSession, product_ids: list[UUID]
+) -> dict[UUID, tuple[int, int]]:
+	if not product_ids:
+		return {}
+	result = await db.execute(
+		select(
+			Sku.product_id,
+			func.count(Sku.id),
+			func.coalesce(func.sum(Sku.active_quantity), 0),
+		)
+		.where(Sku.product_id.in_(product_ids))
+		.group_by(Sku.product_id)
+	)
+	return {row[0]: (int(row[1]), int(row[2])) for row in result.all()}
 
 
 async def get_product_by_id(
