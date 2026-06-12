@@ -132,7 +132,7 @@ async def test_delete_already_deleted_returns_404(
 	assert response.status_code == 404
 
 
-async def test_deleted_product_not_in_seller_list(
+async def test_deleted_product_visible_in_seller_list_with_flag(
 	client: AsyncClient,
 	category_with_products: CategoryWithProductsData,
 	db_session: AsyncSession,
