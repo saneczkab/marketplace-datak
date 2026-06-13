@@ -6,19 +6,23 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.b2b_events import router as b2b_events_router
-from core.messaging import run_catalog_consumer_forever
+from api.tickets import router as tickets_router
+from core.messaging import run_catalog_consumer_forever, run_outbox_worker_forever
 from middlewares.service_key_verification import verify_service_key
+from middlewares.token_verification import verify_token
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa
 	consumer_task = asyncio.create_task(run_catalog_consumer_forever())
+	outbox_task = asyncio.create_task(run_outbox_worker_forever())
 	yield
-	consumer_task.cancel()
-	try:
-		await consumer_task
-	except asyncio.CancelledError:
-		pass
+	for task in (consumer_task, outbox_task):
+		task.cancel()
+		try:
+			await task
+		except asyncio.CancelledError:
+			pass
 
 
 app = FastAPI(
@@ -64,7 +68,9 @@ async def request_validation_exception_handler(
 
 
 app.middleware("http")(verify_service_key)
+app.middleware("http")(verify_token)
 app.include_router(b2b_events_router, prefix="/api/v1")
+app.include_router(tickets_router, prefix="/api/v1")
 
 
 @app.get("/")

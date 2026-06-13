@@ -15,6 +15,7 @@ class settings(BaseSettings):  # noqa
 	RABBITMQ_EXCHANGE: str
 
 	B2B_SERVICE_KEY: str = ""
+	OUTBOX_POLL_INTERVAL_SECONDS: int = 5
 
 	model_config = {"env_file": ".env", "extra": "allow"}
 

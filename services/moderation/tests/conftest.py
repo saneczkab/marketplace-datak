@@ -76,9 +76,11 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 			yield session
 
 	from api.b2b_events import router as b2b_events_router
+	from api.tickets import router as tickets_router
 	from core.config import settings as app_settings
 	from main import http_exception_handler, request_validation_exception_handler
 	from middlewares.service_key_verification import verify_service_key
+	from middlewares.token_verification import verify_token
 
 	app_settings.B2B_SERVICE_KEY = "test-b2b-service-key"
 
@@ -88,7 +90,9 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		RequestValidationError, request_validation_exception_handler
 	)
 	test_app.middleware("http")(verify_service_key)
+	test_app.middleware("http")(verify_token)
 	test_app.include_router(b2b_events_router, prefix="/api/v1")
+	test_app.include_router(tickets_router, prefix="/api/v1")
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 
 	return test_app

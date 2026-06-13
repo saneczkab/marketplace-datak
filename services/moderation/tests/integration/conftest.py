@@ -1,13 +1,18 @@
+import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import crud.session as session_crud
+from core.security import create_access_token
 from crud import catalog as catalog_crud
+from database.models.identity.moderator import Moderator, Session
 from database.models.tickets.ticket import Ticket, TicketStatus
 from schemas.catalog_event import CategoryPayload, ProductUpdatePayload, SkuPayload
+from tests.factories.moderator import ModeratorFactory
 from tests.factories.ticket import TicketFactory
 
 B2B_SERVICE_KEY_HEADERS = {"X-Service-Key": "test-b2b-service-key"}
@@ -153,6 +158,30 @@ async def seed_catalog_replica(
 	return payload
 
 
+async def auth_headers(
+	moderator_id: uuid.UUID, db_session: AsyncSession
+) -> dict[str, str]:
+	token = create_access_token(moderator_id)
+	if not await session_crud.check_active_session(token, db_session):
+		session = Session(
+			user_id=moderator_id,
+			access_token=token,
+			refresh_token=secrets.token_hex(32),
+			expires_at=datetime.now(timezone.utc) + timedelta(seconds=3600),
+		)
+		db_session.add(session)
+		await db_session.commit()
+	return {"Authorization": f"Bearer {token}"}
+
+
+async def persist_moderator(db_session: AsyncSession, **kwargs: object) -> Moderator:
+	moderator = ModeratorFactory.build(**kwargs)
+	db_session.add(moderator)
+	await db_session.commit()
+	await db_session.refresh(moderator)
+	return moderator
+
+
 async def persist_ticket(db_session: AsyncSession, **kwargs: object) -> Ticket:
 	ticket = TicketFactory.build(**kwargs)
 	db_session.add(ticket)
@@ -174,10 +203,27 @@ async def ticket_fixture_data() -> TicketFixtureData:
 
 
 @pytest.fixture
+async def moderator(
+	db_session: AsyncSession, ticket_fixture_data: TicketFixtureData
+) -> Moderator:
+	return await persist_moderator(
+		db_session,
+		id=ticket_fixture_data.moderator_id,
+	)
+
+
+@pytest.fixture
+async def other_moderator(db_session: AsyncSession) -> Moderator:
+	return await persist_moderator(db_session)
+
+
+@pytest.fixture
 async def in_review_ticket(
 	db_session: AsyncSession,
 	ticket_fixture_data: TicketFixtureData,
+	moderator: Moderator,
 ) -> Ticket:
+	_ = moderator.id
 	await seed_catalog_replica(
 		db_session,
 		ticket_fixture_data.product_id,
