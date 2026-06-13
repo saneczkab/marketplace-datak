@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -19,6 +20,18 @@ def _snapshot_to_json(snapshot: ProductSnapshot | dict | None) -> dict | None:
 
 async def get_by_product_id(db: AsyncSession, product_id: UUID) -> Ticket | None:
 	result = await db.execute(select(Ticket).where(Ticket.product_id == product_id))
+	return result.scalar_one_or_none()
+
+
+async def get_by_id(db: AsyncSession, ticket_id: UUID) -> Ticket | None:
+	result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+	return result.scalar_one_or_none()
+
+
+async def lock_by_id(db: AsyncSession, ticket_id: UUID) -> Ticket | None:
+	result = await db.execute(
+		select(Ticket).where(Ticket.id == ticket_id).with_for_update()
+	)
 	return result.scalar_one_or_none()
 
 
@@ -112,3 +125,20 @@ async def get_ticket_with_reports(db: AsyncSession, product_id: UUID) -> Ticket 
 		.where(Ticket.product_id == product_id)
 	)
 	return result.scalar_one_or_none()
+
+
+async def mark_approved(
+	db: AsyncSession,
+	ticket: Ticket,
+	moderator_id: UUID,
+	comment: str | None,
+) -> Ticket:
+	now = datetime.now(timezone.utc)
+	ticket.status = TicketStatus.APPROVED
+	ticket.decision_at = now
+	ticket.moderator_comment = comment
+	ticket.blocking_reason_id = None
+	ticket.assigned_moderator_id = moderator_id
+	db.add(ticket)
+	await db.flush()
+	return ticket
