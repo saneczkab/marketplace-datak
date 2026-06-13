@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.session as session_crud
 from core.security import create_access_token
 from crud import catalog as catalog_crud
+from database.models.blocking_reason import BlockingReason
 from database.models.identity.moderator import Moderator, Session
 from database.models.tickets.ticket import Ticket, TicketStatus
 from schemas.catalog_event import CategoryPayload, ProductUpdatePayload, SkuPayload
+from tests.factories.blocking_reason import BlockingReasonFactory
 from tests.factories.moderator import ModeratorFactory
 from tests.factories.ticket import TicketFactory
 
@@ -188,6 +190,21 @@ async def persist_ticket(db_session: AsyncSession, **kwargs: object) -> Ticket:
 	await db_session.commit()
 	await db_session.refresh(ticket)
 	return ticket
+
+
+async def persist_blocking_reason(
+	db_session: AsyncSession, **kwargs: object
+) -> BlockingReason:
+	reason = BlockingReasonFactory.build(**kwargs)
+	db_session.add(reason)
+	await db_session.commit()
+	await db_session.refresh(reason)
+	return reason
+
+
+@pytest.fixture
+async def hard_block_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(db_session, hard=True)
 
 
 @pytest.fixture

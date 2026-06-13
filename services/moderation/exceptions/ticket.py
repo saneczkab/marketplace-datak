@@ -20,3 +20,7 @@ class TicketNoSkusError(TicketError):
 
 class TicketHardBlockedError(TicketError):
 	"""Ticket is in terminal HARD_BLOCKED status."""
+
+
+class BlockingReasonNotFoundError(TicketError):
+	"""One or more blocking reasons were not found or inactive."""
