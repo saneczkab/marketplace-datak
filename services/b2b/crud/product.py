@@ -36,8 +36,11 @@ async def list_seller_products_page(
 	offset: int,
 	status: ProductStatusEnum | None = None,
 	search: str | None = None,
+	include_deleted: bool = False,
 ) -> tuple[list[Product], int]:
 	conditions = [Product.seller_id == seller_id]
+	if not include_deleted:
+		conditions.append(Product.deleted.is_(False))
 	if status is not None:
 		conditions.append(Product.status == status)
 	if search and search.strip():
@@ -63,7 +66,7 @@ async def list_seller_products_page(
 
 async def get_sku_aggregates_for_products(
 	db: AsyncSession, product_ids: list[UUID]
-) -> dict[UUID, tuple[int, int]]:
+) -> dict[UUID, tuple[int, int, int | None]]:
 	if not product_ids:
 		return {}
 	result = await db.execute(
@@ -71,11 +74,15 @@ async def get_sku_aggregates_for_products(
 			Sku.product_id,
 			func.count(Sku.id),
 			func.coalesce(func.sum(Sku.active_quantity), 0),
+			func.min(Sku.price),
 		)
 		.where(Sku.product_id.in_(product_ids))
 		.group_by(Sku.product_id)
 	)
-	return {row[0]: (int(row[1]), int(row[2])) for row in result.all()}
+	return {
+		row[0]: (int(row[1]), int(row[2]), int(row[3]) if row[3] is not None else None)
+		for row in result.all()
+	}
 
 
 async def get_product_by_id(

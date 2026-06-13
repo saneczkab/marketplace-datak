@@ -22,7 +22,7 @@ async def test_list_returns_only_own_products(
 	ids = {item["id"] for item in body["items"]}
 	assert str(data.moderated_product.id) in ids
 	assert str(data.other_seller_product.id) not in ids
-	assert body["total_count"] == 4
+	assert body["total_count"] == 3
 	assert body["limit"] == 20
 	assert body["offset"] == 0
 
@@ -56,7 +56,11 @@ async def test_deleted_products_visible_with_deleted_flag(
 	data = seller_list_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	response = await client.get("/api/v1/products", headers=headers)
+	response = await client.get(
+		"/api/v1/products?include_deleted=true",
+		headers=headers,
+	)
+	assert response.status_code == 200
 	body = response.json()
 
 	deleted_items = [
@@ -117,7 +121,7 @@ async def test_response_includes_sku_aggregates(
 	)
 	assert moderated["skus_count"] == 2
 	assert moderated["total_active_quantity"] == 15
-	assert moderated["category"]["name"] == "Смартфоны"
+	assert moderated["category_id"] == str(data.category.id)
 
 
 async def test_status_filter_rejects_deleted(
@@ -160,11 +164,11 @@ async def test_pagination_limit_offset_works(
 	page2 = await client.get("/api/v1/products?limit=2&offset=2", headers=headers)
 	b1, b2 = page1.json(), page2.json()
 
-	assert b1["total_count"] == 4
+	assert b1["total_count"] == 3
 	assert b1["limit"] == 2
 	assert b1["offset"] == 0
 	assert len(b1["items"]) == 2
-	assert len(b2["items"]) == 2
+	assert len(b2["items"]) == 1
 	ids1 = {i["id"] for i in b1["items"]}
 	ids2 = {i["id"] for i in b2["items"]}
 	assert ids1.isdisjoint(ids2)

@@ -65,11 +65,12 @@ async def get_my_products(
 		SellerProductStatusFilter | None, Query(alias="status")
 	] = None,
 	search: str | None = None,
+	include_deleted: Annotated[bool, Query()] = False,
 ) -> ProductSellerListResponse:
 	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	status_arg = ProductStatusEnum(status_filter.value) if status_filter else None
 	return await product_service.list_seller_products(
-		db, seller_id, limit, offset, status_arg, search
+		db, seller_id, limit, offset, status_arg, search, include_deleted
 	)
 
 

@@ -3,8 +3,9 @@
 ## Что сделано
 
 `GET /api/v1/products` (Bearer JWT) — пагинированный список товаров продавца с
-фильтром по статусу, поиском по названию и агрегатами по SKU. seller_id берётся
-только из JWT; видны все статусы, включая удалённые (с флагом `deleted`).
+фильтром по статусу, `include_deleted`, поиском по названию и агрегатами по SKU.
+seller_id берётся только из JWT; ответ — `ProductShortResponse` + `skus_count` /
+`total_active_quantity`; удалённые — при `include_deleted=true` (с флагом `deleted`).
 
 ## Запуск
 
@@ -28,40 +29,24 @@ make test
 
 ## ADR
 
-**1. Endpoint: доработка существующего `GET /products` vs единый endpoint по канону**
-- Альтернативы: один путь с ветвлением JWT/X-Service-Key (буква канона);
-  доработать существующий seller-`GET /products` (B2C-каталог уже вынесен на
-  `/public`, US-B2B-07).
-- Выбор: доработать существующий seller-endpoint.
-- Критерии: согласованность с уже принятым разделением путей `/public`;
-  отсутствие риска IDOR через подмену заголовков на одном пути; меньший diff.
+**Агрегация `skus_count` / `total_active_quantity`**
 
-**2. Агрегация `skus_count` / `total_active_quantity`**
-- Альтернативы: (A) отдельный grouped-запрос + сборка в сервисе; (B) annotate
-  через LEFT JOIN + GROUP BY в основном запросе; (C) скоррелированные подзапросы.
-- Выбор: A.
-- Критерии: нет N+1 (один доп. запрос на страницу); минимальная сложность
-  поддержки (копия паттерна `public_product.py`).
+Рассмотрены три подхода: `annotate` с `Count`/`Sum` в queryset списка (JOIN +
+GROUP BY), prefetch SKU с подсчётом в сериализаторе и raw SQL. Выбран отдельный
+grouped-запрос по `product_id IN (...)` с `func.count` и `func.sum` — тот же
+смысл, что у annotate, но без JOIN в основном запросе страницы. По N+1: один
+доп. запрос на страницу вместо N загрузок SKU или коррелированных подзапросов.
+По поддержке: агрегация изолирована в CRUD, list-query остаётся простым; без
+raw SQL и без логики подсчёта в сериализаторе.
 
-**3. IDOR query-параметры**
-- `seller_id/user_id/owner_id` не объявлены как параметры → игнорируются
-  (вариант «игнорировать», а не 400). seller_id всегда из JWT claims.
 
 ## Слои
 
 - **Schemas** (`schemas/product.py`) — `ProductSellerListResponse`,
-  `ProductSellerListItem`, `CategoryShort`, `ProductListImage`.
-- **CRUD** (`crud/product.py`, `crud/category.py`) — страница seller-товаров +
-  total_count, grouped-агрегаты по SKU, batch-загрузка имён категорий.
+  `ProductSellerListItem` (`ProductShortResponse` + агрегаты SKU).
+- **CRUD** (`crud/product.py`) — страница seller-товаров + total_count,
+  grouped-агрегаты по SKU (`count`, `sum(active_quantity)`, `min(price)`).
 - **Service** (`services/product_service.py`) — `list_seller_products`: сборка
-  items из страницы + images + categories + aggregates.
+  items из страницы + cover_image + aggregates.
 - **API** (`api/products.py`) — `GET /api/v1/products`, query-параметры
-  `limit/offset/status/search`, seller_id из JWT.
-
-## OpenAPI
-
-Режим seller-cabinet `GET /products` (список) в `b2b/openapi.yaml`
-(`neomarket-protocols`) на момент реализации отсутствует. Реализация следует
-канон-flow `b2b-flows.md#list-products`. Скелет OpenAPI содержит расхождения с
-каноном и кодом (`id: integer` вместо UUID, camelCase) — кандидат на отдельный
-PR в protocols (вне scope задачи).
+  `limit/offset/status/include_deleted/search`, seller_id из JWT.

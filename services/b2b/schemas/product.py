@@ -33,26 +33,18 @@ class ProductUpdate(BaseModel):
 	characteristics: Optional[List[Characteristic]] = None
 
 
-class CategoryShort(BaseModel):
-	id: UUID
-	name: str
-
-
-class ProductListImage(BaseModel):
-	url: str
-	ordering: int
-
-
 class ProductSellerListItem(BaseModel):
 	id: UUID
 	title: str
+	slug: str
 	status: ProductStatusEnum
+	category_id: UUID
 	deleted: bool
-	category: CategoryShort
-	images: List[ProductListImage]
+	created_at: datetime
+	min_price: int | None = None
+	cover_image: str | None = None
 	skus_count: int
 	total_active_quantity: int
-	created_at: datetime
 
 
 class ProductSellerListResponse(BaseModel):

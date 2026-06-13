@@ -147,7 +147,7 @@ async def test_deleted_product_visible_in_seller_list_with_flag(
 	assert response.status_code == 204
 
 	response = await client.get(
-		"/api/v1/products",
+		"/api/v1/products?include_deleted=true",
 		headers=headers,
 	)
 	assert response.status_code == 200
