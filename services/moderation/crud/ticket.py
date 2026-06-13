@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from database.models.tickets.field_report import TicketFieldReport
 from database.models.tickets.ticket import Ticket, TicketKind, TicketStatus
+from schemas.ticket import BlockFieldReport
 from schemas.product_snapshot import ProductSnapshot
 
 
@@ -142,3 +143,56 @@ async def mark_approved(
 	db.add(ticket)
 	await db.flush()
 	return ticket
+
+
+async def mark_blocked(
+	db: AsyncSession,
+	ticket: Ticket,
+	moderator_id: UUID,
+	blocking_reason_id: UUID,
+	comment: str | None,
+) -> Ticket:
+	now = datetime.now(timezone.utc)
+	ticket.status = TicketStatus.BLOCKED
+	ticket.decision_at = now
+	ticket.blocking_reason_id = blocking_reason_id
+	ticket.moderator_comment = comment
+	ticket.assigned_moderator_id = moderator_id
+	db.add(ticket)
+	await db.flush()
+	return ticket
+
+
+async def mark_hard_blocked(
+	db: AsyncSession,
+	ticket: Ticket,
+	moderator_id: UUID,
+	blocking_reason_id: UUID,
+	comment: str | None,
+) -> Ticket:
+	now = datetime.now(timezone.utc)
+	ticket.status = TicketStatus.HARD_BLOCKED
+	ticket.decision_at = now
+	ticket.blocking_reason_id = blocking_reason_id
+	ticket.moderator_comment = comment
+	ticket.assigned_moderator_id = moderator_id
+	db.add(ticket)
+	await db.flush()
+	return ticket
+
+
+async def insert_field_reports(
+	db: AsyncSession,
+	ticket_id: UUID,
+	reports: list[BlockFieldReport],
+) -> None:
+	for report in reports:
+		db.add(
+			TicketFieldReport(
+				ticket_id=ticket_id,
+				field_path=report.field_path,
+				sku_id=report.sku_id,
+				message=report.message,
+			)
+		)
+	await db.flush()

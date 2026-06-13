@@ -6,13 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
 from exceptions.ticket import (
+	BlockingReasonNotFoundError,
 	TicketHardBlockedError,
 	TicketNoSkusError,
 	TicketNotAssignedError,
 	TicketNotFoundError,
 	TicketWrongStatusError,
 )
-from schemas.ticket import ApproveTicketRequest, TicketResponse
+from schemas.ticket import ApproveTicketRequest, BlockDecisionRequest, TicketResponse
 from services import ticket_decision_service
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
@@ -40,17 +41,47 @@ async def approve_ticket_endpoint(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(exc)},
 		) from exc
-	except TicketNotAssignedError as exc:
+	except (TicketNotAssignedError, TicketHardBlockedError) as exc:
 		raise HTTPException(
 			status_code=403,
 			detail={"code": "FORBIDDEN", "message": str(exc)},
 		) from exc
-	except (
-		TicketWrongStatusError,
-		TicketNoSkusError,
-		TicketHardBlockedError,
-	) as exc:
+	except (TicketWrongStatusError, TicketNoSkusError) as exc:
 		raise HTTPException(
 			status_code=409,
 			detail={"code": "CONFLICT", "message": str(exc)},
+		) from exc
+
+
+@router.post("/{ticket_id}/block", response_model=TicketResponse)
+async def block_ticket_endpoint(
+	ticket_id: UUID,
+	request: Request,
+	body: BlockDecisionRequest,
+	db: Annotated[AsyncSession, Depends(get_db)],
+) -> TicketResponse:
+	moderator_id = _current_moderator_id(request)
+	try:
+		return await ticket_decision_service.block_ticket(
+			db, ticket_id, moderator_id, body
+		)
+	except TicketNotFoundError as exc:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(exc)},
+		) from exc
+	except (TicketNotAssignedError, TicketHardBlockedError) as exc:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "FORBIDDEN", "message": str(exc)},
+		) from exc
+	except TicketWrongStatusError as exc:
+		raise HTTPException(
+			status_code=409,
+			detail={"code": "CONFLICT", "message": str(exc)},
+		) from exc
+	except BlockingReasonNotFoundError as exc:
+		raise HTTPException(
+			status_code=400,
+			detail={"code": "BAD_REQUEST", "message": str(exc)},
 		) from exc

@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,25 @@ from database.models.tickets.ticket import Ticket, TicketKind, TicketStatus
 
 class ApproveTicketRequest(BaseModel):
 	comment: str | None = Field(default=None, max_length=2000)
+
+
+class FieldReportSeverity(str, Enum):
+	INFO = "INFO"
+	WARNING = "WARNING"
+	ERROR = "ERROR"
+
+
+class BlockFieldReport(BaseModel):
+	field_path: str
+	message: str = Field(max_length=1000)
+	severity: FieldReportSeverity = FieldReportSeverity.ERROR
+	sku_id: UUID | None = None
+
+
+class BlockDecisionRequest(BaseModel):
+	blocking_reason_ids: list[UUID] = Field(min_length=1)
+	comment: str | None = Field(default=None, max_length=2000)
+	field_reports: list[BlockFieldReport] = Field(default_factory=list)
 
 
 class TicketResponse(BaseModel):
