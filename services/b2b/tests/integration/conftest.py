@@ -413,6 +413,100 @@ MODERATION_SERVICE_KEY_HEADERS = {"X-Service-Key": "test-moderation-service-key"
 
 
 @dataclass(frozen=True, slots=True)
+class SellerListData:
+	owner: Seller
+	other_seller: Seller
+	category: Category
+	moderated_product: Product
+	blocked_product: Product
+	created_product: Product
+	deleted_product: Product
+	other_seller_product: Product
+
+
+@pytest.fixture()
+async def seller_list_data(db_session: AsyncSession) -> SellerListData:
+	owner: Seller = SellerFactory.build()
+	other_seller: Seller = SellerFactory.build()
+	db_session.add_all([owner, other_seller])
+	await db_session.commit()
+	await db_session.refresh(owner)
+	await db_session.refresh(other_seller)
+
+	category = CategoryFactory.build(name="Смартфоны")
+	db_session.add(category)
+	await db_session.commit()
+	await db_session.refresh(category)
+
+	moderated_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.MODERATED,
+		title="iPhone 15 Pro",
+		slug=f"iphone-{uuid.uuid4().hex[:8]}",
+		deleted=False,
+	)
+	blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.BLOCKED,
+		title="Samsung Galaxy S24",
+		slug=f"samsung-{uuid.uuid4().hex[:8]}",
+		deleted=False,
+	)
+	created_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.CREATED,
+		title="Google Pixel 8",
+		slug=f"pixel-{uuid.uuid4().hex[:8]}",
+		deleted=False,
+	)
+	deleted_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.DELETED,
+		title="Old Nokia",
+		slug=f"nokia-{uuid.uuid4().hex[:8]}",
+		deleted=True,
+	)
+	other_seller_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=other_seller.id,
+		status=ProductStatusEnum.MODERATED,
+		title="Competitor Phone",
+		slug=f"competitor-{uuid.uuid4().hex[:8]}",
+		deleted=False,
+	)
+	db_session.add_all(
+		[
+			moderated_product,
+			blocked_product,
+			created_product,
+			deleted_product,
+			other_seller_product,
+		]
+	)
+	await db_session.commit()
+
+	sku_a = SkuFactory.build(product_id=moderated_product.id, active_quantity=10)
+	sku_b = SkuFactory.build(product_id=moderated_product.id, active_quantity=5)
+	db_session.add_all([sku_a, sku_b])
+	await db_session.commit()
+
+	return SellerListData(
+		owner=owner,
+		other_seller=other_seller,
+		category=category,
+		moderated_product=moderated_product,
+		blocked_product=blocked_product,
+		created_product=created_product,
+		deleted_product=deleted_product,
+		other_seller_product=other_seller_product,
+	)
+
+
+@dataclass(frozen=True, slots=True)
 class ModerationEventData:
 	seller: Seller
 	product: Product

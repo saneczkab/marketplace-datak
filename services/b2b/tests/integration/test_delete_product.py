@@ -132,7 +132,7 @@ async def test_delete_already_deleted_returns_404(
 	assert response.status_code == 404
 
 
-async def test_deleted_product_not_in_seller_list(
+async def test_deleted_product_visible_in_seller_list_with_flag(
 	client: AsyncClient,
 	category_with_products: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -147,12 +147,14 @@ async def test_deleted_product_not_in_seller_list(
 	assert response.status_code == 204
 
 	response = await client.get(
-		"/api/v1/products/",
+		"/api/v1/products",
 		headers=headers,
 	)
 	assert response.status_code == 200
 	body = response.json()
-	assert str(product.id) not in [product["id"] for product in body]
+	deleted_items = [p for p in body["items"] if p["id"] == str(product.id)]
+	assert len(deleted_items) == 1
+	assert deleted_items[0]["deleted"] is True
 
 
 async def test_delete_product_no_auth_returns_401(

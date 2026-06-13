@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from pydantic import ValidationError
@@ -15,12 +15,14 @@ from exceptions.product import (
 	ProductNotFoundError,
 	ProductNotOwnerError,
 )
+from database.models import ProductStatusEnum
 from schemas.product import (
 	ProductCreate,
 	ProductDetailResponse,
 	ProductResponse,
-	ProductSellerRead,
+	ProductSellerListResponse,
 	ProductUpdate,
+	SellerProductStatusFilter,
 )
 from services import product_service
 
@@ -53,14 +55,22 @@ async def create_product(
 		) from e
 
 
-@router.get("/", response_model=list[ProductSellerRead])
+@router.get("", response_model=ProductSellerListResponse)
 async def get_my_products(
 	request: Request,
 	db: Annotated[AsyncSession, Depends(get_db)],
-) -> list[ProductSellerRead]:
+	limit: Annotated[int, Query(ge=1, le=100)] = 20,
+	offset: Annotated[int, Query(ge=0)] = 0,
+	status_filter: Annotated[
+		SellerProductStatusFilter | None, Query(alias="status")
+	] = None,
+	search: str | None = None,
+) -> ProductSellerListResponse:
 	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
-	products = await product_service.get_all_seller_products(db, seller_id)
-	return [ProductSellerRead.model_validate(p) for p in products]
+	status_arg = ProductStatusEnum(status_filter.value) if status_filter else None
+	return await product_service.list_seller_products(
+		db, seller_id, limit, offset, status_arg, search
+	)
 
 
 @router.get("/{product_id}", response_model=ProductDetailResponse)

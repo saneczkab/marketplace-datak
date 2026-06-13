@@ -24,3 +24,12 @@ async def get_all_categories(
 	query = select(Category).where(Category.parent_id == parent_id)
 	result = await db.execute(query)
 	return result.scalars().all()
+
+
+async def get_categories_by_ids(
+	db: AsyncSession, category_ids: list[UUID]
+) -> dict[UUID, Category]:
+	if not category_ids:
+		return {}
+	result = await db.execute(select(Category).where(Category.id.in_(category_ids)))
+	return {category.id: category for category in result.scalars().all()}
