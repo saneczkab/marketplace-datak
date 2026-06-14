@@ -14,3 +14,7 @@ class ReserveConflictError(InventoryError):
 
 class UnreserveConflictError(InventoryError):
 	"""Reserved quantity is less than requested unreserve amount."""
+
+
+class FulfillConflictError(InventoryError):
+	"""Reserved quantity is less than the requested fulfill amount."""
