@@ -7,12 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from crud import inventory as inventory_crud
 from database.models.catalog.base import ProductStatusEnum
 from exceptions.inventory import (
+	FulfillConflictError,
 	InventoryValidationError,
 	ReserveConflictError,
 	UnreserveConflictError,
 )
 from exceptions.sku import SkuNotFoundError
 from schemas.inventory import (
+	FulfillRequest,
+	FulfillResponse,
 	InventoryOrderRequest,
 	InventoryOrderResponse,
 	InventoryItem,
@@ -184,3 +187,36 @@ async def unreserve_inventory(
 		status="UNRESERVED",
 		processed_at=processed_at,
 	)
+
+
+async def fulfill_inventory(
+	db: AsyncSession, request: FulfillRequest
+) -> FulfillResponse:
+	quantities = _ensure_unique_sku_ids(request.items)
+	sku_ids = list(quantities.keys())
+
+	existing = await inventory_crud.get_fulfill_operation(db, request.order_id)
+	if existing is not None:
+		return FulfillResponse(ok=True)
+
+	rows = await inventory_crud.lock_skus_with_products(db, sku_ids)
+	if len(rows) != len(sku_ids):
+		found = {sku.id for sku, _ in rows}
+		missing = next(sid for sid in sku_ids if sid not in found)
+		raise SkuNotFoundError(f"SKU with id {missing} not found")
+
+	for sku, _product in rows:
+		requested = quantities[sku.id]
+		if sku.reserved_quantity < requested:
+			await db.rollback()
+			raise FulfillConflictError(
+				f"SKU {sku.id} has reserved_quantity {sku.reserved_quantity}, "
+				f"cannot fulfill {requested}"
+			)
+
+	for sku, _product in rows:
+		sku.reserved_quantity -= quantities[sku.id]
+
+	processed_at = datetime.now(timezone.utc)
+	await inventory_crud.save_fulfill(db, request.order_id, processed_at)
+	return FulfillResponse(ok=True)
