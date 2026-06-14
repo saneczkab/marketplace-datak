@@ -27,6 +27,7 @@ make test
 - `test_fulfill_decreases_reserved_quantity` — после успешного fulfill `reserved_quantity` обоих SKU равен 0
 - `test_active_quantity_unchanged` — `active_quantity` не изменяется после fulfill
 - `test_idempotent_fulfill_no_double_deduction` — повторный запрос с тем же `order_id` возвращает 200 и не списывает резерв повторно
+- `test_fulfill_exceeding_reserved_returns_409` — запрос с `quantity` больше `reserved_quantity` возвращает 409 `CONFLICT`, резерв не изменяется (all-or-nothing)
 - `test_missing_service_key_returns_401` — запрос без `X-Service-Key` возвращает 401 с `{"code": "UNAUTHORIZED"}`
 
 ## ADR
