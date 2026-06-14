@@ -161,6 +161,12 @@ async def soft_delete_product(db: AsyncSession, db_obj: Product) -> Product:
 	return db_obj
 
 
+async def reset_status_to_created(db: AsyncSession, product: Product) -> None:
+	product.status = ProductStatusEnum.CREATED
+	db.add(product)
+	await db.flush()
+
+
 async def hard_delete_product(db: AsyncSession, db_obj: Product) -> None:
 	await db.delete(db_obj)
 	await db.commit()

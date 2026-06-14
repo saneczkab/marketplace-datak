@@ -193,8 +193,7 @@ async def delete_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> None:
 
 	remaining = await sku_crud.count_skus_by_product_id(db, product_id)
 	if remaining == 0 and previous_status == ProductStatusEnum.ON_MODERATION:
-		product.status = ProductStatusEnum.CREATED
-		db.add(product)
+		await product_crud.reset_status_to_created(db, product)
 		await outbox_crud.enqueue_moderation_product_deleted(
 			db, product_id, product.seller_id
 		)
