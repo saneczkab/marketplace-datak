@@ -675,6 +675,7 @@ async def public_catalog_data(db_session: AsyncSession) -> PublicCatalogData:
 @dataclass(frozen=True, slots=True)
 class DeleteSkuData:
 	seller: Seller
+	other_seller: Seller
 	happy_product: Product
 	happy_sku: Sku
 	happy_other_sku: Sku
@@ -689,7 +690,8 @@ class DeleteSkuData:
 @pytest.fixture()
 async def delete_sku_data(db_session: AsyncSession) -> DeleteSkuData:
 	seller = SellerFactory.build()
-	db_session.add(seller)
+	other_seller = SellerFactory.build()
+	db_session.add_all([seller, other_seller])
 	await db_session.flush()
 
 	category = CategoryFactory.build()
@@ -762,6 +764,7 @@ async def delete_sku_data(db_session: AsyncSession) -> DeleteSkuData:
 
 	return DeleteSkuData(
 		seller=seller,
+		other_seller=other_seller,
 		happy_product=happy_product,
 		happy_sku=happy_sku,
 		happy_other_sku=happy_other_sku,
