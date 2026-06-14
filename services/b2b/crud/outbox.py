@@ -16,6 +16,7 @@ MODERATION_PRODUCT_DELETED = "moderation.product.deleted"
 B2C_EVENT_ROUTING_KEY = "b2c.events"
 B2C_PRODUCT_DELETED = "b2c.product.deleted"
 PRODUCT_BLOCKED_EVENT_TYPE = "PRODUCT_BLOCKED"
+B2C_SKU_OUT_OF_STOCK = "SKU_OUT_OF_STOCK"
 
 
 def build_moderation_product_created_payload(
@@ -177,6 +178,33 @@ async def enqueue_b2c_product_deleted(
 	db.add(outbox_event)
 	await db.flush()
 	return outbox_event
+
+
+def build_b2c_sku_out_of_stock_payload(
+	sku_id: UUID,
+	product_id: UUID,
+	available_quantity: int = 0,
+) -> dict:
+	return {
+		"event_type": B2C_SKU_OUT_OF_STOCK,
+		"idempotency_key": str(uuid.uuid4()),
+		"occurred_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+		"payload": {
+			"sku_id": str(sku_id),
+			"product_id": str(product_id),
+			"available_quantity": available_quantity,
+		},
+	}
+
+
+async def enqueue_b2c_sku_out_of_stock(
+	db: AsyncSession,
+	sku_id: UUID,
+	product_id: UUID,
+	available_quantity: int = 0,
+) -> OutboxEvent:
+	message = build_b2c_sku_out_of_stock_payload(sku_id, product_id, available_quantity)
+	return await enqueue_b2c_event(db, message)
 
 
 async def fetch_pending_events(db: AsyncSession, limit: int = 50) -> list[OutboxEvent]:
