@@ -2,12 +2,18 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from crud import outbox as outbox_crud
 from crud import product as product_crud
 from crud import sku as sku_crud
 from database.models.catalog.base import ProductStatusEnum
 from database.models.catalog.variants import Sku
 from exceptions.product import ProductNotFoundError, ProductNotOwnerError
-from exceptions.sku import SkuForbiddenError, SkuNotFoundError, SkuValidationError
+from exceptions.sku import (
+	SkuConflictError,
+	SkuForbiddenError,
+	SkuNotFoundError,
+	SkuValidationError,
+)
 from schemas.sku import (
 	CharacteristicSchema,
 	ImageAttachRequest,
@@ -164,3 +170,37 @@ async def get_skus_by_product_id(
 
 	skus = await sku_crud.get_by_product_id(db, product_id)
 	return [await build_sku_response(db, sku) for sku in skus]
+
+
+async def delete_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> None:
+	pair = await sku_crud.get_sku_and_product(db, sku_id)
+	if pair is None:
+		raise SkuNotFoundError("SKU not found")
+
+	sku, product = pair
+	if product.seller_id != seller_id:
+		raise ProductNotOwnerError("SKU does not belong to the authenticated seller")
+	if product.status == ProductStatusEnum.HARD_BLOCKED:
+		raise SkuForbiddenError("Cannot delete SKU of hard-blocked product")
+	if sku.reserved_quantity > 0:
+		raise SkuConflictError("Cannot delete SKU with active reserves")
+
+	previous_status = product.status
+	deleted_active_quantity = sku.active_quantity
+	product_id = product.id
+
+	await sku_crud.hard_delete_sku(db, sku)
+
+	remaining = await sku_crud.count_skus_by_product_id(db, product_id)
+	if remaining == 0 and previous_status == ProductStatusEnum.ON_MODERATION:
+		product.status = ProductStatusEnum.CREATED
+		db.add(product)
+		await outbox_crud.enqueue_moderation_product_deleted(
+			db, product_id, product.seller_id
+		)
+	elif deleted_active_quantity > 0 and previous_status == ProductStatusEnum.MODERATED:
+		await outbox_crud.enqueue_b2c_sku_out_of_stock(
+			db, sku_id, product_id, available_quantity=0
+		)
+
+	await db.commit()
