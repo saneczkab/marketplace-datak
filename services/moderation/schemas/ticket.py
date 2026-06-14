@@ -6,6 +6,18 @@ from pydantic import BaseModel, Field
 
 from database.models.tickets.ticket import Ticket, TicketKind, TicketStatus
 
+ALLOWED_FIELD_REPORT_PATHS: frozenset[str] = frozenset(
+	{
+		"title",
+		"description",
+		"product_images",
+		"category",
+		"sku_name",
+		"sku_image",
+		"sku_price",
+	}
+)
+
 
 class ApproveTicketRequest(BaseModel):
 	comment: str | None = Field(default=None, max_length=2000)

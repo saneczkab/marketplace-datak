@@ -208,6 +208,11 @@ async def hard_block_reason(db_session: AsyncSession) -> BlockingReason:
 
 
 @pytest.fixture
+async def soft_block_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(db_session, hard=False)
+
+
+@pytest.fixture
 async def ticket_fixture_data() -> TicketFixtureData:
 	product_id = uuid.uuid4()
 	seller_id = uuid.uuid4()

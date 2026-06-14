@@ -12,12 +12,14 @@ from database.models.blocking_reason import BlockingReason
 from database.models.tickets.ticket import Ticket, TicketStatus
 from exceptions.ticket import (
 	BlockingReasonNotFoundError,
+	InvalidFieldReportError,
 	TicketHardBlockedError,
 	TicketNoSkusError,
 	TicketNotAssignedError,
 	TicketNotFoundError,
 	TicketWrongStatusError,
 )
+from schemas.ticket import ALLOWED_FIELD_REPORT_PATHS
 from schemas.moderation_event import (
 	ModerationEventRequest,
 	ModerationEventType,
@@ -71,6 +73,12 @@ async def block_ticket(
 	reasons = await blocking_reason_crud.get_active_by_ids(db, blocking_reason_ids)
 	if len(reasons) != len(blocking_reason_ids):
 		raise BlockingReasonNotFoundError("One or more blocking reasons not found")
+
+	for report in field_reports:
+		if report.field_path not in ALLOWED_FIELD_REPORT_PATHS:
+			raise InvalidFieldReportError(
+				f"Unsupported field path: {report.field_path}"
+			)
 
 	is_hard = any(reason.hard_block for reason in reasons)
 	primary_reason_id = _primary_blocking_reason_id(reasons, is_hard)

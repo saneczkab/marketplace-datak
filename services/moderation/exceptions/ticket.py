@@ -24,3 +24,7 @@ class TicketHardBlockedError(TicketError):
 
 class BlockingReasonNotFoundError(TicketError):
 	"""One or more blocking reasons were not found or inactive."""
+
+
+class InvalidFieldReportError(TicketError):
+	"""Field report references an unsupported field path."""

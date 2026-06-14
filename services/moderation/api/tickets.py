@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
 from exceptions.ticket import (
 	BlockingReasonNotFoundError,
+	InvalidFieldReportError,
 	TicketHardBlockedError,
 	TicketNoSkusError,
 	TicketNotAssignedError,
@@ -80,7 +81,7 @@ async def block_ticket_endpoint(
 			status_code=409,
 			detail={"code": "CONFLICT", "message": str(exc)},
 		) from exc
-	except BlockingReasonNotFoundError as exc:
+	except (BlockingReasonNotFoundError, InvalidFieldReportError) as exc:
 		raise HTTPException(
 			status_code=400,
 			detail={"code": "BAD_REQUEST", "message": str(exc)},
