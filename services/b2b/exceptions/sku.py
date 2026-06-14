@@ -19,3 +19,7 @@ class SkuForbiddenError(SkuError):
 
 class SkuValidationError(SkuError):
 	"""Raised when SKU request data fails business validation."""
+
+
+class SkuConflictError(SkuError):
+	"""SKU cannot be deleted because it still has active reserves."""
