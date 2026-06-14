@@ -28,3 +28,7 @@ class BlockingReasonNotFoundError(TicketError):
 
 class InvalidFieldReportError(TicketError):
 	"""Field report references an unsupported field path."""
+
+
+class ModeratorAlreadyHasTicketInReviewError(TicketError):
+	"""Moderator already holds a ticket in IN_REVIEW status."""

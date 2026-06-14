@@ -7,7 +7,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from jose import JWTError
 
-PRIVATE_PATH_PREFIXES = ["/api/v1/tickets"]
+PRIVATE_PATH_PREFIXES = ["/api/v1/tickets", "/api/v1/queue"]
 
 
 async def _authenticate_bearer(request: Request) -> JSONResponse | None:

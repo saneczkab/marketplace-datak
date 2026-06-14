@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from core.config import settings
 from database.models.tickets.ticket import Ticket, TicketKind, TicketStatus
 
 ALLOWED_FIELD_REPORT_PATHS: frozenset[str] = frozenset(
@@ -21,6 +22,11 @@ ALLOWED_FIELD_REPORT_PATHS: frozenset[str] = frozenset(
 
 class ApproveTicketRequest(BaseModel):
 	comment: str | None = Field(default=None, max_length=2000)
+
+
+class ClaimTicketRequest(BaseModel):
+	queue_priority: int | None = Field(default=None, ge=1, le=4)
+	category_ids: list[UUID] | None = None
 
 
 class FieldReportSeverity(str, Enum):
@@ -59,6 +65,11 @@ class TicketResponse(BaseModel):
 
 	@classmethod
 	def from_ticket(cls, ticket: Ticket) -> "TicketResponse":
+		claim_expires_at = None
+		if ticket.claimed_at is not None:
+			claim_expires_at = ticket.claimed_at + timedelta(
+				minutes=settings.IN_REVIEW_CLAIM_TIMEOUT_MINUTES
+			)
 		return cls(
 			id=ticket.id,
 			product_id=ticket.product_id,
@@ -68,6 +79,8 @@ class TicketResponse(BaseModel):
 			status=ticket.status,
 			queue_priority=ticket.queue_priority,
 			assigned_moderator_id=ticket.assigned_moderator_id,
+			claimed_at=ticket.claimed_at,
+			claim_expires_at=claim_expires_at,
 			decision_at=ticket.decision_at,
 			created_at=ticket.created_at,
 			updated_at=ticket.updated_at,
