@@ -16,6 +16,7 @@ class settings(BaseSettings):  # noqa
 
 	B2B_SERVICE_KEY: str = ""
 	OUTBOX_POLL_INTERVAL_SECONDS: int = 5
+	IN_REVIEW_CLAIM_TIMEOUT_MINUTES: int = 30
 
 	model_config = {"env_file": ".env", "extra": "allow"}
 

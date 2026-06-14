@@ -76,6 +76,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 			yield session
 
 	from api.b2b_events import router as b2b_events_router
+	from api.queue import router as queue_router
 	from api.tickets import router as tickets_router
 	from core.config import settings as app_settings
 	from main import http_exception_handler, request_validation_exception_handler
@@ -92,6 +93,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.middleware("http")(verify_service_key)
 	test_app.middleware("http")(verify_token)
 	test_app.include_router(b2b_events_router, prefix="/api/v1")
+	test_app.include_router(queue_router, prefix="/api/v1")
 	test_app.include_router(tickets_router, prefix="/api/v1")
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 

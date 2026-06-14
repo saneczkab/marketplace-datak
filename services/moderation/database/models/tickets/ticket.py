@@ -56,6 +56,9 @@ class Ticket(Base):
 	assigned_moderator_id: Mapped[uuid.UUID | None] = mapped_column(
 		UUID(as_uuid=True), nullable=True
 	)
+	claimed_at: Mapped[datetime | None] = mapped_column(
+		DateTime(timezone=True), nullable=True
+	)
 	blocking_reason_id: Mapped[uuid.UUID | None] = mapped_column(
 		UUID(as_uuid=True), nullable=True
 	)
