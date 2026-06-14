@@ -208,11 +208,12 @@ async def fulfill_inventory(
 	for sku, _product in rows:
 		requested = quantities[sku.id]
 		if sku.reserved_quantity < requested:
-			await db.rollback()
-			raise FulfillConflictError(
+			message = (
 				f"SKU {sku.id} has reserved_quantity {sku.reserved_quantity}, "
 				f"cannot fulfill {requested}"
 			)
+			await db.rollback()
+			raise FulfillConflictError(message)
 
 	for sku, _product in rows:
 		sku.reserved_quantity -= quantities[sku.id]

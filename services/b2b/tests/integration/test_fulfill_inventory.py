@@ -90,6 +90,27 @@ async def test_idempotent_fulfill_no_double_deduction(
 	assert sku_a.active_quantity == 8
 
 
+async def test_fulfill_exceeding_reserved_returns_409(
+	client: AsyncClient,
+	fulfill_inventory_data: FulfillInventoryData,
+	db_session: AsyncSession,
+) -> None:
+	response = await client.post(
+		"/api/v1/fulfill",
+		headers=INVENTORY_SERVICE_KEY_HEADERS,
+		json={
+			"order_id": str(uuid.uuid4()),
+			"items": [{"sku_id": str(fulfill_inventory_data.sku_a.id), "quantity": 3}],
+		},
+	)
+	assert response.status_code == 409
+	assert response.json()["code"] == "CONFLICT"
+
+	sku_a = await _get_sku(db_session, fulfill_inventory_data.sku_a.id)
+	assert sku_a.reserved_quantity == 2
+	assert sku_a.active_quantity == 8
+
+
 async def test_missing_service_key_returns_401(
 	client: AsyncClient,
 	fulfill_inventory_data: FulfillInventoryData,
