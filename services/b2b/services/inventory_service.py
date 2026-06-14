@@ -1,10 +1,10 @@
-import uuid
 from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud import inventory as inventory_crud
+from crud import outbox as outbox_crud
 from database.models.catalog.base import ProductStatusEnum
 from exceptions.inventory import (
 	InventoryValidationError,
@@ -24,16 +24,9 @@ from schemas.inventory import (
 def _build_b2c_sku_out_of_stock_message(
 	sku_id: UUID, product_id: UUID, available_quantity: int
 ) -> dict:
-	return {
-		"event_type": "SKU_OUT_OF_STOCK",
-		"idempotency_key": str(uuid.uuid4()),
-		"occurred_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-		"payload": {
-			"sku_id": str(sku_id),
-			"product_id": str(product_id),
-			"available_quantity": available_quantity,
-		},
-	}
+	return outbox_crud.build_b2c_sku_out_of_stock_payload(
+		sku_id, product_id, available_quantity
+	)
 
 
 def _collect_reserve_failures(

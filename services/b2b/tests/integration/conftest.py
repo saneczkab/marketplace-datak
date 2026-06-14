@@ -670,3 +670,108 @@ async def public_catalog_data(db_session: AsyncSession) -> PublicCatalogData:
 		out_of_stock_product=out_of_stock_product,
 		on_moderation_product=on_moderation_product,
 	)
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteSkuData:
+	seller: Seller
+	other_seller: Seller
+	happy_product: Product
+	happy_sku: Sku
+	happy_other_sku: Sku
+	reserved_sku: Sku
+	hard_blocked_sku: Sku
+	on_moderation_product: Product
+	on_moderation_sku: Sku
+	out_of_stock_product: Product
+	out_of_stock_sku: Sku
+
+
+@pytest.fixture()
+async def delete_sku_data(db_session: AsyncSession) -> DeleteSkuData:
+	seller = SellerFactory.build()
+	other_seller = SellerFactory.build()
+	db_session.add_all([seller, other_seller])
+	await db_session.flush()
+
+	category = CategoryFactory.build()
+	db_session.add(category)
+	await db_session.flush()
+
+	happy_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.MODERATED,
+		deleted=False,
+	)
+	hard_blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.HARD_BLOCKED,
+		deleted=False,
+	)
+	on_moderation_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.ON_MODERATION,
+		deleted=False,
+	)
+	out_of_stock_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.MODERATED,
+		deleted=False,
+	)
+	db_session.add_all(
+		[
+			happy_product,
+			hard_blocked_product,
+			on_moderation_product,
+			out_of_stock_product,
+		]
+	)
+	await db_session.flush()
+
+	happy_sku = SkuFactory.build(
+		product_id=happy_product.id, active_quantity=0, reserved_quantity=0
+	)
+	happy_other_sku = SkuFactory.build(
+		product_id=happy_product.id, active_quantity=5, reserved_quantity=0
+	)
+	reserved_sku = SkuFactory.build(
+		product_id=happy_product.id, active_quantity=5, reserved_quantity=3
+	)
+	hard_blocked_sku = SkuFactory.build(
+		product_id=hard_blocked_product.id, active_quantity=5, reserved_quantity=0
+	)
+	on_moderation_sku = SkuFactory.build(
+		product_id=on_moderation_product.id, active_quantity=0, reserved_quantity=0
+	)
+	out_of_stock_sku = SkuFactory.build(
+		product_id=out_of_stock_product.id, active_quantity=7, reserved_quantity=0
+	)
+	db_session.add_all(
+		[
+			happy_sku,
+			happy_other_sku,
+			reserved_sku,
+			hard_blocked_sku,
+			on_moderation_sku,
+			out_of_stock_sku,
+		]
+	)
+	await db_session.commit()
+
+	return DeleteSkuData(
+		seller=seller,
+		other_seller=other_seller,
+		happy_product=happy_product,
+		happy_sku=happy_sku,
+		happy_other_sku=happy_other_sku,
+		reserved_sku=reserved_sku,
+		hard_blocked_sku=hard_blocked_sku,
+		on_moderation_product=on_moderation_product,
+		on_moderation_sku=on_moderation_sku,
+		out_of_stock_product=out_of_stock_product,
+		out_of_stock_sku=out_of_stock_sku,
+	)
