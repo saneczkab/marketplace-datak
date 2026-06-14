@@ -598,6 +598,39 @@ async def reserve_inventory_data(db_session: AsyncSession) -> ReserveInventoryDa
 
 
 @dataclass(frozen=True, slots=True)
+class FulfillInventoryData:
+	product: Product
+	sku_a: Sku
+	sku_b: Sku
+
+
+@pytest.fixture()
+async def fulfill_inventory_data(db_session: AsyncSession) -> FulfillInventoryData:
+	category = CategoryFactory.build()
+	db_session.add(category)
+	await db_session.flush()
+
+	product = ProductFactory.build(
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+		deleted=False,
+	)
+	db_session.add(product)
+	await db_session.flush()
+
+	sku_a = SkuFactory.build(
+		product_id=product.id, active_quantity=8, reserved_quantity=2
+	)
+	sku_b = SkuFactory.build(
+		product_id=product.id, active_quantity=4, reserved_quantity=1
+	)
+	db_session.add_all([sku_a, sku_b])
+	await db_session.commit()
+
+	return FulfillInventoryData(product=product, sku_a=sku_a, sku_b=sku_b)
+
+
+@dataclass(frozen=True, slots=True)
 class PublicCatalogData:
 	visible_product: Product
 	visible_sku: Sku
