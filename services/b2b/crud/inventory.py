@@ -9,6 +9,7 @@ from database.models.catalog.base import Product
 from database.models.catalog.inventory_operations import (
 	InventoryReserveOperation,
 	InventoryUnreserveOperation,
+	InventoryFulfillOperation,
 )
 
 RESERVE_IDEMPOTENCY_TTL = timedelta(hours=1)
@@ -86,6 +87,26 @@ async def save_unreserve(
 	processed_at: datetime,
 ) -> None:
 	db.add(InventoryUnreserveOperation(order_id=order_id, processed_at=processed_at))
+	await db.commit()
+
+
+async def get_fulfill_operation(
+	db: AsyncSession, order_id: UUID
+) -> InventoryFulfillOperation | None:
+	result = await db.execute(
+		select(InventoryFulfillOperation).where(
+			InventoryFulfillOperation.order_id == order_id
+		)
+	)
+	return result.scalar_one_or_none()
+
+
+async def save_fulfill(
+	db: AsyncSession,
+	order_id: UUID,
+	processed_at: datetime,
+) -> None:
+	db.add(InventoryFulfillOperation(order_id=order_id, processed_at=processed_at))
 	await db.commit()
 
 

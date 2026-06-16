@@ -5,6 +5,7 @@ from database.models.catalog.moderation_processed_events import ModerationProces
 from database.models.catalog.inventory_operations import (
 	InventoryReserveOperation,
 	InventoryUnreserveOperation,
+	InventoryFulfillOperation,
 )
 from database.models.identity.identity import Seller, Session
 from database.models.outbox import OutboxEvent, OutboxEventStatus
@@ -24,5 +25,6 @@ __all__ = [
 	"OutboxEventStatus",
 	"InventoryReserveOperation",
 	"InventoryUnreserveOperation",
+	"InventoryFulfillOperation",
 	"ModerationProcessedEvent",
 ]
