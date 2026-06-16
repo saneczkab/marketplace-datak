@@ -2,16 +2,16 @@
 
 ## Что сделано
 
-Реализован эндпоинт `POST /api/v1/fulfill`, который при успешной доставке заказа
-списывает `reserved_quantity` у SKU (активный остаток `active_quantity` не меняется).
-Идемпотентность гарантируется таблицей `catalog.inventory_fulfill_operations`, ключ —
-`order_id`.
+Реализован эндпоинт `POST /api/v1/inventory/fulfill`, который при успешной доставке
+заказа списывает `reserved_quantity` и `stock_quantity` у SKU (активный остаток
+`active_quantity` не меняется). Идемпотентность гарантируется таблицей
+`catalog.inventory_fulfill_operations`, ключ — `order_id`.
 
 ### API
 
-- **`POST /api/v1/fulfill`** (`X-Service-Key: B2C_SERVICE_KEY`)
-  - **Body**: `FulfillRequest` (`order_id`, `items: [{sku_id, quantity}]`)
-  - **200**: `{"ok": true}` — резерв списан (или повторный идемпотентный запрос)
+- **`POST /api/v1/inventory/fulfill`** (`X-Service-Key: B2C_SERVICE_KEY`)
+  - **Body**: `InventoryOrderRequest` (`order_id`, `items: [{sku_id, quantity}]`)
+  - **200**: `InventoryOrderResponse` (`order_id`, `status: "FULFILLED"`, `processed_at`) — резерв списан (или повторный идемпотентный запрос)
   - **401**: отсутствует/неверный `X-Service-Key`
   - **404**: SKU не найден
   - **409**: `CONFLICT` — `reserved_quantity` SKU меньше запрошенного количества (all-or-nothing: при ошибке хотя бы по одному SKU транзакция откатывается)
@@ -24,7 +24,7 @@ make test
 
 `tests/integration/test_fulfill_inventory.py`
 
-- `test_fulfill_decreases_reserved_quantity` — после успешного fulfill `reserved_quantity` обоих SKU равен 0
+- `test_fulfill_decreases_reserved_and_stock_quantity` — после успешного fulfill `reserved_quantity` обоих SKU равен 0, а `stock_quantity` уменьшен на отгруженное количество
 - `test_active_quantity_unchanged` — `active_quantity` не изменяется после fulfill
 - `test_idempotent_fulfill_no_double_deduction` — повторный запрос с тем же `order_id` возвращает 200 и не списывает резерв повторно
 - `test_fulfill_exceeding_reserved_returns_409` — запрос с `quantity` больше `reserved_quantity` возвращает 409 `CONFLICT`, резерв не изменяется (all-or-nothing)
@@ -50,14 +50,13 @@ make test
 
 ## Файлы
 
-- `api/fulfill.py` — роутер `POST /api/v1/fulfill`
-- `schemas/inventory.py` — `FulfillRequest`, `FulfillResponse`
+- `api/inventory.py` — роутер `POST /api/v1/inventory/fulfill` (рядом с `reserve`/`unreserve`)
+- `schemas/inventory.py` — переиспользуются `InventoryOrderRequest`, `InventoryOrderResponse`
 - `services/inventory_service.py` — `fulfill_inventory`
 - `crud/inventory.py` — `get_fulfill_operation`, `save_fulfill`
 - `exceptions/inventory.py` — `FulfillConflictError`
 - `database/models/catalog/inventory_operations.py` — `InventoryFulfillOperation`
 - `database/alembic/versions/f1a2b3c4d5e6_inventory_fulfill_operations.py`
-- `middlewares/service_key_verification.py` — префикс `/api/v1/fulfill`
-- `tests/conftest.py` — добавлен `fulfill_router` в тестовое приложение
+- `middlewares/service_key_verification.py` — покрывается префиксом `/api/v1/inventory`
 - `tests/integration/conftest.py` — `FulfillInventoryData`, `fulfill_inventory_data`
 - `tests/integration/test_fulfill_inventory.py`

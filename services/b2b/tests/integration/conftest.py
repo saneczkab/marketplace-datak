@@ -619,10 +619,16 @@ async def fulfill_inventory_data(db_session: AsyncSession) -> FulfillInventoryDa
 	await db_session.flush()
 
 	sku_a = SkuFactory.build(
-		product_id=product.id, active_quantity=8, reserved_quantity=2
+		product_id=product.id,
+		active_quantity=8,
+		reserved_quantity=2,
+		stock_quantity=10,
 	)
 	sku_b = SkuFactory.build(
-		product_id=product.id, active_quantity=4, reserved_quantity=1
+		product_id=product.id,
+		active_quantity=4,
+		reserved_quantity=1,
+		stock_quantity=5,
 	)
 	db_session.add_all([sku_a, sku_b])
 	await db_session.commit()

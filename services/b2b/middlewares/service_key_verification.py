@@ -13,7 +13,6 @@ from fastapi.responses import JSONResponse
 SERVICE_KEY_PATH_PREFIXES: dict[str, str] = {
 	"/api/v1/public": "B2C_SERVICE_KEY",
 	"/api/v1/inventory": "B2C_SERVICE_KEY",
-	"/api/v1/fulfill": "B2C_SERVICE_KEY",
 	"/api/v1/moderation": "MODERATION_SERVICE_KEY",
 }
 

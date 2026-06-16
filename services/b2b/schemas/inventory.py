@@ -30,12 +30,3 @@ class InventoryOrderResponse(BaseModel):
 	order_id: UUID
 	status: str
 	processed_at: datetime
-
-
-class FulfillRequest(BaseModel):
-	order_id: UUID
-	items: list[InventoryItem] = Field(min_length=1)
-
-
-class FulfillResponse(BaseModel):
-	ok: bool = True

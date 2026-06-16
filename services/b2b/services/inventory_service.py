@@ -14,8 +14,6 @@ from exceptions.inventory import (
 )
 from exceptions.sku import SkuNotFoundError
 from schemas.inventory import (
-	FulfillRequest,
-	FulfillResponse,
 	InventoryOrderRequest,
 	InventoryOrderResponse,
 	InventoryItem,
@@ -190,14 +188,21 @@ async def unreserve_inventory(
 
 
 async def fulfill_inventory(
-	db: AsyncSession, request: FulfillRequest
-) -> FulfillResponse:
+	db: AsyncSession, request: InventoryOrderRequest
+) -> InventoryOrderResponse:
 	quantities = _ensure_unique_sku_ids(request.items)
 	sku_ids = list(quantities.keys())
 
 	existing = await inventory_crud.get_fulfill_operation(db, request.order_id)
 	if existing is not None:
-		return FulfillResponse(ok=True)
+		processed_at = existing.processed_at
+		if processed_at.tzinfo is None:
+			processed_at = processed_at.replace(tzinfo=timezone.utc)
+		return InventoryOrderResponse(
+			order_id=request.order_id,
+			status="FULFILLED",
+			processed_at=processed_at,
+		)
 
 	rows = await inventory_crud.lock_skus_with_products(db, sku_ids)
 	if len(rows) != len(sku_ids):
@@ -216,8 +221,14 @@ async def fulfill_inventory(
 			raise FulfillConflictError(message)
 
 	for sku, _product in rows:
-		sku.reserved_quantity -= quantities[sku.id]
+		requested = quantities[sku.id]
+		sku.reserved_quantity -= requested
+		sku.stock_quantity -= requested
 
 	processed_at = datetime.now(timezone.utc)
 	await inventory_crud.save_fulfill(db, request.order_id, processed_at)
-	return FulfillResponse(ok=True)
+	return InventoryOrderResponse(
+		order_id=request.order_id,
+		status="FULFILLED",
+		processed_at=processed_at,
+	)
