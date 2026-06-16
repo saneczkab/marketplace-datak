@@ -18,6 +18,7 @@ dependencies = [
     "deep-translator>=1.11.4",
     "passlib>=1.7.4",
     "python-jose>=3.5.0",
+    "aio-pika>=9.6.2",
 ]
 
 [tool.ruff]

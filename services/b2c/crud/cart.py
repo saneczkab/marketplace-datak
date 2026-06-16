@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import AsyncGenerator, Optional
 
 from sqlalchemy import Result, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -140,3 +140,14 @@ async def merge_guest_cart_into_user(
 			guest_item.session_id = None
 
 	await db.commit()
+
+
+async def get_carts_with_product(
+	sku_id: uuid.UUID, db: AsyncSession
+) -> AsyncGenerator[CartItem]:
+	statement = select(CartItem).where(CartItem.sku_id == sku_id)
+
+	result = await db.stream(statement)
+
+	async for row in result:
+		yield row[0]

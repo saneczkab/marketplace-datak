@@ -3,6 +3,7 @@ import subprocess
 from collections.abc import AsyncGenerator, AsyncIterator
 
 import pytest
+import logging
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -15,8 +16,12 @@ from sqlalchemy.ext.asyncio import (
 from testcontainers.postgres import PostgresContainer
 
 from core import db as core_db
+import core.config
 from main import app as fastapi_app
 from main import http_exception_handler, request_validation_exception_handler
+
+
+logger = logging.getLogger("Test app")
 
 
 @pytest.fixture(scope="session")
@@ -35,6 +40,17 @@ async def test_engine() -> AsyncIterator[AsyncEngine]:
 			check=True,
 			env=env,
 		)  # noqa: S607
+
+		core.config.settings.DATABASE_URL = async_url
+
+		core_db.engine = create_async_engine(async_url, echo=False)
+		core_db.SessionLocal = async_sessionmaker(
+			bind=core_db.engine,
+			class_=AsyncSession,
+			expire_on_commit=False,
+			autoflush=False,
+			autocommit=False,
+		)
 
 		engine = create_async_engine(async_url, echo=False)
 		try:
@@ -74,7 +90,7 @@ async def db_session(
 			await session.commit()
 
 
-@pytest.fixture()
+@pytest.fixture(scope="function")
 def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	"""
 	Create FastAPI app with override get_db dependency.
@@ -97,15 +113,20 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 		favorite,
 		subscriptions,
 		orders,
+		event,
 	)
 	from middlewares.token_verification import verify_token
+	from middlewares.x_servive_key_verification import service_key_verification
+	from main import lifespan
 
-	test_app = FastAPI(debug=False)
+	test_app = FastAPI(debug=False, lifespan=lifespan)
+
 	test_app.add_exception_handler(HTTPException, http_exception_handler)
 	test_app.add_exception_handler(
 		RequestValidationError, request_validation_exception_handler
 	)
 	test_app.middleware("http")(verify_token)
+	test_app.middleware("http")(service_key_verification)
 	test_app.add_middleware(
 		CORSMiddleware,
 		allow_origins=["http://localhost:5173", "http://localhost:3000"],
@@ -120,9 +141,10 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(catalog.router)
 	test_app.include_router(subscriptions.router)
 	test_app.include_router(orders.router)
+	test_app.include_router(event.router)
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 
-	return test_app
+	yield test_app
 
 
 @pytest.fixture()

@@ -9,6 +9,8 @@ services:
       - .env
     depends_on:
       - b2c-db
+    environment:
+      - X_SERVICE_KEY:${X-Service-key:-unset}
 
   b2c-db:
     image: postgres:15

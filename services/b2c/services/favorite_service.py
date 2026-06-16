@@ -39,3 +39,8 @@ async def remove_from_favorites(
 	db: AsyncSession, user_id: uuid.UUID, product_id: uuid.UUID
 ) -> None:
 	await favorite_crud.remove_favorite(db, user_id, product_id)
+
+
+async def mark_product_unavailable(db: AsyncSession, product_id: uuid.UUID) -> None:
+	for favorite in await favorite_crud.get_favorites_with_product(db, product_id):
+		await favorite_crud.mark_favorite_unavailable(db, favorite.user_id, product_id)

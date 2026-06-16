@@ -9,21 +9,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import crud.product as product_crud
 import crud.category as category_crud
 import crud.review as review_crud
-from database.models import Sku, ProductStatusEnum
+from database.models import Sku
+from database.models.catalog.base import ProductBlockReason
+from exceptions.product import ProductNotFoundError
+from schemas.catalog import CatalogProductCard
+from schemas.event import EventProductRef
+from schemas.product import (
+	Product,
+)
+from services import sku_service
+from services.schemas_builder import build_catalog_product_cards
+from database.models import ProductStatusEnum
 from exceptions.product import (
-	ProductNotFoundError,
 	InvalidSortError,
 	InvalidSearchQueryError,
 	InvalidFilterError,
 )
 from schemas.catalog import (
-	CatalogProductCard,
 	CatalogProductDetail,
 	PaginatedCatalogProducts,
 )
 from schemas.product import ProductFilterParams
 from services.schemas_builder import (
-	build_catalog_product_cards,
 	build_catalog_product_detail,
 )
 from schemas.sku import SkuShort
@@ -200,6 +207,28 @@ async def get_similar_products(
 	return build_catalog_product_cards(
 		products, categories_map, review_stats_by_product
 	)
+
+
+async def mark_product_blocked(
+	payload: EventProductRef, hard_blocked: bool, db: AsyncSession
+) -> Product:
+	blocked_reason: ProductBlockReason = await product_crud.get_blocked_reason_id(
+		payload.reason, db
+	)
+
+	product: Product = await product_crud.mark_product_blocked(
+		payload.product_id, blocked_reason.id, hard_blocked, db
+	)
+	return product
+
+
+async def delete_product(product_id: uuid.UUID, db: AsyncSession) -> None:
+	skus = await get_product_skus(db, product_id)
+
+	for sku in skus:
+		await sku_service.delete_sku(db, sku.id)
+
+	await product_crud.delete_product(product_id, db)
 
 
 def _assign_nested_value(target: dict, path: list[str], value: str) -> None:

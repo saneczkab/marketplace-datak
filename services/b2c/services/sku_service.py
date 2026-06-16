@@ -18,3 +18,21 @@ async def get_sku_by_id(db: AsyncSession, sku_id: uuid.UUID) -> Sku:
 		raise SkuNotFoundError
 
 	return sku
+
+
+async def update_sku_stock(
+	db: AsyncSession, sku_id: uuid.UUID, new_qantity: int
+) -> Sku:
+	sku = await sku_crud.update_sku_stock(db, sku_id, new_qantity)
+
+	return sku
+
+
+async def update_sku_price(db: AsyncSession, sku_id: uuid.UUID, new_price: int) -> Sku:
+	sku = await sku_crud.update_sku_price(db, sku_id, new_price)
+
+	return sku
+
+
+async def delete_sku(db: AsyncSession, sku_id: uuid.UUID) -> None:
+	await sku_crud.delete_sku(db, sku_id)

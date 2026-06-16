@@ -11,6 +11,14 @@ class Settings(BaseSettings):
 	SECRET_KEY: str
 	ALGORITHM: str
 
+	X_SERVICE_KEY: str
+
+	RABBITMQ_URL: str = "None"
+	RABBITMQ_EXCHANGE: str = "None"
+
+	INBOX_MESSAGES_PROCESSING_DELAY: int
+	OUTBOX_MESSAGES_PROCESSING_DELAY: int
+
 	model_config = SettingsConfigDict(
 		env_file=".env",
 		env_file_encoding="utf-8",

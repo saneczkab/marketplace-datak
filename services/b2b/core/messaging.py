@@ -3,6 +3,7 @@ import json
 
 import aio_pika
 from aio_pika import DeliveryMode, ExchangeType, Message
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.db import SessionLocal
@@ -11,6 +12,7 @@ from crud.moderation_event import DEFAULT_SENDER_SERVICE
 from exceptions.moderation_event import ModerationEventValidationError
 from exceptions.product import ProductNotFoundError
 from services import moderation_event_service
+from crud import inbox as inbox_crud
 
 MODERATION_EVENTS_QUEUE = "b2b.moderation.events"
 MODERATION_RESULT_ROUTING_KEY = "b2b.moderation.result"
@@ -80,3 +82,13 @@ async def run_moderation_consumer_forever() -> None:
 						await _handle_moderation_message(message.body)
 					except json.JSONDecodeError:
 						pass
+
+
+async def run_inbox_worker_forever(db: AsyncSession) -> None:
+	while True:
+		await inbox_crud.process_pending_inbox_batch(handle_inbox_message, db)
+		await asyncio.sleep(settings.INBOX_POLL_INTERVAL_SECONDS)
+
+
+async def handle_inbox_message(routing_key: str, payload: dict) -> None:
+	pass
