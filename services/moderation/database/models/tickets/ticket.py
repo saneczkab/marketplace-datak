@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, Integer, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -60,7 +60,9 @@ class Ticket(Base):
 		DateTime(timezone=True), nullable=True
 	)
 	blocking_reason_id: Mapped[uuid.UUID | None] = mapped_column(
-		UUID(as_uuid=True), nullable=True
+		UUID(as_uuid=True),
+		ForeignKey("blocking_reasons.id", ondelete="RESTRICT"),
+		nullable=True,
 	)
 	moderator_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 	created_at: Mapped[datetime] = mapped_column(
