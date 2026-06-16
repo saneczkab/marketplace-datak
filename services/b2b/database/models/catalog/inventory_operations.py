@@ -30,3 +30,13 @@ class InventoryUnreserveOperation(Base):
 	processed_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
+
+
+class InventoryFulfillOperation(Base):
+	__tablename__ = "inventory_fulfill_operations"
+	__table_args__ = {"schema": "catalog"}
+
+	order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+	processed_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), server_default=func.now()
+	)

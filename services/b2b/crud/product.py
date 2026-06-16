@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from uuid import UUID
 
 from crud import outbox as outbox_crud
@@ -29,13 +29,60 @@ async def add_product(product: Product, db: AsyncSession) -> Product:
 	return product
 
 
-async def get_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
-	result = await db.execute(
-		select(Product).where(
-			Product.seller_id == seller_id, Product.deleted.is_(False)
+async def list_seller_products_page(
+	db: AsyncSession,
+	seller_id: UUID,
+	limit: int,
+	offset: int,
+	status: ProductStatusEnum | None = None,
+	search: str | None = None,
+	include_deleted: bool = False,
+) -> tuple[list[Product], int]:
+	conditions = [Product.seller_id == seller_id]
+	if not include_deleted:
+		conditions.append(Product.deleted.is_(False))
+	if status is not None:
+		conditions.append(Product.status == status)
+	if search and search.strip():
+		escaped = (
+			search.strip().replace("/", "//").replace("%", "/%").replace("_", "/_")
 		)
+		conditions.append(Product.title.ilike(f"%{escaped}%", escape="/"))
+
+	total = (
+		await db.execute(select(func.count(Product.id)).where(*conditions))
+	).scalar() or 0
+
+	query = (
+		select(Product)
+		.where(*conditions)
+		.order_by(Product.created_at.desc())
+		.offset(offset)
+		.limit(limit)
 	)
-	return list(result.scalars().all())
+	products = list((await db.execute(query)).scalars().all())
+	return products, int(total)
+
+
+async def get_sku_aggregates_for_products(
+	db: AsyncSession, product_ids: list[UUID]
+) -> dict[UUID, tuple[int, int, int | None]]:
+	if not product_ids:
+		return {}
+	result = await db.execute(
+		select(
+			Sku.product_id,
+			func.count(Sku.id),
+			func.coalesce(func.sum(Sku.active_quantity), 0),
+			func.min(Sku.price),
+		)
+		.where(Sku.product_id.in_(product_ids))
+		.group_by(Sku.product_id)
+	)
+	return {
+		row[0]: (int(row[1]), int(row[2]), int(row[3]) if row[3] is not None else None)
+		for row in result.all()
+	}
 
 
 async def get_product_by_id(
@@ -112,6 +159,12 @@ async def soft_delete_product(db: AsyncSession, db_obj: Product) -> Product:
 	await db.flush()
 	await db.refresh(db_obj)
 	return db_obj
+
+
+async def reset_status_to_created(db: AsyncSession, product: Product) -> None:
+	product.status = ProductStatusEnum.CREATED
+	db.add(product)
+	await db.flush()
 
 
 async def hard_delete_product(db: AsyncSession, db_obj: Product) -> None:

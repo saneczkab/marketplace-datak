@@ -121,3 +121,8 @@ async def count_skus_by_product_id(db: AsyncSession, product_id: UUID) -> int:
 
 async def load_images_for_sku(db: AsyncSession, sku_id: UUID) -> list[Image]:
 	return await images_crud.get_sku_images_by_id(sku_id, db)
+
+
+async def hard_delete_sku(db: AsyncSession, sku: Sku) -> None:
+	await db.delete(sku)
+	await db.flush()

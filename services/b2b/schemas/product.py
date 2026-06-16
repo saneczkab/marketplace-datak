@@ -1,5 +1,6 @@
+import enum
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
 from database.models import ProductStatusEnum
@@ -32,17 +33,33 @@ class ProductUpdate(BaseModel):
 	characteristics: Optional[List[Characteristic]] = None
 
 
-class ProductSellerRead(BaseModel):
+class ProductSellerListItem(BaseModel):
 	id: UUID
 	title: str
 	slug: str
-	description: str | None
 	status: ProductStatusEnum
 	category_id: UUID
+	deleted: bool
 	created_at: datetime
-	updated_at: datetime
+	min_price: int | None = None
+	cover_image: str | None = None
+	skus_count: int
+	total_active_quantity: int
 
-	model_config = ConfigDict(from_attributes=True)
+
+class ProductSellerListResponse(BaseModel):
+	items: List[ProductSellerListItem]
+	total_count: int
+	limit: int
+	offset: int
+
+
+class SellerProductStatusFilter(str, enum.Enum):
+	CREATED = "CREATED"
+	ON_MODERATION = "ON_MODERATION"
+	MODERATED = "MODERATED"
+	BLOCKED = "BLOCKED"
+	HARD_BLOCKED = "HARD_BLOCKED"
 
 
 class ProductImageResponse(BaseModel):

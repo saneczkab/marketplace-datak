@@ -23,6 +23,8 @@ from schemas.product import (
 	ProductDetailResponse,
 	ProductImageResponse,
 	ProductResponse,
+	ProductSellerListItem,
+	ProductSellerListResponse,
 	ProductUpdate,
 )
 from services.sku_service import build_sku_response
@@ -151,8 +153,56 @@ async def get_product_for_seller(
 	return await build_product_detail_response(db, product)
 
 
-async def get_all_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
-	return await product_crud.get_seller_products(db, seller_id)
+async def list_seller_products(
+	db: AsyncSession,
+	seller_id: UUID,
+	limit: int,
+	offset: int,
+	status: ProductStatusEnum | None = None,
+	search: str | None = None,
+	include_deleted: bool = False,
+) -> ProductSellerListResponse:
+	products, total = await product_crud.list_seller_products_page(
+		db, seller_id, limit, offset, status, search, include_deleted
+	)
+
+	product_ids = [product.id for product in products]
+	images_by_product = await images_crud.get_product_images_for_products(
+		db, product_ids
+	)
+	aggregates = await product_crud.get_sku_aggregates_for_products(db, product_ids)
+
+	items = []
+	for product in products:
+		skus_count, total_active_quantity, min_price = aggregates.get(
+			product.id, (0, 0, None)
+		)
+		product_images = images_by_product.get(product.id, [])
+		cover_image = None
+		if product_images:
+			cover_image = sorted(product_images, key=lambda img: img.ordering)[0].url
+		items.append(
+			ProductSellerListItem(
+				id=product.id,
+				title=product.title,
+				slug=product.slug,
+				status=product.status,
+				category_id=product.category_id,
+				deleted=product.deleted,
+				created_at=product.created_at,
+				min_price=min_price,
+				cover_image=cover_image,
+				skus_count=skus_count,
+				total_active_quantity=total_active_quantity,
+			)
+		)
+
+	return ProductSellerListResponse(
+		items=items,
+		total_count=total,
+		limit=limit,
+		offset=offset,
+	)
 
 
 async def patch_existing_product(
