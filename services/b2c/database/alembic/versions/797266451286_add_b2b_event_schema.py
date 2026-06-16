@@ -24,10 +24,16 @@ def upgrade() -> None:
 	"""Upgrade schema."""
 	op.execute("""CREATE SCHEMA IF NOT EXISTS events;""")
 
-	# op.execute("""
-	# 		CREATE TYPE events.eventtypeenum AS ENUM
-	# 		('PRODUCT_BLOCKED', 'PRODUCT_HARD_BLOCKED', 'PRODUCT_DELETED', 'SKU_OUT_OF_STOCK', 'SKU_BACK_IN_STOCK');
-	# """)
+	op.execute("""
+		DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'eventtypeenum' 
+			AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'events')) 
+			THEN
+				CREATE TYPE events.eventtypeenum AS ENUM
+				('PRODUCT_BLOCKED', 'PRODUCT_HARD_BLOCKED', 'PRODUCT_DELETED', 'SKU_OUT_OF_STOCK', 'SKU_BACK_IN_STOCK');
+			END IF;
+		END $$;
+	""")
 	op.create_table(
 		"b2b_events",
 		sa.Column("idempotency_key", sa.UUID(), nullable=False),
@@ -41,6 +47,7 @@ def upgrade() -> None:
 				"SKU_BACK_IN_STOCK",
 				name="eventtypeenum",
 				schema="events",
+				create_type=False,
 			),
 			nullable=False,
 		),

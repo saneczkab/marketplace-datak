@@ -1,39 +1,64 @@
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import crud.event as event_crud
-from database.models import B2BEvent as db_B2BEvent
-from schemas.event import B2BEvent as schema_B2BEvent, EventSkuStock
-from schemas.event import EventProductRef
-from exceptions.event import EventDuplicatError
-from services import notification_service, product_service, cart_service, sku_service
+import crud.inbox as inbox_crud
 import crud.product as product_crud
 import crud.cart as cart_crud
+from database.models import InboxEvent
+from database.models.event.inbox import InboxEventStatusEnum
+from schemas.event import B2BEvent as B2BEventSchema, EventPriceChanged, EventSkuStock
+from schemas.event import EventProductRef
+from exceptions.event import EventDuplicatError
+from services import (
+	notification_service,
+	product_service,
+	cart_service,
+	sku_service,
+	favorite_service,
+)
+
+logger = logging.getLogger("Event service")
 
 
-async def handle_b2b_event(event: schema_B2BEvent, db: AsyncSession) -> None:
-	dbevent: db_B2BEvent = await event_crud.get_event_by_idempotency_key(
+async def handle_b2b_event(
+	event: B2BEventSchema,
+	db: AsyncSession,
+) -> None:
+	"""Saves event in db to be processed"""
+	dbevent: InboxEvent = await inbox_crud.get_event_by_idempotency_key(
 		event.idempotency_key, db
 	)
 
 	if dbevent:
 		raise EventDuplicatError
 
-	await event_crud.add_event(
-		db_B2BEvent(idempotency_key=event.idempotency_key, event_type=event.event_type),
+	logger.info(f"Adding event {event.idempotency_key} - {event.event_type}")
+
+	await inbox_crud.add_event(
+		InboxEvent(
+			idempotency_key=str(event.idempotency_key),
+			event_type=event.event_type,
+			routing_key="",
+			occured_at=event.occured_at,
+			payload=event.payload.model_dump(mode="json"),
+			status=InboxEventStatusEnum.PENDING,
+		),
 		db,
 	)
 
+
+async def process_b2b_event(event: B2BEventSchema, db: AsyncSession) -> None:
 	match event.event_type:
 		case "PRODUCT_BLOCKED":
 			await handle_product_blocked(event.payload, db, False)
 		case "PRODUCT_HARD_BLOCKED":
 			await handle_product_blocked(event.payload, db, True)
 		case "PRODUCT_DELETED":
-			pass
+			await handle_product_deleted(event.payload, db)
 		case "SKU_OUT_OF_STOCK":
 			await handle_sku_out_of_stock(event.payload, db)
 		case "BACK_IN_STOCK":
-			pass
+			await handle_sku_back_in_stock(event.payload, db)
 		case "PRICE_CHANGED":
 			await handle_price_changed(event.payload, db)
 
@@ -57,7 +82,10 @@ async def handle_product_blocked(
 			await notification_service.notification_product_blocked(
 				cart.user_id, sku.id, is_hard_blocked
 			)
-			await cart_service.remove_cart_item(db, user_id=cart.user_id, sku_id=sku.id)
+			await cart_service.remove_cart_item(
+				db, user_id=cart.user_id, session_id=None, sku_id=sku.id
+			)
+	await favorite_service.mark_product_unavailable(db, payload.product_id)
 
 
 async def handle_sku_out_of_stock(payload: EventSkuStock, db: AsyncSession) -> None:
@@ -84,7 +112,7 @@ async def handle_sku_back_in_stock(payload: EventSkuStock, db: AsyncSession) -> 
 	await notification_service.notification_sku_back_in_stock(payload.sku_id)
 
 
-async def handle_price_changed(payload: EventSkuStock, db: AsyncSession) -> None:
+async def handle_price_changed(payload: EventPriceChanged, db: AsyncSession) -> None:
 	await sku_service.update_sku_price(db, payload.sku_id, payload.new_price)
 
 	await notification_service.notification_sku_price_change(

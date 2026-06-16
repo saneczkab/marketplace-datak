@@ -3,7 +3,15 @@ from datetime import datetime
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint, func, text
+from sqlalchemy import (
+	DateTime,
+	ForeignKey,
+	Index,
+	UniqueConstraint,
+	func,
+	text,
+	Boolean,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.models.catalog.base import Product
@@ -30,6 +38,7 @@ class Favorite(Base):
 	added_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()
 	)
+	available: Mapped[bool] = mapped_column(Boolean, default=True)
 
 	# Relationships
 	user: Mapped["User"] = relationship("User", back_populates="favorites")

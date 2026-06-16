@@ -23,7 +23,8 @@ from database.models.storefront.main import (
 from database.models.identity.user import Session
 from database.models.orders.order import Order, OrderStatusEnum
 from database.models.orders.order_item import OrderItem
-from database.models.event.event import B2BEvent, EventTypeEnum
+from database.models.event.inbox import InboxEvent, InboxEventStatusEnum
+from database.models.event.outbox import OutboxEvent, OutboxEventStatusEnum
 
 __all__ = [
 	"CartItem",
@@ -54,7 +55,9 @@ __all__ = [
 	"Order",
 	"OrderItem",
 	"OrderStatusEnum",
-	"B2BEvent",
-	"EventTypeEnum",
 	"ProductBlockReason",
+	"InboxEvent",
+	"InboxEventStatusEnum",
+	"OutboxEvent",
+	"OutboxEventStatusEnum",
 ]

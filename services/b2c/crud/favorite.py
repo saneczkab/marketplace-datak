@@ -1,8 +1,8 @@
 import uuid
 from dataclasses import dataclass
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, AsyncGenerator
 
-from sqlalchemy import select, func
+from sqlalchemy import and_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -167,3 +167,32 @@ async def get_favorite(
 		)
 	)
 	return result.scalar_one_or_none()
+
+
+async def mark_favorite_unavailable(
+	db: AsyncSession, user_id: uuid.UUID, product_id: uuid.UUID
+) -> None:
+	favorite = (
+		await db.execute(
+			select(Favorite).where(
+				and_(Favorite.user_id == user_id, Favorite.product_id == product_id)
+			)
+		)
+	).scalar_one_or_none()
+
+	if not favorite:
+		return
+
+	favorite.available = False
+	await db.commit()
+
+
+async def get_favorites_with_product(
+	db: AsyncSession, product_id: uuid.UUID
+) -> AsyncGenerator[Favorite]:
+	statement = select(Favorite).where(Favorite.product_id == product_id)
+
+	result = await db.stream(statement)
+
+	async for row in result:
+		yield row[0]
