@@ -170,7 +170,21 @@ async def create_order_with_items(
 	return order.id
 
 
-async def cancel_order(
+async def mark_order_cancel_pending(
+	db: AsyncSession,
+	order_id: uuid.UUID,
+	buyer_id: uuid.UUID,
+	reason: str | None = None,
+) -> None:
+	order = await get_order_by_id_for_buyer(db, order_id, buyer_id)
+	if order is None:
+		raise OrderNotFoundError()
+
+	await change_order_status(db, order.id, OrderStatusEnum.CANCEL_PENDING, reason)
+	await db.commit()
+
+
+async def mark_order_cancelled(
 	db: AsyncSession,
 	order_id: uuid.UUID,
 	buyer_id: uuid.UUID,
@@ -181,8 +195,7 @@ async def cancel_order(
 		raise OrderNotFoundError()
 
 	await change_order_status(db, order.id, OrderStatusEnum.CANCELLED, reason)
-	await db.flush()
-	return order.id
+	await db.commit()
 
 
 async def get_buyer_orders(

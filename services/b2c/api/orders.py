@@ -146,12 +146,17 @@ async def cancel_order(
 	order_id: uuid.UUID,
 	http_request: fastapi.Request,
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	b2b_client: Annotated[B2BClient, fastapi.Depends(get_b2b_client)],
 	body: OrderCancelRequest | None = None,
 ) -> OrderResponse:
 	user_id = uuid.UUID(str(getattr(http_request.state, "user_id", None)))
 	try:
 		return await order_service.cancel_order(
-			db_session, order_id, user_id, reason=body.reason if body else None
+			db_session,
+			b2b_client,
+			order_id,
+			user_id,
+			reason=body.reason if body else None,
 		)
 	except OrderNotFoundError as err:
 		raise fastapi.HTTPException(

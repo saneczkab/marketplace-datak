@@ -33,11 +33,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 class FakeB2BClient:
 	def __init__(
-		self, behavior: str = "ok", failed_items: list[dict] | None = None
+		self,
+		behavior: str = "ok",
+		unreserve_behavior: str | None = None,
+		failed_items: list[dict] | None = None,
 	) -> None:
 		self.behavior = behavior
+		self.unreserve_behavior = (
+			unreserve_behavior if unreserve_behavior is not None else behavior
+		)
 		self.failed_items = failed_items if failed_items is not None else []
 		self.calls: list[dict] = []
+		self.unreserve_calls: list[dict] = []
 
 	async def reserve(
 		self,
@@ -55,6 +62,15 @@ class FakeB2BClient:
 		if self.behavior == "conflict":
 			raise ReserveFailedError(self.failed_items)
 		if self.behavior == "unavailable":
+			raise B2BUnavailableError()
+
+	async def unreserve(
+		self,
+		order_id: uuid.UUID,
+		items: list[dict],
+	) -> None:
+		self.unreserve_calls.append({"order_id": order_id, "items": items})
+		if self.unreserve_behavior == "unavailable":
 			raise B2BUnavailableError()
 
 
@@ -277,7 +293,13 @@ async def assembling_order_data(db_session: AsyncSession) -> OrderData:
 		payment_method_id=payment_method.id,
 		status=OrderStatusEnum.ASSEMBLING,
 	)
-	order_items = [OrderItemFactory.build(order_id=order.id) for _ in range(3)]
+	order_items = [
+		OrderItemFactory.build(order_id=order.id, sku_id=sku.id, unit_price=sku.price)
+		for sku in skus
+	]
+	order_status_history = OrderStatusHistoryFactory.build(
+		order_id=order.id, status=OrderStatusEnum.ASSEMBLING
+	)
 	db_session.add_all(
 		[
 			user,
@@ -288,8 +310,10 @@ async def assembling_order_data(db_session: AsyncSession) -> OrderData:
 			*skus,
 			order,
 			*order_items,
+			order_status_history,
 		]
 	)
+	await db_session.commit()
 	return OrderData(
 		order=order,
 		order_items=order_items,
