@@ -26,11 +26,16 @@ from middlewares.token_verification import verify_token
 from middlewares.x_servive_key_verification import service_key_verification
 
 logger = logging.getLogger(__name__)
+
+logging.basicConfig(
+	level=logging.WARNING, format="%(levelname)s - %(name)s - %(asctime)s: %(message)s"
+)
+
 # Configure logging
 if settings.DEBUG:
 	logging.basicConfig(
 		level=logging.DEBUG,
-		format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+		format="%(levelname)s - %(name)s - %(asctime)s: %(message)s",
 	)
 	logging.getLogger("uvicorn").setLevel(logging.DEBUG)
 	logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
@@ -67,6 +72,8 @@ async def lifespan(app: FastAPI):  # noqa
 			task = asyncio.create_task(run_consumer_forever())
 			background_tasks.append(task)
 			logger.info("Succesfully starter consumer")
+		else:
+			logger.warning("No RabbitMQ URL or exchange was given, running without it")
 	except Exception as e:  # Noqa
 		logger.error(f"Error while starting comsumer: {e}")
 

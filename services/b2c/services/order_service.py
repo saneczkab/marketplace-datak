@@ -24,6 +24,7 @@ from exceptions.order import (
 )
 from schemas.cart import CartValidationResponse
 from schemas.order import OrderResponse, PaginatedOrders
+from schemas.event import Event, EventOrderFulfilled, OrderFulfilledItem
 from services import cart_service, schemas_builder
 
 
@@ -249,3 +250,22 @@ async def get_buyer_orders(
 		limit=limit,
 		offset=offset,
 	)
+
+
+async def send_order_fulfilled(
+	buyer_id: uuid.UUID, order_id: uuid.UUID, db: AsyncSession
+) -> None:
+	order_data = await get_order_by_id_for_buyer(db, order_id, buyer_id)
+
+	payload = EventOrderFulfilled(order_id=order_id, items=[])
+
+	for item in order_data.items:
+		payload.items.append(OrderFulfilledItem(item.sku_id, item.quantity))
+
+	event = Event(
+		event_type="ORDER_FULFILLED",
+		idempotency_key=uuid.uuid4(),
+		occured_at=datetime.now(timezone.utc),
+		payload=payload,
+	)
+	await order_crud.create_order_fulfilled_event(event, db)

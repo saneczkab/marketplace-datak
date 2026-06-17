@@ -13,6 +13,7 @@ class EventTypeEnum(str, Enum):
 	SKU_OUT_OF_STOCK = "SKU_OUT_OF_STOCK"
 	PRICE_CHANGED = "PRICE_CHANGED"
 	BACK_IN_STOCK = "BACK_IN_STOCK"
+	ORDER_FULFILLED = "ORDER_FULFILLED"
 
 
 class BaseEventPayload(BaseModel):
@@ -40,13 +41,24 @@ class EventPriceChanged(BaseEventPayload):
 	new_price: int
 
 
+class OrderFulfilledItem(BaseModel):
+	sku_id: uuid.UUID
+	quantity: int
+
+
+class EventOrderFulfilled(BaseEventPayload):
+	type: Literal["order_fulfilled"] = "order_fulfilled"
+	order_id: uuid.UUID  # Also used as idempotency_key
+	items: list[OrderFulfilledItem]
+
+
 EventPayload = Annotated[
-	Union[EventProductRef, EventSkuStock, EventPriceChanged],
+	Union[EventProductRef, EventSkuStock, EventPriceChanged, EventOrderFulfilled],
 	Field(discriminator="type"),
 ]
 
 
-class B2BEvent(BaseModel):
+class Event(BaseModel):
 	event_type: EventTypeEnum
 	idempotency_key: uuid.UUID
 	occured_at: datetime
@@ -60,6 +72,7 @@ EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[EventTypeEnum, Type[BaseEventPayload]] = {
 	EventTypeEnum.SKU_OUT_OF_STOCK: EventSkuStock,
 	EventTypeEnum.PRICE_CHANGED: EventPriceChanged,
 	EventTypeEnum.BACK_IN_STOCK: EventSkuStock,
+	EventTypeEnum.ORDER_FULFILLED: EventOrderFulfilled,
 }
 
 
