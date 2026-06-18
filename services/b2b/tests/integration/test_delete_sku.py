@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from crud.outbox import MODERATION_PRODUCT_DELETED, B2C_SKU_OUT_OF_STOCK
 from database.models.catalog.base import Product, ProductStatusEnum
 from database.models.catalog.variants import Sku
-from database.models.outbox import OutboxEvent
+from database.models.event.outbox import OutboxEvent
 from tests.integration.conftest import DeleteSkuData, auth_headers
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")

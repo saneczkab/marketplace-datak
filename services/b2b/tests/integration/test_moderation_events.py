@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models.catalog.base import Product, ProductStatusEnum
-from database.models.outbox import OutboxEvent
+from database.models.event.outbox import OutboxEvent
 from tests.integration.conftest import (
 	MODERATION_SERVICE_KEY_HEADERS,
 	ModerationEventData,

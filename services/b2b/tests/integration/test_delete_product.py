@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models.catalog.base import Product, ProductStatusEnum
-from database.models.outbox import OutboxEvent, OutboxEventStatus
+from database.models.event.outbox import OutboxEvent, OutboxEventStatus
 from crud.outbox import MODERATION_PRODUCT_DELETED, B2C_PRODUCT_DELETED
 from tests.integration.conftest import (
 	CategoryWithProductsData,

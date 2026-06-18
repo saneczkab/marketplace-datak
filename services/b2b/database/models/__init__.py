@@ -8,8 +8,8 @@ from database.models.catalog.inventory_operations import (
 	InventoryFulfillOperation,
 )
 from database.models.identity.identity import Seller, Session
-from database.models.outbox import OutboxEvent, OutboxEventStatus
-from database.models.inbox import InboxEvent, InboxEventStatusEnum
+from database.models.event.outbox import OutboxEvent, OutboxEventStatus
+from database.models.event.inbox import InboxEvent, InboxEventStatusEnum
 
 __all__ = [
 	"Sku",

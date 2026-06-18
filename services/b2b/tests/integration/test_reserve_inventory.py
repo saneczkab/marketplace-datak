@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models.catalog.variants import Sku
-from database.models.outbox import OutboxEvent
+from database.models.event.outbox import OutboxEvent
 from tests.integration.conftest import (
 	INVENTORY_SERVICE_KEY_HEADERS,
 	ReserveInventoryData,

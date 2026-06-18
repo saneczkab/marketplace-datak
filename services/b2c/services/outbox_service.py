@@ -1,6 +1,6 @@
 from schemas.event import Event, EventTypeEnum, OrderFulfilledItem
 import crud.outbox as outbox_crud
-import order_service
+from services import order_service
 
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid

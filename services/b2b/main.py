@@ -16,22 +16,45 @@ from api.moderation_events import router as moderation_events_router
 from api.products import router as product_router
 from api.public_catalog import router as public_catalog_router
 from api.sku import router as sku_router
+
 from core.config import settings
-from core.messaging import run_moderation_consumer_forever, run_outbox_worker_forever
+from core.inbox import run_inbox_messages_handling
+from core.messaging import run_consumer_forever
 from middlewares.service_key_verification import verify_service_key
 from middlewares.token_verification import verify_token
 
 logger = logging.getLogger(__name__)
+
+logging.basicConfig(
+	level=logging.INFO, format="%(levelname)s - %(name)s - %(asctime)s: %(message)s"
+)
+
+background_tasks = []
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa
 	worker_task: asyncio.Task | None = None
 	consumer_task: asyncio.Task | None = None
-	if settings.OUTBOX_WORKER_ENABLED:
-		worker_task = asyncio.create_task(run_outbox_worker_forever())
-		consumer_task = asyncio.create_task(run_moderation_consumer_forever())
-		logger.info("Outbox worker and moderation consumer scheduled")
+
+	try:
+		if settings.RABBITMQ_URL and settings.RABBITMQ_EXCHANGE:
+			logger.info("Starting consumer")
+			task = asyncio.create_task(run_consumer_forever())
+			background_tasks.append(task)
+			logger.info("Succesfully starter consumer")
+		else:
+			logger.warning("No RabbitMQ URL or exchange was given, running without it")
+	except Exception as e:  # Noqa
+		logger.error(f"Error while starting comsumer: {e}")
+
+	try:
+		task = asyncio.create_task(run_inbox_messages_handling())
+		background_tasks.append(task)
+		logger.info("Succesfully started inbox messages handling")
+	except Exception as e:  # noqa
+		logger.error(f"Error while starting inbox handling: {e}")
+
 	yield
 	for task in (worker_task, consumer_task):
 		if task is not None:

@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models.outbox import OutboxEvent, OutboxEventStatus
+from database.models.event.outbox import OutboxEvent, OutboxEventStatus
 from tests.integration.conftest import EditProductData, auth_headers
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
