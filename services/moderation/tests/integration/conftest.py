@@ -213,6 +213,69 @@ async def soft_block_reason(db_session: AsyncSession) -> BlockingReason:
 
 
 @pytest.fixture
+async def active_soft_blocking_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(
+		db_session,
+		code="ACTIVE_SOFT",
+		title="Active soft reason",
+		hard_block=False,
+		is_active=True,
+	)
+
+
+@pytest.fixture
+async def active_hard_blocking_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(
+		db_session,
+		code="ACTIVE_HARD",
+		title="Active hard reason",
+		hard_block=True,
+		is_active=True,
+	)
+
+
+@pytest.fixture
+async def inactive_blocking_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(
+		db_session,
+		code="INACTIVE_REASON",
+		title="Inactive reason",
+		is_active=False,
+	)
+
+
+@pytest.fixture
+async def visible_blocking_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(
+		db_session, code="VISIBLE_REASON", title="Visible"
+	)
+
+
+@pytest.fixture
+async def hidden_blocking_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(
+		db_session,
+		code="HIDDEN_REASON",
+		title="Hidden",
+		is_active=False,
+	)
+
+
+@pytest.fixture
+async def duplicate_code_blocking_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(
+		db_session, code="DUPLICATE_CODE", title="Existing"
+	)
+
+
+@pytest.fixture
+async def referenced_blocking_reason(db_session: AsyncSession) -> BlockingReason:
+	return await persist_blocking_reason(
+		db_session, code="REFERENCED_REASON", title="Referenced"
+	)
+
+
+@pytest.fixture
 async def ticket_fixture_data() -> TicketFixtureData:
 	product_id = uuid.uuid4()
 	seller_id = uuid.uuid4()

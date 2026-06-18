@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.b2b_events import router as b2b_events_router
+from api.blocking_reasons import router as blocking_reasons_router
 from api.queue import router as queue_router
 from api.tickets import router as tickets_router
 from core.messaging import run_catalog_consumer_forever, run_outbox_worker_forever
@@ -71,6 +72,7 @@ async def request_validation_exception_handler(
 app.middleware("http")(verify_service_key)
 app.middleware("http")(verify_token)
 app.include_router(b2b_events_router, prefix="/api/v1")
+app.include_router(blocking_reasons_router, prefix="/api/v1")
 app.include_router(queue_router, prefix="/api/v1")
 app.include_router(tickets_router, prefix="/api/v1")
 
