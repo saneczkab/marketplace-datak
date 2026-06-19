@@ -31,7 +31,7 @@ async def process_events() -> None:
 					| "PRODUCT_DELETED"
 					| "SKU_OUT_OF_STOCK"
 					| "PRICE_CHANGED"
-					| "BACK_IN_STOCK"
+					| "SKU_BACK_IN_STOCK"
 				):
 					b2bevent = Event(
 						event_type=event.event_type,

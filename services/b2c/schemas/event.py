@@ -12,7 +12,7 @@ class EventTypeEnum(str, Enum):
 	PRODUCT_DELETED = "PRODUCT_DELETED"
 	SKU_OUT_OF_STOCK = "SKU_OUT_OF_STOCK"
 	PRICE_CHANGED = "PRICE_CHANGED"
-	BACK_IN_STOCK = "BACK_IN_STOCK"
+	SKU_BACK_IN_STOCK = "SKU_BACK_IN_STOCK"
 	ORDER_FULFILLED = "ORDER_FULFILLED"
 
 
@@ -71,7 +71,7 @@ EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[EventTypeEnum, Type[BaseEventPayload]] = {
 	EventTypeEnum.PRODUCT_DELETED: EventProductRef,
 	EventTypeEnum.SKU_OUT_OF_STOCK: EventSkuStock,
 	EventTypeEnum.PRICE_CHANGED: EventPriceChanged,
-	EventTypeEnum.BACK_IN_STOCK: EventSkuStock,
+	EventTypeEnum.SKU_BACK_IN_STOCK: EventSkuStock,
 	EventTypeEnum.ORDER_FULFILLED: EventOrderFulfilled,
 }
 

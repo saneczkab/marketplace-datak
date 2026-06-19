@@ -57,7 +57,7 @@ async def process_b2b_event(event: B2BEventSchema, db: AsyncSession) -> None:
 			await handle_product_deleted(event.payload, db)
 		case "SKU_OUT_OF_STOCK":
 			await handle_sku_out_of_stock(event.payload, db)
-		case "BACK_IN_STOCK":
+		case "SKU_BACK_IN_STOCK":
 			await handle_sku_back_in_stock(event.payload, db)
 		case "PRICE_CHANGED":
 			await handle_price_changed(event.payload, db)

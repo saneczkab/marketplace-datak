@@ -20,7 +20,7 @@ async def test_subscribe_returns_204(
 	product = empty_subscriptions_data.product
 	response = await client.post(
 		f"/api/v1/favorites/{product.id}/subscribe",
-		json={"events": ["BACK_IN_STOCK"]},
+		json={"events": ["SKU_BACK_IN_STOCK"]},
 		headers=await auth_headers(empty_subscriptions_data.user.id, db_session),
 	)
 	assert response.status_code == 204
@@ -35,7 +35,7 @@ async def test_duplicate_subscription_returns_409(
 	product = subscriptions_data.product
 	response = await client.post(
 		f"/api/v1/favorites/{product.id}/subscribe",
-		json={"events": ["BACK_IN_STOCK"]},
+		json={"events": ["SKU_BACK_IN_STOCK"]},
 		headers=await auth_headers(subscriptions_data.user.id, db_session),
 	)
 	assert response.status_code == 409
@@ -86,7 +86,7 @@ async def test_subscribe_to_unknown_product_returns_404(
 
 	response = await client.post(
 		f"/api/v1/favorites/{uuid.uuid4()}/subscribe",
-		json={"events": ["BACK_IN_STOCK"]},
+		json={"events": ["SKU_BACK_IN_STOCK"]},
 		headers=await auth_headers(user.id, db_session),
 	)
 	assert response.status_code == 404
@@ -119,6 +119,6 @@ async def test_subscribe_no_auth_returns_401(
 	product = empty_subscriptions_data.product
 	response = await client.post(
 		f"/api/v1/favorites/{product.id}/subscribe",
-		json={"events": ["BACK_IN_STOCK"]},
+		json={"events": ["SKU_BACK_IN_STOCK"]},
 	)
 	assert response.status_code == 401
