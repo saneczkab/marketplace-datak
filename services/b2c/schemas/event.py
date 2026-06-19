@@ -18,7 +18,7 @@ class EventTypeEnum(str, Enum):
 
 class EventProductRef(BaseModel):
 	product_id: uuid.UUID
-	reason: str
+	reason: str | None = None
 
 
 class EventSkuStock(BaseModel):

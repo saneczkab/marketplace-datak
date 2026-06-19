@@ -73,6 +73,8 @@ async def handle_product_blocked(
 	1. Mark product as "BLOCKED" - Done
 	2. Add notification for each cart to notify user this product has been blocked - If hard blocked it changes
 	3. Delete product from each cart
+
+	TODO: reason can be None, add handling of that case
 	"""
 
 	await product_service.mark_product_blocked(payload, is_hard_blocked, db)
