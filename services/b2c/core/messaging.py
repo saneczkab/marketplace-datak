@@ -9,8 +9,14 @@ from database.models import InboxEvent, InboxEventStatusEnum
 
 import aio_pika
 from aio_pika import ExchangeType, Message, DeliveryMode
+from datetime import datetime
 import json
 import uuid
+import logging
+import asyncio
+
+
+logger = logging.getLogger(__name__)
 
 
 async def consume_and_store(
@@ -38,31 +44,39 @@ async def consume_and_store(
 	async with queue.iterator() as queue_iter:
 		async for message in queue_iter:
 			async with message.process():
-				payload = json.loads(message.body)
+				logger.info("Processing new message")
+				try:
+					payload = json.loads(message.body)
 
-				idempotency_key = uuid.UUID(payload["idempotency_key"])
+					idempotency_key = uuid.UUID(payload["idempotency_key"])
 
-				async with get_db_context() as db:
-					existing = await inbox_crud.get_event_by_idempotency_key(
-						idempotency_key, db
-					)
+					async with get_db_context() as db:
+						existing = await inbox_crud.get_event_by_idempotency_key(
+							idempotency_key, db
+						)
 
-					if existing:
-						continue
+						if existing:
+							continue
 
-					inbox_event = InboxEvent(
-						idempotency_key=idempotency_key,
-						routing_key=message.routing_key,
-						payload=payload,
-						event_type=payload["event_type"],
-						occurred_at=message.occurred_at,
-						status=InboxEventStatusEnum.PENDING,
-					)
-					await inbox_crud.add_event(inbox_event, db)
+						inbox_event = InboxEvent(
+							idempotency_key=idempotency_key,
+							routing_key=message.routing_key,
+							payload=payload["payload"],
+							event_type=payload["event_type"],
+							occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+							status=InboxEventStatusEnum.PENDING,
+						)
+						await inbox_crud.add_event(inbox_event, db)
+				except Exception as e:  # noqa
+					logger.error(f"Error processing message: {e}")
 
 
 async def run_consumer_forever() -> None:
-	await consume_and_store("product.catalog.updates", ["product.*"])
+	logger.info("Consumer started")
+	await asyncio.gather(
+		consume_and_store("product.catalog.updates", ["product.*"]),
+		consume_and_store("orders.events", ["orders.*"]),
+	)
 
 
 async def publish_message(routing_key: str, payload: dict) -> None:

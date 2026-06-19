@@ -2,7 +2,7 @@
 Обработка входящих сообщений в бд, вызов соответствующих методов
 """
 
-from schemas.event import Event, dict_to_payload
+from schemas.event import Event, EventOrderDelivered, dict_to_payload
 from core.db import get_db_context
 from core.config import settings
 from crud import inbox as inbox_crud
@@ -41,6 +41,19 @@ async def process_events() -> None:
 					)
 					async with get_db_context() as db:
 						await event_service.process_b2b_event(b2bevent, db)
+
+				case "ORDER_DELIVERED":
+					order_event = Event(
+						event_type=event.event_type,
+						idempotency_key=event.idempotency_key,
+						occured_at=event.occured_at,
+						payload=EventOrderDelivered(
+							event.payload["order_id"], event.payload["buyer_id"]
+						),
+					)
+
+					async with get_db_context() as db:
+						await event_service.process_order_event(order_event, db)
 
 			async with get_db_context() as db:
 				logger.info(f"Success handling event {event.id}")

@@ -6,11 +6,17 @@ import crud.product as product_crud
 import crud.cart as cart_crud
 from database.models import InboxEvent
 from database.models.event.inbox import InboxEventStatusEnum
-from schemas.event import Event as B2BEventSchema, EventPriceChanged, EventSkuStock
-from schemas.event import EventProductRef
+from schemas.event import (
+	Event,
+	EventPriceChanged,
+	EventSkuStock,
+	EventOrderDelivered,
+	EventProductRef,
+)
 from exceptions.event import EventDuplicatError
 from services import (
 	notification_service,
+	outbox_service,
 	product_service,
 	cart_service,
 	sku_service,
@@ -21,7 +27,7 @@ logger = logging.getLogger("Event service")
 
 
 async def handle_b2b_event(
-	event: B2BEventSchema,
+	event: Event,
 	db: AsyncSession,
 ) -> None:
 	"""Saves event in db to be processed"""
@@ -47,7 +53,7 @@ async def handle_b2b_event(
 	)
 
 
-async def process_b2b_event(event: B2BEventSchema, db: AsyncSession) -> None:
+async def process_b2b_event(event: Event, db: AsyncSession) -> None:
 	match event.event_type:
 		case "PRODUCT_BLOCKED":
 			await handle_product_blocked(event.payload, db, False)
@@ -61,6 +67,12 @@ async def process_b2b_event(event: B2BEventSchema, db: AsyncSession) -> None:
 			await handle_sku_back_in_stock(event.payload, db)
 		case "PRICE_CHANGED":
 			await handle_price_changed(event.payload, db)
+
+
+async def process_order_event(event: Event, db: AsyncSession) -> None:
+	match event.event_type:
+		case "ORDER_DELIVERED":
+			await handle_order_delivered(event.payload, db)
 
 
 # =============== HANDLERS ===============
@@ -129,3 +141,11 @@ async def handle_product_deleted(payload: EventProductRef, db: AsyncSession) -> 
 
 	await product_service.delete_product(payload.product_id, db)
 	await notification_service.notification_product_deleted()
+
+
+async def handle_order_delivered(
+	payload: EventOrderDelivered, db: AsyncSession
+) -> None:
+	await outbox_service.create_order_fulfilled_event(
+		payload.order_id, payload.buyer_id, db
+	)

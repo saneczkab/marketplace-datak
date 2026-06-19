@@ -14,6 +14,7 @@ class EventTypeEnum(str, Enum):
 	PRICE_CHANGED = "PRICE_CHANGED"
 	SKU_BACK_IN_STOCK = "SKU_BACK_IN_STOCK"
 	ORDER_FULFILLED = "ORDER_FULFILLED"
+	ORDER_DELIVERED = "ORDER_DELIVERED"
 
 
 class EventProductRef(BaseModel):
@@ -23,7 +24,7 @@ class EventProductRef(BaseModel):
 
 class EventSkuStock(BaseModel):
 	sku_id: uuid.UUID
-	product_id: uuid.UUID  # Это корневой агрегат, салага, не трогай!
+	product_id: uuid.UUID
 	available_quantity: int
 
 
@@ -44,8 +45,17 @@ class EventOrderFulfilled(BaseModel):
 	items: list[OrderFulfilledItem]
 
 
+class EventOrderDelivered(BaseModel):
+	order_id: uuid.UUID
+	buyer_id: uuid.UUID
+
+
 EventPayload = Union[
-	EventProductRef, EventSkuStock, EventPriceChanged, EventOrderFulfilled
+	EventProductRef,
+	EventSkuStock,
+	EventPriceChanged,
+	EventOrderFulfilled,
+	EventOrderDelivered,
 ]
 
 
@@ -64,6 +74,7 @@ EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[EventTypeEnum, Type[BaseModel]] = {
 	EventTypeEnum.PRICE_CHANGED: EventPriceChanged,
 	EventTypeEnum.SKU_BACK_IN_STOCK: EventSkuStock,
 	EventTypeEnum.ORDER_FULFILLED: EventOrderFulfilled,
+	EventTypeEnum.ORDER_DELIVERED: EventOrderDelivered,
 }
 
 
