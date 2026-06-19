@@ -9,7 +9,7 @@ async def post_event(event: Event, db: AsyncSession) -> None:
 		idempotency_key=event.idempotency_key,
 		event_type=event.event_type,
 		payload=event.payload.model_dump_json(),
-		occured_at=event.occured_at,
+		occurred_at=event.occurred_at,
 	)
 
 	db.add(db_event)

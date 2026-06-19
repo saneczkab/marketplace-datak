@@ -36,7 +36,7 @@ async def process_events() -> None:
 					b2bevent = Event(
 						event_type=event.event_type,
 						idempotency_key=event.idempotency_key,
-						occured_at=event.occured_at,
+						occurred_at=event.occurred_at,
 						payload=dict_to_payload(event.event_type, event.payload),
 					)
 					async with get_db_context() as db:

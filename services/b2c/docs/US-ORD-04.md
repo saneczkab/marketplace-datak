@@ -12,7 +12,7 @@
   - **Body** (`B2BEvent`):
     - `event_type` - тип события
     - `idempotency_key` (uuid) - ключ идемпотентности
-    - `occured_at` (datetime) - время события в B2B
+    - `occurred_at` (datetime) - время события в B2B
     - `payload` - полезная нагрузка, дискриминатор `type`:
       - `product_ref` - `{ product_id, reason }` для событий товара
       - `sku_stock` - `{ sku_id, product_id, available_quantity }` для остатков

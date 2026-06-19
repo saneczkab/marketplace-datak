@@ -307,7 +307,7 @@ async def create_order_fulfilled_event(event: Event, db: AsyncSession) -> None:
 	db_event = OutboxEvent(
 		idempotency_key=event.payload.order_id,
 		event_type=EventTypeEnum.ORDER_FULFILLED,
-		occured_at=event.occured_at,
+		occurred_at=event.occurred_at,
 		payload=event.payload.model_dump_json(),
 	)
 

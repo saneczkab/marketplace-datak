@@ -28,7 +28,7 @@ class InboxEvent(Base):
 		default=InboxEventStatusEnum.PENDING
 	)
 	event_type: Mapped[str] = mapped_column(String(32))
-	occured_at: Mapped[datetime] = mapped_column(
+	occurred_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), nullable=False
 	)
 

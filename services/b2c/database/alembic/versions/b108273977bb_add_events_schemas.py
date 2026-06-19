@@ -51,7 +51,7 @@ def upgrade() -> None:
 			nullable=False,
 		),
 		sa.Column(
-			"occured_at",
+			"occurred_at",
 			sa.DateTime(timezone=True),
 			nullable=False,
 		),
@@ -78,7 +78,7 @@ def upgrade() -> None:
 			nullable=False,
 		),
 		sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-		sa.Column("occured_at", sa.DateTime(timezone=True), nullable=False),
+		sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
 		sa.PrimaryKeyConstraint("id"),
 		sa.UniqueConstraint("idempotency_key"),
 		schema="events",
