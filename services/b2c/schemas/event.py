@@ -61,7 +61,7 @@ EventPayload = Annotated[
 class Event(BaseModel):
 	event_type: EventTypeEnum
 	idempotency_key: uuid.UUID
-	occured_at: datetime
+	occurred_at: datetime
 	payload: EventPayload
 
 

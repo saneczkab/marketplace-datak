@@ -39,7 +39,7 @@ async def handle_b2b_event(
 			idempotency_key=str(event.idempotency_key),
 			event_type=event.event_type,
 			routing_key="",
-			occured_at=event.occured_at,
+			occurred_at=event.occurred_at,
 			payload=event.payload.model_dump(mode="json"),
 			status=InboxEventStatusEnum.PENDING,
 		),
