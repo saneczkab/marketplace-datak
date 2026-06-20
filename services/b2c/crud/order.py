@@ -7,8 +7,6 @@ from sqlalchemy.orm import selectinload
 
 from schemas.event import Event, EventTypeEnum
 from database.models import OutboxEvent
-from database.models.catalog.base import ProductStatusEnum
-from database.models.catalog.variants import Sku
 from database.models.orders.order import Order, OrderStatusEnum, OrderStatusHistory
 from database.models.orders.order_item import OrderItem
 from exceptions.order import OrderNotFoundError
