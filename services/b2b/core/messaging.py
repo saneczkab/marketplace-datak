@@ -1,94 +1,101 @@
-import asyncio
-import json
-
-import aio_pika
-from aio_pika import DeliveryMode, ExchangeType, Message
-from sqlalchemy.ext.asyncio import AsyncSession
+"""
+Обработка входящих и исходящих сообщений RabbitMQ на уровне DB -> Rabbit или Rabbit -> DB
+"""
 
 from core.config import settings
-from core.db import SessionLocal
-from crud import outbox as outbox_crud
-from crud.moderation_event import DEFAULT_SENDER_SERVICE
-from exceptions.moderation_event import ModerationEventValidationError
-from exceptions.product import ProductNotFoundError
-from services import moderation_event_service
+from core.db import get_db_context
 from crud import inbox as inbox_crud
+from crud import outbox as outbox_crud
+from database.models import InboxEvent, InboxEventStatusEnum
 
-MODERATION_EVENTS_QUEUE = "b2b.moderation.events"
-MODERATION_RESULT_ROUTING_KEY = "b2b.moderation.result"
-
-
-def _rabbitmq_url() -> str:
-	return (
-		f"amqp://{settings.RABBITMQ_USER}:{settings.RABBITMQ_PASSWORD}"
-		f"@{settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}/"
-	)
+import aio_pika
+from aio_pika import ExchangeType, Message, DeliveryMode
+import asyncio
+import json
+import uuid
 
 
 async def publish_message(routing_key: str, payload: dict) -> None:
+	"""Publish message to RabbitMQ exchange
+
+	Args:
+		routing_key (str): routing key for message routing
+		payload (dict): message payload to send
+	"""
 	body = json.dumps(payload).encode("utf-8")
-	connection = await aio_pika.connect_robust(_rabbitmq_url())
+
+	connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+	# Do we really need to connect every time?
+	# Probably creating connection object and passing it will be better
+	# Probably right thing is to pass channel rather than connection
+
 	async with connection:
 		channel = await connection.channel()
 		exchange = await channel.declare_exchange(
-			settings.RABBITMQ_EXCHANGE,
-			ExchangeType.TOPIC,
-			durable=True,
+			settings.RABBITMQ_EXCHANGE, ExchangeType.TOPIC, durable=True
 		)
+
 		await exchange.publish(
 			Message(body=body, delivery_mode=DeliveryMode.PERSISTENT),
 			routing_key=routing_key,
 		)
 
 
+async def consume_and_store(
+	queue_name: str,
+	routing_keys: list[str],
+) -> None:
+	"""Collects all messages from queue `queue_name` and stores them in database
+
+	Args:
+		queue_name (str): queue to listen to
+		routing_keys (list[str]): routing keys of messages that will be binded to that queue
+	"""
+	connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+	channel = await connection.channel()
+	await channel.set_qos(prefetch_count=10)
+	exchange = await channel.declare_exchange(
+		settings.RABBITMQ_EXCHANGE, ExchangeType.TOPIC, durable=True
+	)
+
+	queue = await channel.declare_queue(queue_name, durable=True)
+
+	for routing_key in routing_keys:
+		await queue.bind(exchange, routing_key)
+
+	async with queue.iterator() as queue_iter:
+		async for message in queue_iter:
+			async with message.process():
+				payload = json.loads(message.body)
+
+				idempotency_key = uuid.UUID(payload["idempotency_key"])
+
+				async with get_db_context() as db:
+					existing = await inbox_crud.get_event_by_idempotency_key(
+						idempotency_key, db
+					)
+
+					if existing:
+						continue
+
+					inbox_event = InboxEvent(
+						idempotency_key=idempotency_key,
+						routing_key=message.routing_key,
+						payload=payload,
+						event_type=payload["event_type"],
+						occured_at=message.timestamp,
+						status=InboxEventStatusEnum.PENDING,
+					)
+					await inbox_crud.add_event(inbox_event, db)
+
+
 async def run_outbox_worker_forever() -> None:
+	"""Process pending outbox messages in a loop"""
 	while True:
 		await outbox_crud.process_pending_batch(publish_message)
 		await asyncio.sleep(settings.OUTBOX_POLL_INTERVAL_SECONDS)
 
 
-async def _handle_moderation_message(body: bytes) -> None:
-	payload = json.loads(body.decode("utf-8"))
-	async with SessionLocal() as db:
-		try:
-			await moderation_event_service.receive_moderation_event_payload(
-				db,
-				payload,
-				sender_service=DEFAULT_SENDER_SERVICE,
-			)
-		except ProductNotFoundError:
-			await db.rollback()
-		except ModerationEventValidationError:
-			await db.rollback()
-
-
-async def run_moderation_consumer_forever() -> None:
-	connection = await aio_pika.connect_robust(_rabbitmq_url())
-	async with connection:
-		channel = await connection.channel()
-		await channel.set_qos(prefetch_count=10)
-		exchange = await channel.declare_exchange(
-			settings.RABBITMQ_EXCHANGE,
-			ExchangeType.TOPIC,
-			durable=True,
-		)
-		queue = await channel.declare_queue(MODERATION_EVENTS_QUEUE, durable=True)
-		await queue.bind(exchange, routing_key=MODERATION_RESULT_ROUTING_KEY)
-
-		async with queue.iterator() as queue_iter:
-			async for message in queue_iter:
-				async with message.process(requeue=False):
-					try:
-						await _handle_moderation_message(message.body)
-					except json.JSONDecodeError:
-						pass
-
-
-async def run_inbox_worker_forever(db: AsyncSession) -> None:
-	while True:
-		await inbox_crud.process_pending_inbox_batch(handle_inbox_message, db)
-		await asyncio.sleep(settings.INBOX_POLL_INTERVAL_SECONDS)
-
-
-async def handle_inbox_message(routing_key: str, payload: dict) -> None:
-	pass
+async def run_consumer_forever() -> None:
+	"""Run consumer for generic inbox events (example wrapper)"""
+	await consume_and_store("b2b.inbox.events", ["b2b.*"])

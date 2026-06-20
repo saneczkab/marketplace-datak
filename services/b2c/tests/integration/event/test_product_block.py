@@ -25,9 +25,8 @@ async def test_block_product(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": f"{datetime.now(timezone.utc)}",
+			"occurred_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
-				"type": "product_ref",
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
 			},
@@ -49,9 +48,8 @@ async def test_block_product_idempotency(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": f"{datetime.now(timezone.utc)}",
+			"occurred_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
-				"type": "product_ref",
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
 			},
@@ -64,9 +62,8 @@ async def test_block_product_idempotency(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": f"{datetime.now(timezone.utc)}",
+			"occurred_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
-				"type": "product_ref",
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
 			},
@@ -85,9 +82,8 @@ async def test_missing_service_key_returns_401(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": f"{datetime.now(timezone.utc)}",
+			"occurred_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
-				"type": "product_ref",
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
 			},
@@ -109,9 +105,8 @@ async def test_hard_block_product(
 		json={
 			"event_type": "PRODUCT_HARD_BLOCKED",
 			"idempotency_key": f"{product_with_block.idempotency_key}",
-			"occured_at": f"{datetime.now(timezone.utc)}",
+			"occurred_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
-				"type": "product_ref",
 				"product_id": str(product_with_block.product.id),
 				"reason": product_with_block.reason.reason,
 			},
@@ -137,9 +132,8 @@ async def test_product_block_deletes_from_cart(
 		json={
 			"event_type": "PRODUCT_BLOCKED",
 			"idempotency_key": f"{product_in_cart_with_block.idempotency_key}",
-			"occured_at": f"{datetime.now(timezone.utc)}",
+			"occurred_at": f"{datetime.now(timezone.utc)}",
 			"payload": {
-				"type": "product_ref",
 				"product_id": str(product_in_cart_with_block.product.id),
 				"reason": product_in_cart_with_block.reason.reason,
 			},

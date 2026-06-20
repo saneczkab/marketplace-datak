@@ -6,7 +6,7 @@ import crud.product as product_crud
 import crud.cart as cart_crud
 from database.models import InboxEvent
 from database.models.event.inbox import InboxEventStatusEnum
-from schemas.event import B2BEvent as B2BEventSchema, EventPriceChanged, EventSkuStock
+from schemas.event import Event as B2BEventSchema, EventPriceChanged, EventSkuStock
 from schemas.event import EventProductRef
 from exceptions.event import EventDuplicatError
 from services import (
@@ -39,7 +39,7 @@ async def handle_b2b_event(
 			idempotency_key=str(event.idempotency_key),
 			event_type=event.event_type,
 			routing_key="",
-			occured_at=event.occured_at,
+			occurred_at=event.occurred_at,
 			payload=event.payload.model_dump(mode="json"),
 			status=InboxEventStatusEnum.PENDING,
 		),
@@ -57,10 +57,13 @@ async def process_b2b_event(event: B2BEventSchema, db: AsyncSession) -> None:
 			await handle_product_deleted(event.payload, db)
 		case "SKU_OUT_OF_STOCK":
 			await handle_sku_out_of_stock(event.payload, db)
-		case "BACK_IN_STOCK":
+		case "SKU_BACK_IN_STOCK":
 			await handle_sku_back_in_stock(event.payload, db)
 		case "PRICE_CHANGED":
 			await handle_price_changed(event.payload, db)
+
+
+# =============== HANDLERS ===============
 
 
 async def handle_product_blocked(
@@ -70,6 +73,8 @@ async def handle_product_blocked(
 	1. Mark product as "BLOCKED" - Done
 	2. Add notification for each cart to notify user this product has been blocked - If hard blocked it changes
 	3. Delete product from each cart
+
+	TODO: reason can be None, add handling of that case
 	"""
 
 	await product_service.mark_product_blocked(payload, is_hard_blocked, db)

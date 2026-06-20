@@ -25,6 +25,10 @@ class InboxEvent(Base):
 	status: Mapped[InboxEventStatusEnum] = mapped_column(
 		default=InboxEventStatusEnum.PENDING
 	)
+	event_type: Mapped[str] = mapped_column(String(32))
+	occured_at: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False
+	)
 
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()

@@ -5,6 +5,8 @@ from sqlalchemy import Result, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from schemas.event import Event, EventTypeEnum
+from database.models import OutboxEvent
 from database.models.orders.order import Order, OrderStatusEnum, OrderStatusHistory
 from database.models.orders.order_item import OrderItem
 from exceptions.order import OrderNotFoundError
@@ -229,3 +231,15 @@ async def get_buyer_orders(
 	)
 	result: Result = await db.execute(query)
 	return list(result.scalars().all()), total_count
+
+
+async def create_order_fulfilled_event(event: Event, db: AsyncSession) -> None:
+	db_event = OutboxEvent(
+		idempotency_key=event.payload.order_id,
+		event_type=EventTypeEnum.ORDER_FULFILLED,
+		occurred_at=event.occurred_at,
+		payload=event.payload.model_dump_json(),
+	)
+
+	db.add(db_event)
+	await db.commit()

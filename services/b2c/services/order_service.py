@@ -26,7 +26,7 @@ from exceptions.order import (
 )
 from schemas.cart import CartValidationResponse
 from schemas.order import OrderResponse, PaginatedOrders
-from services import cart_service, schemas_builder
+from services import cart_service, schemas_builder, outbox_service
 
 
 def parse_idempotency_key(value: str) -> uuid.UUID:
@@ -264,3 +264,9 @@ async def get_buyer_orders(
 		limit=limit,
 		offset=offset,
 	)
+
+
+async def send_order_fulfilled(
+	buyer_id: uuid.UUID, order_id: uuid.UUID, db: AsyncSession
+) -> None:
+	await outbox_service.create_order_fulfilled_event(order_id, buyer_id, db)

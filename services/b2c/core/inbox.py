@@ -2,7 +2,7 @@
 Обработка входящих сообщений в бд, вызов соответствующих методов
 """
 
-from schemas.event import B2BEvent, dict_to_payload
+from schemas.event import Event, dict_to_payload
 from core.db import get_db_context
 from core.config import settings
 from crud import inbox as inbox_crud
@@ -31,12 +31,12 @@ async def process_events() -> None:
 					| "PRODUCT_DELETED"
 					| "SKU_OUT_OF_STOCK"
 					| "PRICE_CHANGED"
-					| "BACK_IN_STOCK"
+					| "SKU_BACK_IN_STOCK"
 				):
-					b2bevent = B2BEvent(
+					b2bevent = Event(
 						event_type=event.event_type,
 						idempotency_key=event.idempotency_key,
-						occured_at=event.occured_at,
+						occurred_at=event.occurred_at,
 						payload=dict_to_payload(event.event_type, event.payload),
 					)
 					async with get_db_context() as db:

@@ -1,9 +1,9 @@
 from enum import Enum
 from datetime import datetime
 import uuid
-from typing import Annotated, Literal, Union, Dict, Type
+from typing import Union, Dict, Type
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class EventTypeEnum(str, Enum):
@@ -12,63 +12,67 @@ class EventTypeEnum(str, Enum):
 	PRODUCT_DELETED = "PRODUCT_DELETED"
 	SKU_OUT_OF_STOCK = "SKU_OUT_OF_STOCK"
 	PRICE_CHANGED = "PRICE_CHANGED"
-	BACK_IN_STOCK = "BACK_IN_STOCK"
+	SKU_BACK_IN_STOCK = "SKU_BACK_IN_STOCK"
+	ORDER_FULFILLED = "ORDER_FULFILLED"
 
 
-class BaseEventPayload(BaseModel):
-	type: str
-
-
-class EventProductRef(BaseEventPayload):
-	type: Literal["product_ref"] = "product_ref"
+class EventProductRef(BaseModel):
 	product_id: uuid.UUID
-	reason: str
+	reason: str | None = None
 
 
-class EventSkuStock(BaseEventPayload):
-	type: Literal["sku_stock"] = "sku_stock"
+class EventSkuStock(BaseModel):
 	sku_id: uuid.UUID
-	product_id: uuid.UUID  # Why
+	product_id: uuid.UUID  # Это корневой агрегат, салага, не трогай!
 	available_quantity: int
 
 
-class EventPriceChanged(BaseEventPayload):
-	type: Literal["price_changed"] = "price_changed"
+class EventPriceChanged(BaseModel):
 	sku_id: uuid.UUID
 	product_id: uuid.UUID
 	old_price: int
 	new_price: int
 
 
-EventPayload = Annotated[
-	Union[EventProductRef, EventSkuStock, EventPriceChanged],
-	Field(discriminator="type"),
+class OrderFulfilledItem(BaseModel):
+	sku_id: uuid.UUID
+	quantity: int
+
+
+class EventOrderFulfilled(BaseModel):
+	order_id: uuid.UUID  # Also used as idempotency_key
+	items: list[OrderFulfilledItem]
+
+
+EventPayload = Union[
+	EventProductRef, EventSkuStock, EventPriceChanged, EventOrderFulfilled
 ]
 
 
-class B2BEvent(BaseModel):
+class Event(BaseModel):
 	event_type: EventTypeEnum
 	idempotency_key: uuid.UUID
-	occured_at: datetime
+	occurred_at: datetime
 	payload: EventPayload
 
 
-EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[EventTypeEnum, Type[BaseEventPayload]] = {
+EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[EventTypeEnum, Type[BaseModel]] = {
 	EventTypeEnum.PRODUCT_BLOCKED: EventProductRef,
 	EventTypeEnum.PRODUCT_HARD_BLOCKED: EventProductRef,
 	EventTypeEnum.PRODUCT_DELETED: EventProductRef,
 	EventTypeEnum.SKU_OUT_OF_STOCK: EventSkuStock,
 	EventTypeEnum.PRICE_CHANGED: EventPriceChanged,
-	EventTypeEnum.BACK_IN_STOCK: EventSkuStock,
+	EventTypeEnum.SKU_BACK_IN_STOCK: EventSkuStock,
+	EventTypeEnum.ORDER_FULFILLED: EventOrderFulfilled,
 }
 
 
 def dict_to_payload(event_type: EventTypeEnum, data: dict) -> EventPayload:
 	"""
-	Turn dict into payload. Probably doesn't belong here
+	Turn dict into payload.
 	"""
-	if event_type not in EVENT_TYPE_TO_PAYLOAD_CLASS:
+	payload_class = EVENT_TYPE_TO_PAYLOAD_CLASS.get(event_type)
+	if not payload_class:
 		raise ValueError(f"Неподдерживаемый тип события: {event_type}")
 
-	payload_class = EVENT_TYPE_TO_PAYLOAD_CLASS[event_type]
-	return payload_class(**data)
+	return payload_class.model_validate(data)

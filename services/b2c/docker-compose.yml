@@ -10,7 +10,11 @@ services:
     depends_on:
       - b2c-db
     environment:
-      - X_SERVICE_KEY:${X-Service-key:-unset}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE}
+      - X_SERVICE_KEY=${X-Service-key:-unset}
+    networks:
+      - shared_ms_network
 
   b2c-db:
     image: postgres:15
@@ -30,6 +34,8 @@ services:
       retries: 10
     env_file:
       - .env
+    networks:
+      - shared_ms_network
 
 volumes:
   b2c_postgres_data:

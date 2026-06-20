@@ -24,7 +24,7 @@ async def subscribe_to_product(
 		db=db,
 		user_id=user_id,
 		product_id=product_id,
-		notify_in_stock=SubscriptionEvent.BACK_IN_STOCK in request.events,
+		notify_in_stock=SubscriptionEvent.SKU_BACK_IN_STOCK in request.events,
 		notify_price_down=SubscriptionEvent.PRICE_DROP in request.events,
 	)
 

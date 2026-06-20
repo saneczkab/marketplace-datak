@@ -55,7 +55,7 @@ async def consume_and_store(
 						routing_key=message.routing_key,
 						payload=payload,
 						event_type=payload["event_type"],
-						occured_at=message.occured_at,
+						occurred_at=message.occurred_at,
 						status=InboxEventStatusEnum.PENDING,
 					)
 					await inbox_crud.add_event(inbox_event, db)

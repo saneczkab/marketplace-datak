@@ -15,6 +15,8 @@ services:
       - RABBITMQ_PORT=${RABBITMQ_PORT}
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    networks:
+      - shared_ms_network
 
   moderation-db:
     image: postgres:15
@@ -34,6 +36,8 @@ services:
       retries: 10
     env_file:
       - .env
+    networks:
+      - shared_ms_network
 
 volumes:
   moderation_postgres_data:

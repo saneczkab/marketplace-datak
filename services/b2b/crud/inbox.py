@@ -9,9 +9,7 @@ import uuid
 ProcessFN = Callable[[str, dict], Awaitable[None]]
 
 
-async def fetch_pending_inbox_events(
-	db: AsyncSession, limit: int = 50
-) -> list[InboxEvent]:
+async def get_all_pending_events(db: AsyncSession, limit: int = 50) -> list[InboxEvent]:
 	result = await db.execute(
 		select(InboxEvent)
 		.where(InboxEvent.status == InboxEventStatusEnum.PENDING)
@@ -61,7 +59,7 @@ async def process_pending_inbox_batch(
 	handler: ProcessFN, db: AsyncSession, limit: int = 50
 ) -> int:
 	processed = 0
-	events = await fetch_pending_inbox_events(db, limit=limit)
+	events = await get_all_pending_events(db, limit=limit)
 
 	for event in events:
 		if await process_inbox_event(db, event.id, handler):

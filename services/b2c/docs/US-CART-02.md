@@ -11,7 +11,7 @@
 
 - **`POST /api/v1/favorites/{product_id}/subscribe`**
   - **Path params**: `product_id`
-  - **Body**: `{ "events": ["BACK_IN_STOCK", "PRICE_DROP"] }`
+  - **Body**: `{ "events": ["SKU_BACK_IN_STOCK", "PRICE_DROP"] }`
   - **Код 204**: подписка создана или обновлена
   - **Код 401**: не авторизован
   - **Код 404**: товар не найден

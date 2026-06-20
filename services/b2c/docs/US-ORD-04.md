@@ -12,7 +12,7 @@
   - **Body** (`B2BEvent`):
     - `event_type` - тип события
     - `idempotency_key` (uuid) - ключ идемпотентности
-    - `occured_at` (datetime) - время события в B2B
+    - `occurred_at` (datetime) - время события в B2B
     - `payload` - полезная нагрузка, дискриминатор `type`:
       - `product_ref` - `{ product_id, reason }` для событий товара
       - `sku_stock` - `{ sku_id, product_id, available_quantity }` для остатков
@@ -29,7 +29,7 @@
 | `PRODUCT_HARD_BLOCKED` | То же, с флагом жёсткой блокировки |
 | `PRODUCT_DELETED` | Товар и SKU удаляются из каталога B2C |
 | `SKU_OUT_OF_STOCK` | Обновляется остаток; позиции SKU удаляются из корзин |
-| `BACK_IN_STOCK` | Обновляется остаток |
+| `SKU_BACK_IN_STOCK` | Обновляется остаток |
 | `PRICE_CHANGED` | Обновляется цена SKU |
 
 Обработка выполняется фоновой задачей `run_inbox_messages_handling` (см. `core/inbox.py`): события со статусом `PENDING` читаются из БД и применяются пакетно.
