@@ -4,11 +4,14 @@ import uuid
 import fastapi
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
+from clients.b2b_client import B2BClient, get_b2b_client
 from core import db
 from database.models.orders.order import OrderStatusEnum
 from exceptions.order import (
 	AddressNotFoundError,
+	B2BUnavailableError,
 	EmptyCartError,
 	IdempotencyConflictError,
 	InvalidIdempotencyKeyError,
@@ -43,6 +46,7 @@ async def create_order(
 	body: OrderCreateRequest,
 	idempotency_key: Annotated[str, fastapi.Header(alias="Idempotency-Key")],
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
+	b2b_client: Annotated[B2BClient, fastapi.Depends(get_b2b_client)],
 ) -> OrderResponse:
 	try:
 		key_uuid = order_service.parse_idempotency_key(idempotency_key)
@@ -70,6 +74,7 @@ async def create_order(
 	try:
 		result = await order_service.checkout(
 			db_session,
+			b2b_client,
 			buyer_id=buyer_id,
 			idempotency_key=key_uuid,
 			body_raw=body_dump,
@@ -106,24 +111,27 @@ async def create_order(
 			},
 		) from err
 	except ReserveFailedError as err:
-		details = err.args[0] if err.args else []
 		raise fastapi.HTTPException(
 			status_code=409,
 			detail={
 				"code": "RESERVE_FAILED",
 				"message": "Partial reserve failed",
-				"details": details,
+				"details": err.failed_items,
+			},
+		) from err
+	except B2BUnavailableError as err:
+		raise fastapi.HTTPException(
+			status_code=503,
+			detail={
+				"code": "B2B_UNAVAILABLE",
+				"message": "Сервис товаров временно недоступен, попробуйте позже",
 			},
 		) from err
 
 	if isinstance(result, CartValidationResponse):
-		raise fastapi.HTTPException(
+		return JSONResponse(
 			status_code=422,
-			detail={
-				"code": "VALIDATION_ERROR",
-				"message": "Cart validation failed",
-				"details": result.model_dump(mode="json"),
-			},
+			content=result.model_dump(mode="json"),
 		)
 
 	return result

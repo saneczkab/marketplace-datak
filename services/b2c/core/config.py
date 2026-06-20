@@ -13,6 +13,10 @@ class Settings(BaseSettings):
 
 	X_SERVICE_KEY: str
 
+	B2B_BASE_URL: str = "http://b2b-backend:8000"
+	B2B_SERVICE_KEY: str = "none"
+	B2B_REQUEST_TIMEOUT: float = 5.0
+
 	RABBITMQ_URL: str = "None"
 	RABBITMQ_EXCHANGE: str = "None"
 
