@@ -6,6 +6,7 @@ from core.config import settings
 from exceptions.order import B2BUnavailableError, ReserveFailedError
 
 RESERVE_PATH = "/api/v1/inventory/reserve"
+UNRESERVE_PATH = "/api/v1/inventory/unreserve"
 
 
 class B2BClient:
@@ -47,6 +48,32 @@ class B2BClient:
 
 		if response.status_code in (409, 404):
 			raise ReserveFailedError(self._extract_failed_items(response, items))
+
+		raise B2BUnavailableError()
+
+	async def unreserve(
+		self,
+		order_id: uuid.UUID,
+		items: list[dict],
+	) -> None:
+		payload = {
+			"order_id": str(order_id),
+			"items": items,
+		}
+		headers = {"X-Service-Key": self._service_key}
+
+		try:
+			async with httpx.AsyncClient(
+				base_url=self._base_url, timeout=self._timeout
+			) as client:
+				response = await client.post(
+					UNRESERVE_PATH, json=payload, headers=headers
+				)
+		except (httpx.TimeoutException, httpx.TransportError) as err:
+			raise B2BUnavailableError() from err
+
+		if response.status_code == 200:
+			return
 
 		raise B2BUnavailableError()
 

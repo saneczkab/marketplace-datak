@@ -55,6 +55,6 @@ class OrderNotFoundError(OrderError):
 
 
 class OrderNotCancelableError(OrderError):
-	"""Order not cancelable error (not created or paid)"""
+	"""Order not cancelable error (status not in CREATED/PAID/ASSEMBLING)"""
 
 	pass
