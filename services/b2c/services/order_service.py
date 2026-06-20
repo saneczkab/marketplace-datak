@@ -10,10 +10,12 @@ import crud.address as address_crud
 import crud.cart as cart_crud
 import crud.order as order_crud
 import crud.payment_method as payment_method_crud
+from clients.b2b_client import B2BClient
 from database.models.catalog.base import ProductStatusEnum
 from database.models.orders.order import OrderStatusEnum
 from exceptions.order import (
 	AddressNotFoundError,
+	B2BUnavailableError,
 	EmptyCartError,
 	IdempotencyConflictError,
 	InvalidIdempotencyKeyError,
@@ -110,36 +112,27 @@ def _collect_precheck_failures(enriched_items: list[tuple]) -> list[dict]:
 			failed_items.append(
 				_build_failed_item(sku.id, cart_item.quantity, None, "PRODUCT_DELETED")
 			)
-			continue
-		if product.status == ProductStatusEnum.BLOCKED:
+		elif product.status == ProductStatusEnum.BLOCKED:
 			failed_items.append(
 				_build_failed_item(sku.id, cart_item.quantity, None, "PRODUCT_BLOCKED")
 			)
-			continue
-		if product.status != ProductStatusEnum.MODERATED:
+		elif product.status != ProductStatusEnum.MODERATED:
 			failed_items.append(
 				_build_failed_item(sku.id, cart_item.quantity, None, "PRODUCT_BLOCKED")
-			)
-			continue
-		if sku.active_quantity <= 0:
-			failed_items.append(
-				_build_failed_item(sku.id, cart_item.quantity, 0, "OUT_OF_STOCK")
-			)
-			continue
-		if cart_item.quantity > sku.active_quantity:
-			failed_items.append(
-				_build_failed_item(
-					sku.id,
-					cart_item.quantity,
-					sku.active_quantity,
-					"INSUFFICIENT_STOCK",
-				)
 			)
 	return failed_items
 
 
+def _build_reserve_items(requested_by_sku: dict[uuid.UUID, int]) -> list[dict]:
+	return [
+		{"sku_id": str(sku_id), "quantity": quantity}
+		for sku_id, quantity in requested_by_sku.items()
+	]
+
+
 async def checkout(
 	db: AsyncSession,
+	b2b_client: B2BClient,
 	buyer_id: uuid.UUID,
 	idempotency_key: uuid.UUID,
 	body_raw: dict,
@@ -177,10 +170,18 @@ async def checkout(
 	if failed_items:
 		raise ReserveFailedError(failed_items)
 
+	order_id = uuid.uuid4()
+	await b2b_client.reserve(
+		idempotency_key=idempotency_key,
+		order_id=order_id,
+		items=_build_reserve_items(requested_by_sku),
+	)
+
 	now = datetime.now(timezone.utc)
 	try:
-		order_id = await order_crud.reserve_and_create_order(
+		created_id = await order_crud.create_order_with_items(
 			db,
+			order_id=order_id,
 			buyer_id=buyer_id,
 			idempotency_key=idempotency_key,
 			request_hash=request_hash,
@@ -188,10 +189,9 @@ async def checkout(
 			payment_method_id=payment_method_id,
 			comment=comment,
 			now=now,
-			requested_by_sku=requested_by_sku,
 			enriched_items=enriched_items,
 		)
-		order = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+		order = await order_crud.get_order_by_id_for_buyer(db, created_id, buyer_id)
 		return schemas_builder.build_order_response(order)
 
 	except IntegrityError:
@@ -205,21 +205,36 @@ async def checkout(
 
 async def cancel_order(
 	db: AsyncSession,
+	b2b_client: B2BClient,
 	order_id: uuid.UUID,
 	buyer_id: uuid.UUID,
 	reason: str | None = None,
 ) -> OrderResponse:
-	order_updated = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
-	if order_updated is None:
+	order = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+	if order is None:
 		raise OrderNotFoundError()
 
-	if order_updated.status not in [OrderStatusEnum.CREATED, OrderStatusEnum.PAID]:
+	if order.status not in (
+		OrderStatusEnum.CREATED,
+		OrderStatusEnum.PAID,
+		OrderStatusEnum.ASSEMBLING,
+	):
 		raise OrderNotCancelableError()
 
-	await order_crud.cancel_order(db, order_id, buyer_id, reason=reason)
-	order_updated = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+	items = [
+		{"sku_id": str(item.sku_id), "quantity": item.quantity} for item in order.items
+	]
+	await order_crud.mark_order_cancel_pending(db, order_id, buyer_id, reason=reason)
 
-	return schemas_builder.build_order_response(order_updated)
+	try:
+		await b2b_client.unreserve(order_id=order_id, items=items)
+	except B2BUnavailableError:
+		order = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+		return schemas_builder.build_order_response(order)
+
+	await order_crud.mark_order_cancelled(db, order_id, buyer_id, reason=reason)
+	order = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
+	return schemas_builder.build_order_response(order)
 
 
 async def get_order_by_id_for_buyer(

@@ -1,5 +1,10 @@
+import uuid
 from dataclasses import dataclass
 
+from fastapi import FastAPI
+
+from clients.b2b_client import get_b2b_client
+from exceptions.order import B2BUnavailableError, ReserveFailedError
 from database.models.orders.order import Order, OrderStatusEnum
 from database.models.orders.order_item import OrderItem
 from database.models.personal.address import Address
@@ -24,6 +29,62 @@ from tests.factories.catalog import (
 from tests.factories.user import UserFactory
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
+class FakeB2BClient:
+	def __init__(
+		self,
+		behavior: str = "ok",
+		unreserve_behavior: str | None = None,
+		failed_items: list[dict] | None = None,
+	) -> None:
+		self.behavior = behavior
+		self.unreserve_behavior = (
+			unreserve_behavior if unreserve_behavior is not None else behavior
+		)
+		self.failed_items = failed_items if failed_items is not None else []
+		self.calls: list[dict] = []
+		self.unreserve_calls: list[dict] = []
+
+	async def reserve(
+		self,
+		idempotency_key: uuid.UUID,
+		order_id: uuid.UUID,
+		items: list[dict],
+	) -> None:
+		self.calls.append(
+			{
+				"idempotency_key": idempotency_key,
+				"order_id": order_id,
+				"items": items,
+			}
+		)
+		if self.behavior == "conflict":
+			raise ReserveFailedError(self.failed_items)
+		if self.behavior == "unavailable":
+			raise B2BUnavailableError()
+
+	async def unreserve(
+		self,
+		order_id: uuid.UUID,
+		items: list[dict],
+	) -> None:
+		self.unreserve_calls.append({"order_id": order_id, "items": items})
+		if self.unreserve_behavior == "unavailable":
+			raise B2BUnavailableError()
+
+
+def override_b2b_client(app: FastAPI, b2b_client: FakeB2BClient) -> FakeB2BClient:
+	app.dependency_overrides[get_b2b_client] = lambda: b2b_client
+	return b2b_client
+
+
+@pytest.fixture(autouse=True)
+def default_b2b_client(app: FastAPI) -> FakeB2BClient:
+	client = FakeB2BClient("ok")
+	app.dependency_overrides[get_b2b_client] = lambda: client
+	yield client
+	app.dependency_overrides.pop(get_b2b_client, None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,7 +293,13 @@ async def assembling_order_data(db_session: AsyncSession) -> OrderData:
 		payment_method_id=payment_method.id,
 		status=OrderStatusEnum.ASSEMBLING,
 	)
-	order_items = [OrderItemFactory.build(order_id=order.id) for _ in range(3)]
+	order_items = [
+		OrderItemFactory.build(order_id=order.id, sku_id=sku.id, unit_price=sku.price)
+		for sku in skus
+	]
+	order_status_history = OrderStatusHistoryFactory.build(
+		order_id=order.id, status=OrderStatusEnum.ASSEMBLING
+	)
 	db_session.add_all(
 		[
 			user,
@@ -243,8 +310,10 @@ async def assembling_order_data(db_session: AsyncSession) -> OrderData:
 			*skus,
 			order,
 			*order_items,
+			order_status_history,
 		]
 	)
+	await db_session.commit()
 	return OrderData(
 		order=order,
 		order_items=order_items,

@@ -1,8 +1,13 @@
+from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 import pytest
 from tests.integration.cart.conftest import auth_headers
-from tests.integration.order.conftest import OrderData
+from tests.integration.order.conftest import (
+	FakeB2BClient,
+	OrderData,
+	override_b2b_client,
+)
 import uuid
 import hashlib
 import json
@@ -89,6 +94,63 @@ async def test_partial_reserve_failure_returns_409(
 	]
 
 
+async def test_partial_reserve_failure_b2b_returns_409(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	app: FastAPI,
+	order_data: OrderData,
+) -> None:
+	failed_items = [
+		{
+			"sku_id": str(order_data.skus[0].id),
+			"requested": 2,
+			"available": 0,
+			"reason": "INSUFFICIENT_STOCK",
+		}
+	]
+	override_b2b_client(app, FakeB2BClient("conflict", failed_items=failed_items))
+
+	response = await client.post(
+		"/api/v1/orders",
+		headers={
+			"Idempotency-Key": str(uuid.uuid4()),
+			**await auth_headers(order_data.order.buyer_id, db_session),
+		},
+		json={
+			"address_id": str(order_data.address.id),
+			"payment_method_id": str(order_data.payment_method.id),
+		},
+	)
+	assert response.status_code == 409
+	body = response.json()
+	assert body["code"] == "RESERVE_FAILED"
+	assert body["details"] == failed_items
+
+
+async def test_b2b_unavailable_returns_503(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	app: FastAPI,
+	order_data: OrderData,
+) -> None:
+	override_b2b_client(app, FakeB2BClient("unavailable"))
+
+	response = await client.post(
+		"/api/v1/orders",
+		headers={
+			"Idempotency-Key": str(uuid.uuid4()),
+			**await auth_headers(order_data.order.buyer_id, db_session),
+		},
+		json={
+			"address_id": str(order_data.address.id),
+			"payment_method_id": str(order_data.payment_method.id),
+		},
+	)
+	assert response.status_code == 503
+	body = response.json()
+	assert body["code"] == "B2B_UNAVAILABLE"
+
+
 async def test_cart_validation_error_returns_422(
 	client: AsyncClient,
 	db_session: AsyncSession,
@@ -106,6 +168,11 @@ async def test_cart_validation_error_returns_422(
 		},
 	)
 	assert response.status_code == 422
+	body = response.json()
+	assert body["is_valid"] is False
+	assert "cart" in body
+	assert isinstance(body["issues"], list)
+	assert len(body["issues"]) >= 1
 
 
 async def test_idempotency_returns_existing_order(
