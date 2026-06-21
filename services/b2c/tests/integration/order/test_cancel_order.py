@@ -92,6 +92,23 @@ async def test_cancel_assembling_order_transitions_to_cancelled(
 	assert len(default_b2b_client.unreserve_calls) == 1
 
 
+async def test_cancel_delivered_order_returns_409(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	delivered_order_data: OrderData,
+	default_b2b_client: FakeB2BClient,
+) -> None:
+	response = await client.post(
+		f"/api/v1/orders/{delivered_order_data.order.id}/cancel",
+		headers=await auth_headers(delivered_order_data.order.buyer_id, db_session),
+	)
+	assert response.status_code == 409
+	body = response.json()
+	assert body["code"] == "CANCEL_NOT_ALLOWED"
+	assert body["message"] == "Can't cancel order in this state"
+	assert len(default_b2b_client.unreserve_calls) == 0
+
+
 async def test_cancel_order_not_authorized_returns_401(
 	client: AsyncClient,
 	order_data: OrderData,

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -27,6 +28,8 @@ from exceptions.order import (
 from schemas.cart import CartValidationResponse
 from schemas.order import OrderResponse, PaginatedOrders
 from services import cart_service, schemas_builder, outbox_service
+
+logger = logging.getLogger("Order service")
 
 
 def parse_idempotency_key(value: str) -> uuid.UUID:
@@ -229,6 +232,10 @@ async def cancel_order(
 	try:
 		await b2b_client.unreserve(order_id=order_id, items=items)
 	except B2BUnavailableError:
+		logger.warning(
+			"B2B unreserve failed for order %s, keeping status CANCEL_PENDING",
+			order_id,
+		)
 		order = await order_crud.get_order_by_id_for_buyer(db, order_id, buyer_id)
 		return schemas_builder.build_order_response(order)
 
