@@ -221,6 +221,7 @@ async def cancel_order(
 		OrderStatusEnum.CREATED,
 		OrderStatusEnum.PAID,
 		OrderStatusEnum.ASSEMBLING,
+		OrderStatusEnum.DELIVERING,
 	):
 		raise OrderNotCancelableError()
 

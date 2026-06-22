@@ -118,3 +118,22 @@ async def test_cancel_order_not_authorized_returns_401(
 		headers={},
 	)
 	assert response.status_code == 401
+
+
+async def test_cancel_delivering_order_transitions_to_cancelled(
+	client: AsyncClient,
+	db_session: AsyncSession,
+	delivering_order_data: OrderData,
+	default_b2b_client: FakeB2BClient,
+) -> None:
+	response = await client.post(
+		f"/api/v1/orders/{delivering_order_data.order.id}/cancel",
+		headers=await auth_headers(delivering_order_data.order.buyer_id, db_session),
+	)
+	assert response.status_code == 200
+	body = response.json()
+	assert body["status"] == "CANCELLED"
+	assert body["status_history"][0]["status"] == "DELIVERING"
+	assert body["status_history"][1]["status"] == "CANCEL_PENDING"
+	assert body["status_history"][2]["status"] == "CANCELLED"
+	assert len(default_b2b_client.unreserve_calls) == 1
