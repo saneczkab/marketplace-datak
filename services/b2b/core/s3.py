@@ -3,7 +3,7 @@ from minio import Minio
 from core.config import settings
 from exceptions.s3 import S3FileTooBigError, S3UnallowedFileTypeError
 
-ALLOWED_FILE_TYPES = ["jpeg", "jpg", "png"]
+ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"]
 
 
 def get_s3_client() -> Minio:
