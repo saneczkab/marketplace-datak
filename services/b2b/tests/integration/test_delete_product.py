@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models.catalog.base import Product, ProductStatusEnum
-from database.models.event.outbox import OutboxEvent, OutboxEventStatus
+from database.models.event.outbox import OutboxEvent, OutboxEventStatusEnum
 from crud.outbox import MODERATION_PRODUCT_DELETED, B2C_PRODUCT_DELETED
 from tests.integration.conftest import (
 	CategoryWithProductsData,
@@ -80,7 +80,7 @@ async def test_delete_emits_event_to_moderation(
 	assert len(events) == 1
 	assert events[0].payload["event"] == "DELETED"
 	assert events[0].payload["seller_id"] == str(product.seller_id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events[0].status == OutboxEventStatusEnum.PENDING
 
 
 async def test_delete_emits_product_deleted_to_b2c(
@@ -107,7 +107,7 @@ async def test_delete_emits_product_deleted_to_b2c(
 	assert len(events) == 1
 	assert events[0].payload["event"] == "PRODUCT_DELETED"
 	assert events[0].payload["product_id"] == str(product.id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events[0].status == OutboxEventStatusEnum.PENDING
 	assert set(events[0].payload["sku_ids"]) == set(expected_sku_ids)
 
 

@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models.event.outbox import OutboxEvent, OutboxEventStatus
+from database.models.event.outbox import OutboxEvent, OutboxEventStatusEnum
 from tests.integration.conftest import (
 	CategoryWithProductsData,
 	EditProductData,
@@ -74,7 +74,7 @@ async def test_first_sku_enqueues_created_event_to_outbox(
 	assert len(events) == 1
 	assert events[0].payload["event"] == "CREATED"
 	assert events[0].payload["seller_id"] == str(product.seller_id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events[0].status == OutboxEventStatusEnum.PENDING
 
 
 async def test_second_sku_no_state_change(
@@ -119,7 +119,7 @@ async def test_add_sku_to_moderated_returns_on_moderation_and_edited(
 	assert len(events) == 1
 	assert events[0].payload["event"] == "EDITED"
 	assert events[0].payload["seller_id"] == str(edit_product_data.owner.id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events[0].status == OutboxEventStatusEnum.PENDING
 
 
 async def test_add_sku_to_blocked_returns_on_moderation_and_edited(
@@ -143,7 +143,7 @@ async def test_add_sku_to_blocked_returns_on_moderation_and_edited(
 	assert len(events) == 1
 	assert events[0].payload["event"] == "EDITED"
 	assert events[0].payload["seller_id"] == str(product.seller_id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events[0].status == OutboxEventStatusEnum.PENDING
 
 
 async def test_add_sku_to_hard_blocked_returns_403(

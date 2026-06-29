@@ -5,7 +5,7 @@ from enum import Enum
 from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, String, func, text
 
 
 class InboxEventStatusEnum(str, Enum):
@@ -18,7 +18,9 @@ class InboxEvent(Base):
 	__tablename__ = "inbox_events"
 	__table_args__ = {"schema": "events"}
 
-	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+	id: Mapped[uuid.UUID] = mapped_column(
+		UUID(as_uuid=True), primary_key=True, server_default=text("get_random_uuid()")
+	)
 	idempotency_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True)
 	routing_key: Mapped[str] = mapped_column(String(255))
 	payload: Mapped[dict] = mapped_column(JSONB)
@@ -26,7 +28,7 @@ class InboxEvent(Base):
 		default=InboxEventStatusEnum.PENDING
 	)
 	event_type: Mapped[str] = mapped_column(String(32))
-	occured_at: Mapped[datetime] = mapped_column(
+	occurred_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), nullable=False
 	)
 
