@@ -46,9 +46,10 @@ async def process_events() -> None:
 					order_event = Event(
 						event_type=event.event_type,
 						idempotency_key=event.idempotency_key,
-						occured_at=event.occured_at,
+						occurred_at=event.occurred_at,
 						payload=EventOrderDelivered(
-							event.payload["order_id"], event.payload["buyer_id"]
+							order_id=event.payload["order_id"],
+							buyer_id=event.payload["buyer_id"],
 						),
 					)
 

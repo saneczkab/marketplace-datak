@@ -74,11 +74,11 @@ async def consume_and_store(
 	async with queue.iterator() as queue_iter:
 		async for message in queue_iter:
 			async with message.process():
-				logger.info("Processing new message")
 				try:
 					payload = json.loads(message.body)
 
 					idempotency_key = uuid.UUID(payload["idempotency_key"])
+					logger.info(f"Processing new message - {idempotency_key}")
 
 					async with get_db_context() as db:
 						existing = await inbox_crud.get_event_by_idempotency_key(
@@ -97,6 +97,7 @@ async def consume_and_store(
 							status=InboxEventStatusEnum.PENDING,
 						)
 						await inbox_crud.add_event(inbox_event, db)
+						logger.info(f"Successfully processed message {idempotency_key}")
 				except Exception as e:  # noqa
 					logger.error(f"Error processing message: {e}")
 
