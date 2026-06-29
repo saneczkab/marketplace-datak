@@ -1,5 +1,5 @@
 build:
-	docker compose -f ./services/b2b/docker-compose.yml -f ./services/b2c/docker-compose.yml -f ./services/moderation/docker-compose.yml build 
+	docker compose -f ./services/b2b/docker-compose.yml -f ./services/b2c/docker-compose.yml -f ./services/moderation/docker-compose.yml build --no-cache
 up:
 	docker compose up -d
 down:

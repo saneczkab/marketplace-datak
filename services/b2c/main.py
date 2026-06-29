@@ -28,7 +28,7 @@ from middlewares.x_servive_key_verification import service_key_verification
 logger = logging.getLogger(__name__)
 
 logging.basicConfig(
-	level=logging.WARNING, format="%(levelname)s - %(name)s - %(asctime)s: %(message)s"
+	level=logging.INFO, format="%(levelname)s - %(name)s - %(asctime)s: %(message)s"
 )
 
 # Configure logging
@@ -46,18 +46,6 @@ background_tasks = []
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa
-	# Startup: warm up categories tree cache
-	try:
-		logger.info("Generating categories tree cache")
-		db_gen = get_db()
-		db = await db_gen.__anext__()
-		await category_service.get_categories_tree(db)
-
-	except CategoryNotFoundError as e:
-		logger.warning(f"Error generating categories tree cache: {e}")
-	except Exception as e:  # noqa
-		logger.error(f"Error generating categories tree cache: {e}")
-
 	try:
 		# Starting inbox messages handling
 		task = asyncio.create_task(run_inbox_messages_handling())
@@ -69,6 +57,7 @@ async def lifespan(app: FastAPI):  # noqa
 
 	try:
 		if settings.RABBITMQ_URL != "None" and settings.RABBITMQ_EXCHANGE != "None":
+			logger.info("Starting RabbitMQ consumer")
 			task = asyncio.create_task(run_consumer_forever())
 			background_tasks.append(task)
 			logger.info("Succesfully starter consumer")
@@ -76,6 +65,18 @@ async def lifespan(app: FastAPI):  # noqa
 			logger.warning("No RabbitMQ URL or exchange was given, running without it")
 	except Exception as e:  # Noqa
 		logger.error(f"Error while starting comsumer: {e}")
+
+	# Startup: warm up categories tree cache
+	try:
+		logger.info("Generating categories tree cache")
+		db_gen = get_db()
+		db = await db_gen.__anext__()
+		await category_service.get_categories_tree(db)
+
+	except CategoryNotFoundError as e:
+		logger.warning(f"Error generating categories tree cache: {e}")
+	except Exception as e:  # noqa
+		logger.error(f"Error generating categories tree cache: {e}")
 
 	yield
 
