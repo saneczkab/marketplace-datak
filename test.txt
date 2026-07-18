@@ -1,7 +1,4 @@
-import React from 'react';
+import React from 'react'; export function GreetingCard() { const name = 'Маркетплейс'; return <h1>Привет, {name}!</h1>; }
 
-export function GreetingCard() {
-  const name = 'Маркетплейс';
-
-  return <h1>Привет, {name}!</h1>;
-}
+# Python example
+print("Hello, world!")
