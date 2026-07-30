@@ -34,9 +34,6 @@ background_tasks = []
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa
-	worker_task: asyncio.Task | None = None
-	consumer_task: asyncio.Task | None = None
-
 	try:
 		if settings.RABBITMQ_URL and settings.RABBITMQ_EXCHANGE:
 			logger.info("Starting consumer")
@@ -56,7 +53,7 @@ async def lifespan(app: FastAPI):  # noqa
 		logger.error(f"Error while starting inbox handling: {e}")
 
 	yield
-	for task in (worker_task, consumer_task):
+	for task in background_tasks:
 		if task is not None:
 			task.cancel()
 			try:
