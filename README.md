@@ -1,11 +1,19 @@
-# Marketplace "Datak"
-Проект разработан в рамках курса от Точка Банк.
+# Marketplace Datak
 
-# Руководство по разработке
-Перед началом работы обязательно запустить из корневой директории `make init` для создания pre-commit хука.
+## Services
 
-Наименование веток следует правилу `{microservice}-{short-description}` (например `b2b-us-b2b-01` для ветки для квеста us-b2b-01)
+- `b2b`: marketplace for interactions between companies
+- `b2c`: marketplace for interactions between companies and customers
+- `moderation`: moderation service
+- `frontend`: shared React frontend
 
-Для каждого микросервиса есть свой docker compose и makefile c основными командами, так же есть общий dockerfile для запуска всех микросервисов вместе
+## Setup
+1. Install `uv` according [docs](https://docs.astral.sh/uv/getting-started/installation/)
+2. Install python dependencies: `uv sync --frozen`
+3. Install `pre-commit` hooks: `pre-commit install`
 
-Перед созданием ПР обязательно проверить что `make format` не выдает никаких ошибок, ПР создавать к веткам `b2b` или `b2c` соответственно
+Also you can use `make init` after `uv` installation
+
+## Local environment
+1. Copy .env.example to .env and fill environment variables
+2. Run all services locally with docker compose: `docker compose up -d`
