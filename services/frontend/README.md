@@ -1,29 +1,48 @@
-# frontend
+# B2C-фронтенд Marketplace Datak
 
-Shared datak frontend built with React, TypeScript, and Vite.
+Клиентское приложение B2C-маркетплейса, разработанное на React, TypeScript и Vite.
 
-## Local development
+## Требования
+
+- Node.js 20 или новее
+- npm 10 или новее
+
+## Установка зависимостей
 
 ```bash
 npm install
+```
+
+## Запуск для разработки
+
+```bash
 npm run dev
 ```
 
-The development server is available at `http://localhost:5173`.
+После запуска приложение будет доступно по адресу, указанному Vite в терминале.
 
-## Checks
+## Сборка
 
 ```bash
-npm run lint
 npm run build
 ```
 
-## Docker
+Готовые файлы будут помещены в каталог `dist`.
 
-From the repository root:
+## Проверка кода
 
 ```bash
-docker compose up --build frontend
+npm run lint
 ```
 
-The application is available at `http://localhost:3000` by default. Set `FRONTEND_PORT` to use another host port.
+## Предварительный просмотр сборки
+
+```bash
+npm run preview
+```
+
+## Структура проекта
+
+- `src/` — исходный код приложения;
+- `public/` — статические файлы;
+- `dist/` — результат производственной сборки.
