@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models.event.outbox import OutboxEvent, OutboxEventStatus
+from database.models.event.outbox import OutboxEvent, OutboxEventStatusEnum
 from tests.integration.conftest import EditProductData, auth_headers
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -44,7 +44,7 @@ async def test_edit_moderated_product_returns_to_on_moderation(
 	assert len(events) == 1
 	assert events[0].payload["event"] == "EDITED"
 	assert events[0].payload["seller_id"] == str(data.owner.id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events[0].status == OutboxEventStatusEnum.PENDING
 
 
 async def test_edit_blocked_product_returns_to_on_moderation(
@@ -67,7 +67,7 @@ async def test_edit_blocked_product_returns_to_on_moderation(
 	assert len(events) == 1
 	assert events[0].payload["event"] == "EDITED"
 	assert events[0].payload["seller_id"] == str(data.owner.id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events[0].status == OutboxEventStatusEnum.PENDING
 
 
 async def test_reserves_preserved_after_sku_edit(

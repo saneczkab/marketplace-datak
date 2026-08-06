@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import SessionLocal
-from database.models.event.outbox import OutboxEvent, OutboxEventStatus
+from database.models.event.outbox import OutboxEvent, OutboxEventStatusEnum
 
 PublishFn = Callable[[str, dict], Awaitable[None]]
 
@@ -73,7 +73,7 @@ async def enqueue_b2c_event(db: AsyncSession, message: dict) -> OutboxEvent:
 		event_type=message["event_type"],
 		routing_key=B2C_EVENT_ROUTING_KEY,
 		payload=message,
-		status=OutboxEventStatus.PENDING,
+		status=OutboxEventStatusEnum.PENDING,
 	)
 	db.add(outbox_event)
 	await db.flush()
@@ -127,7 +127,7 @@ async def enqueue_moderation_product_created(
 		event_type=MODERATION_PRODUCT_CREATED,
 		routing_key=MODERATION_PRODUCT_CREATED,
 		payload=payload,
-		status=OutboxEventStatus.PENDING,
+		status=OutboxEventStatusEnum.PENDING,
 	)
 	db.add(outbox_event)
 	await db.flush()
@@ -150,7 +150,7 @@ async def enqueue_moderation_product_deleted(
 		event_type=MODERATION_PRODUCT_DELETED,
 		routing_key=MODERATION_PRODUCT_DELETED,
 		payload=payload,
-		status=OutboxEventStatus.PENDING,
+		status=OutboxEventStatusEnum.PENDING,
 	)
 	db.add(outbox_event)
 	await db.flush()
@@ -173,7 +173,7 @@ async def enqueue_b2c_product_deleted(
 		event_type=B2C_PRODUCT_DELETED,
 		routing_key=B2C_EVENT_ROUTING_KEY,
 		payload=payload,
-		status=OutboxEventStatus.PENDING,
+		status=OutboxEventStatusEnum.PENDING,
 	)
 	db.add(outbox_event)
 	await db.flush()
@@ -210,7 +210,7 @@ async def enqueue_b2c_sku_out_of_stock(
 async def fetch_pending_events(db: AsyncSession, limit: int = 50) -> list[OutboxEvent]:
 	result = await db.execute(
 		select(OutboxEvent)
-		.where(OutboxEvent.status == OutboxEventStatus.PENDING)
+		.where(OutboxEvent.status == OutboxEventStatusEnum.PENDING)
 		.order_by(OutboxEvent.created_at)
 		.limit(limit)
 	)
@@ -221,13 +221,13 @@ async def get_pending_event_by_id(
 	db: AsyncSession, event_id: UUID
 ) -> OutboxEvent | None:
 	event = await db.get(OutboxEvent, event_id)
-	if event is None or event.status != OutboxEventStatus.PENDING:
+	if event is None or event.status != OutboxEventStatusEnum.PENDING:
 		return None
 	return event
 
 
 async def mark_event_sent(db: AsyncSession, event: OutboxEvent) -> None:
-	event.status = OutboxEventStatus.SENT
+	event.status = OutboxEventStatusEnum.SENT
 	event.sent_at = datetime.now(timezone.utc)
 	db.add(event)
 	await db.commit()
