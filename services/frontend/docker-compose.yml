@@ -1,0 +1,13 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - shared_ms_network
+
+networks:
+  shared_ms_network:
+    external: true
