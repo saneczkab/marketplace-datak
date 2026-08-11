@@ -1,11 +1,11 @@
 {
-  "scripts": {
-    "format": "prettier --write package.json package-lock.json",
-    "format:check": "prettier --check package.json package-lock.json"
-  },
-  "devDependencies": {
-    "playwright": "latest",
-    "@playwright/test": "latest",
-    "prettier": "3.9.6"
-  }
+	"scripts": {
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
+	},
+	"devDependencies": {
+		"playwright": "latest",
+		"@playwright/test": "latest",
+		"prettier": "3.9.6"
+	}
 }
