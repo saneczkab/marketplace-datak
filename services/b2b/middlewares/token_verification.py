@@ -9,7 +9,6 @@ from jose import JWTError
 
 PRIVATE_PATHS: list[str] = []
 PRIVATE_PATHS_PREFIXES = ["/api/v1/products", "/api/v1/skus", "/api/v1/invoices"]
-SELLERS_PATH_PREFIX = "/api/v1/sellers/"
 
 
 async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
@@ -24,6 +23,7 @@ async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
 		)
 
 	token = auth_header.split(" ", 1)[1]
+
 	try:
 		decoded = decode_access_token(token)
 		request.state.user_id = decoded.get("user_id")
@@ -37,6 +37,7 @@ async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
 		return JSONResponse(
 			status_code=401, content={"code": "UNAUTHORIZED", "message": str(err)}
 		)
+
 	get_db_dep = request.app.dependency_overrides.get(get_db, get_db)
 	async for db in get_db_dep():
 		is_active = await session_crud.check_active_session(token, db)
@@ -51,13 +52,9 @@ async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
 
 
 async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
-	is_private_seller_update = request.method == "PATCH" and request.url.path.startswith(
-		SELLERS_PATH_PREFIX
-	)
-	is_private_path = request.url.path in PRIVATE_PATHS or any(
+	if request.url.path not in PRIVATE_PATHS and not any(
 		request.url.path.startswith(prefix) for prefix in PRIVATE_PATHS_PREFIXES
-	)
-	if not is_private_path and not is_private_seller_update:
+	):
 		return await call_next(request)
 
 	auth_error = await _authenticate_bearer(request)
