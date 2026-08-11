@@ -1,122 +1,56 @@
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from fastapi import HTTPException, Request
+from prometheus_fastapi_instrumentator import Instrumentator
 
-from api.auth import router as auth_router
-from api.inventory import router as inventory_router
-from api.categories import router as category_router
-from api.images import router as image_router
-from api.invoice import router as invoice_router
-from api.moderation_events import router as moderation_events_router
-from api.products import router as product_router
-from api.public_catalog import router as public_catalog_router
-from api.sku import router as sku_router
-
+from api.v1.routes import auth, health, internal, seller
 from core.config import settings
-from core.inbox import run_inbox_messages_handling
-from core.messaging import run_consumer_forever
-from middlewares.service_key_verification import verify_service_key
-from middlewares.token_verification import verify_token
+from core.database import init_db
+from core.middleware import VerifyTokenMiddleware
 
-logger = logging.getLogger(__name__)
-
+# Configure logging
 logging.basicConfig(
-	level=logging.INFO, format="%(levelname)s - %(name)s - %(asctime)s: %(message)s"
+	level=logging.INFO,
+	format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-
-background_tasks = []
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa
-	try:
-		if settings.RABBITMQ_URL and settings.RABBITMQ_EXCHANGE:
-			logger.info("Starting consumer")
-			task = asyncio.create_task(run_consumer_forever())
-			background_tasks.append(task)
-			logger.info("Succesfully starter consumer")
-		else:
-			logger.warning("No RabbitMQ URL or exchange was given, running without it")
-	except Exception as e:  # Noqa
-		logger.error(f"Error while starting comsumer: {e}")
-
-	try:
-		task = asyncio.create_task(run_inbox_messages_handling())
-		background_tasks.append(task)
-		logger.info("Succesfully started inbox messages handling")
-	except Exception as e:  # noqa
-		logger.error(f"Error while starting inbox handling: {e}")
-
+async def lifespan(app: FastAPI):
+	logger.info("Starting up B2B service...")
+	await init_db()
+	logger.info("Database initialized")
 	yield
-	for task in background_tasks:
-		if task is not None:
-			task.cancel()
-			try:
-				await task
-			except asyncio.CancelledError:
-				pass
+	logger.info("Shutting down B2B service...")
 
 
 app = FastAPI(
-	title="NeoMarket B2B API",
-	description="API для кабинета продавца: управление товарами и складом",
+	title="B2B Service",
+	description="Business-to-Business service for sellers",
 	version="1.0.0",
 	lifespan=lifespan,
 )
 
+# Add middleware
+app.add_middleware(VerifyTokenMiddleware)
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
-	detail = exc.detail
-	if isinstance(detail, dict) and "code" in detail and "message" in detail:
-		return JSONResponse(
-			status_code=exc.status_code,
-			content={
-				"code": detail["code"],
-				"message": detail["message"],
-				"details": detail.get("details", []),
-			},
-			headers=exc.headers,
-		)
-	return JSONResponse(
-		status_code=exc.status_code,
-		content={"detail": detail},
-		headers=exc.headers,
-	)
+# Include routers
+app.include_router(health.router, prefix=settings.API_V1_PREFIX)
+app.include_router(internal.router, prefix=settings.API_V1_PREFIX)
+app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
+app.include_router(seller.router, prefix=settings.API_V1_PREFIX)
 
-
-@app.exception_handler(RequestValidationError)
-async def request_validation_exception_handler(
-	_request: Request, exc: RequestValidationError
-) -> JSONResponse:
-	return JSONResponse(
-		status_code=422,
-		content={
-			"code": "VALIDATION_ERROR",
-			"message": "Request validation failed",
-			"details": exc.errors(),
-		},
-	)
-
-
-app.middleware("http")(verify_service_key)
-app.middleware("http")(verify_token)
-app.include_router(inventory_router, prefix="/api/v1")
-app.include_router(public_catalog_router, prefix="/api/v1")
-app.include_router(moderation_events_router, prefix="/api/v1")
-app.include_router(product_router, prefix="/api/v1")
-app.include_router(category_router, prefix="/api/v1")
-app.include_router(sku_router, prefix="/api/v1")
-app.include_router(invoice_router, prefix="/api/v1")
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(image_router, prefix="/api/v1")
+# Initialize Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/")
-def read_root() -> dict[str, str]:
-	return {"service": "NeoMarket B2B", "status": "online", "documentation": "/docs"}
+async def root():
+	return {
+		"service": "B2B Service",
+		"version": "1.0.0",
+		"docs": "/docs",
+		"health": f"{settings.API_V1_PREFIX}/health",
+	}
