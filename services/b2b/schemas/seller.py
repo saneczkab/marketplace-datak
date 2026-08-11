@@ -14,7 +14,7 @@ class SellerResponse(BaseModel):
 	last_name: str
 	middle_name: str | None
 	company_name: str
-	phone: str
+	phone: str | None
 	created_at: datetime
 	updated_at: datetime
 
