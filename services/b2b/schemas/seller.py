@@ -10,3 +10,7 @@ class SellerInfoResponse(BaseModel):
 	middle_name: str
 
 	company_name: str
+
+
+class SellerPatchData(BaseModel):
+	email: str
