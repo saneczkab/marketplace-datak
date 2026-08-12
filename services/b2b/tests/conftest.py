@@ -93,6 +93,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from api.inventory import router as inventory_router
 	from api.moderation_events import router as moderation_events_router
 	from api.public_catalog import router as public_catalog_router
+	from api.seller import router as seller_router
 	from api.sku import router as sku_router
 	from core.config import settings as app_settings
 	from middlewares.service_key_verification import verify_service_key
@@ -122,6 +123,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(product_router, prefix="/api/v1")
 	test_app.include_router(invoice_router, prefix="/api/v1")
 	test_app.include_router(sku_router, prefix="/api/v1")
+	test_app.include_router(seller_router, prefix="/api/v1")
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 
 	return test_app

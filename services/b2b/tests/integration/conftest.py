@@ -814,3 +814,14 @@ async def delete_sku_data(db_session: AsyncSession) -> DeleteSkuData:
 		out_of_stock_product=out_of_stock_product,
 		out_of_stock_sku=out_of_stock_sku,
 	)
+
+
+@pytest.fixture
+async def seller_data(db_session: AsyncSession) -> Seller:
+	seller: Seller = SellerFactory.build()
+
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
+	return seller

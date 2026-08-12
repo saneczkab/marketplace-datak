@@ -1,8 +1,9 @@
+from uuid import UUID
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Seller
-
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def add_seller(seller: Seller, db: AsyncSession) -> Seller:
@@ -17,3 +18,9 @@ async def get_seller_by_email(email: str, db: AsyncSession) -> Seller | None:
 	seller = result.scalar_one_or_none()
 
 	return seller
+
+
+async def get_seller_by_id(id: UUID, db: AsyncSession) -> Seller | None:
+	return (
+		await db.execute(select(Seller).where(Seller.id == id))
+	).scalar_one_or_none()

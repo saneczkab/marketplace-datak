@@ -16,6 +16,7 @@ from api.moderation_events import router as moderation_events_router
 from api.products import router as product_router
 from api.public_catalog import router as public_catalog_router
 from api.sku import router as sku_router
+from api.seller import router as seller_router
 
 from core.config import settings
 from core.inbox import run_inbox_messages_handling
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI):  # noqa
 	try:
 		if settings.RABBITMQ_URL and settings.RABBITMQ_EXCHANGE:
 			logger.info("Starting consumer")
-			task = asyncio.create_task(run_consumer_forever())
+			task = asynio.create_task(run_consumer_forever())
 			background_tasks.append(task)
 			logger.info("Succesfully starter consumer")
 		else:
@@ -83,6 +84,7 @@ async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONR
 			},
 			headers=exc.headers,
 		)
+		logger.error(f"HTTP Error ({detail.code}): {detail.message}")
 	return JSONResponse(
 		status_code=exc.status_code,
 		content={"detail": detail},
@@ -115,6 +117,7 @@ app.include_router(sku_router, prefix="/api/v1")
 app.include_router(invoice_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(image_router, prefix="/api/v1")
+app.include_router(seller_router, prefix="/api/v1")
 
 
 @app.get("/")
