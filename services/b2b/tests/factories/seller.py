@@ -3,6 +3,7 @@ import uuid
 import factory
 
 from database.models import Seller
+from schemas.seller import SellerInfoPatch
 
 
 class SellerFactory(factory.Factory):
@@ -18,4 +19,16 @@ class SellerFactory(factory.Factory):
 
 	company_name = factory.Faker("company")
 
+	phone = factory.Faker("phone_number")
+
+
+class SellerPathFactory(factory.Factory):
+	class Meta:
+		model = SellerInfoPatch
+
+	email = factory.Faker("email")
+	first_name = factory.Faker("first_name")
+	last_name = factory.Faker("last_name")
+	middle_name = factory.Faker("first_name")
+	company_name = factory.Faker("company")
 	phone = factory.Faker("phone_number")

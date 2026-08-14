@@ -9,6 +9,7 @@ from jose import JWTError
 
 PRIVATE_PATHS: list[str] = []
 PRIVATE_PATHS_PREFIXES = ["/api/v1/products", "/api/v1/skus", "/api/v1/invoices"]
+PRIVATE_PATCH_PATHS_PREFIXES: list[str] = ["/api/v1/sellers"]
 
 
 async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
@@ -52,8 +53,18 @@ async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
 
 
 async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
-	if request.url.path not in PRIVATE_PATHS and not any(
-		request.url.path.startswith(prefix) for prefix in PRIVATE_PATHS_PREFIXES
+	path = request.url.path
+	method = request.method
+
+	if (
+		(
+			any(path.startswith(prefix) for prefix in PRIVATE_PATCH_PATHS_PREFIXES)
+			and method != "PATCH"
+		)
+		or request.url.path not in PRIVATE_PATHS
+		and not any(
+			request.url.path.startswith(prefix) for prefix in PRIVATE_PATHS_PREFIXES
+		)
 	):
 		return await call_next(request)
 

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud.seller as seller_crud
 from exceptions.seller import SellerNotFoundError
-from schemas.seller import SellerInfoResponse
+from schemas.seller import SellerInfoPatch, SellerInfoResponse
 
 
 async def get_seller_info(db: AsyncSession, id: UUID) -> SellerInfoResponse:
@@ -14,6 +14,20 @@ async def get_seller_info(db: AsyncSession, id: UUID) -> SellerInfoResponse:
 
 	return SellerInfoResponse(
 		id=id,
+		first_name=seller.first_name,
+		last_name=seller.last_name,
+		middle_name=seller.middle_name,
+		company_name=seller.company_name,
+	)
+
+
+async def update_seller(
+	db: AsyncSession, seller_info: SellerInfoPatch, seller_id: UUID
+) -> SellerInfoResponse:
+	seller = await seller_crud.update_seller(seller_id, seller_info, db)
+
+	return SellerInfoResponse(
+		id=seller_id,
 		first_name=seller.first_name,
 		last_name=seller.last_name,
 		middle_name=seller.middle_name,

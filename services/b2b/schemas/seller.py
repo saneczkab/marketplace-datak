@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class SellerInfoResponse(BaseModel):
@@ -12,5 +12,10 @@ class SellerInfoResponse(BaseModel):
 	company_name: str
 
 
-class SellerPatchData(BaseModel):
-	email: str
+class SellerInfoPatch(BaseModel):
+	email: EmailStr
+	phone: str
+	first_name: str
+	last_name: str
+	middle_name: str
+	company_name: str
