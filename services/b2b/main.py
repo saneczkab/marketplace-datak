@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):  # noqa
 	try:
 		if settings.RABBITMQ_URL and settings.RABBITMQ_EXCHANGE:
 			logger.info("Starting consumer")
-			task = asynio.create_task(run_consumer_forever())
+			task = asyncio.create_task(run_consumer_forever())
 			background_tasks.append(task)
 			logger.info("Succesfully starter consumer")
 		else:
