@@ -16,13 +16,14 @@ from database.models.catalog.variants import (
 )
 from database.models import Session
 from database.models.identity.identity import Seller
+from schemas.seller import SellerInfoPatch
 from tests.factories.catalog import CategoryFactory, ProductFactory, SkuFactory
 
 import uuid
 
 from datetime import datetime, timezone, timedelta
 
-from tests.factories.seller import SellerFactory
+from tests.factories.seller import SellerFactory, SellerPathFactory
 
 
 @dataclass(frozen=True, slots=True)
@@ -814,3 +815,32 @@ async def delete_sku_data(db_session: AsyncSession) -> DeleteSkuData:
 		out_of_stock_product=out_of_stock_product,
 		out_of_stock_sku=out_of_stock_sku,
 	)
+
+
+@pytest.fixture
+async def seller_data(db_session: AsyncSession) -> Seller:
+	seller: Seller = SellerFactory.build()
+
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
+	return seller
+
+
+@dataclass(frozen=True, slots=True)
+class SellerUpdateData:
+	seller: Seller
+	patch_data: SellerInfoPatch
+
+
+@pytest.fixture()
+async def seller_update_data(db_session: AsyncSession) -> SellerUpdateData:
+	seller = SellerFactory.build()
+	db_session.add(seller)
+	await db_session.commit()
+	await db_session.refresh(seller)
+
+	seller_patch = SellerPathFactory.build()
+
+	return SellerUpdateData(seller=seller, patch_data=seller_patch)
