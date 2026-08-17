@@ -1,0 +1,186 @@
+name: test-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Branch, tag, or commit SHA to deploy"
+        required: true
+        default: "main"
+      confirm_deploy:
+        description: "Type DEPLOY to confirm"
+        required: true
+        default: ""
+
+concurrency:
+  group: test-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: "Deploy to Test"
+    runs-on: ubuntu-latest
+    if: ${{ inputs.confirm_deploy == 'DEPLOY' }}
+    env:
+      DEPLOY_ROOT: ${{ secrets.TEST_DEPLOY_ROOT }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+    steps:
+      - name: Checkout selected ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+
+      - name: Capture release metadata
+        id: meta
+        run: |
+          release_sha="$(git rev-parse HEAD)"
+          release_dir="$DEPLOY_ROOT/releases/$release_sha"
+          archive_name="release-$release_sha.tar.gz"
+          printf 'release_sha=%s\n' "$release_sha" >> "$GITHUB_OUTPUT"
+          printf 'release_dir=%s\n' "$release_dir" >> "$GITHUB_OUTPUT"
+          printf 'archive_name=%s\n' "$archive_name" >> "$GITHUB_OUTPUT"
+
+      - name: Create deployment archive
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.venv' \
+            --exclude='**/__pycache__' \
+            --exclude='**/.pytest_cache' \
+            --exclude='**/.mypy_cache' \
+            --exclude='**/.ruff_cache' \
+            --exclude='**/.coverage' \
+            --exclude='**/htmlcov' \
+            -czf "${{ steps.meta.outputs.archive_name }}" .
+
+      - name: Start ssh-agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          if [ -n "${{ secrets.SSH_KNOWN_HOSTS }}" ]; then
+            printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Prepare release directory on server
+        run: |
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "mkdir -p '$DEPLOY_ROOT/releases' '$DEPLOY_ROOT/shared'"
+
+      - name: Upload deployment archive
+        run: |
+          scp -P "$SSH_PORT" \
+            "${{ steps.meta.outputs.archive_name }}" \
+            "$SSH_USER@$SSH_HOST:${{ steps.meta.outputs.release_dir }}.tar.gz"
+
+      - name: Deploy on server
+        env:
+          TEST_ENV_FILE_BASE64: ${{ secrets.TEST_ENV_FILE }}
+          RELEASE_DIR: ${{ steps.meta.outputs.release_dir }}
+          RELEASE_SHA: ${{ steps.meta.outputs.release_sha }}
+        run: |
+          env_file_base64="$(printf '%s' "$TEST_ENV_FILE_BASE64" | base64 -w 0)"
+
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "bash -se" <<EOF
+          set -euo pipefail
+
+          DEPLOY_ROOT='${DEPLOY_ROOT}'
+          RELEASE_DIR='${RELEASE_DIR}'
+          RELEASE_SHA='${RELEASE_SHA}'
+          ENV_FILE_BASE64='${env_file_base64}'
+          PREVIOUS_RELEASE=''
+
+          rollback() {
+            if [ -n "\$PREVIOUS_RELEASE" ] && [ -d "\$PREVIOUS_RELEASE" ]; then
+              ln -sfn "\$PREVIOUS_RELEASE" "\$DEPLOY_ROOT/current"
+              docker compose \
+                --env-file "\$DEPLOY_ROOT/current/.env.test" \
+                -f "\$DEPLOY_ROOT/current/docker-compose.test.yml" \
+                up --build -d
+            fi
+          }
+
+          trap rollback ERR
+
+          if [ -L "\$DEPLOY_ROOT/current" ]; then
+            PREVIOUS_RELEASE="$(readlink -f "\$DEPLOY_ROOT/current")"
+          fi
+
+          mkdir -p "\$RELEASE_DIR"
+          tar -xzf "\$RELEASE_DIR.tar.gz" -C "\$RELEASE_DIR"
+          rm -f "\$RELEASE_DIR.tar.gz"
+
+          printf '%s' "\$ENV_FILE_BASE64" | base64 -d > "\$RELEASE_DIR/.env.test"
+
+          ln -sfn "\$RELEASE_DIR" "\$DEPLOY_ROOT/current"
+
+          docker compose \
+            --env-file "\$DEPLOY_ROOT/current/.env.test" \
+            -f "\$DEPLOY_ROOT/current/docker-compose.test.yml" \
+            down --remove-orphans
+
+          docker compose \
+            --env-file "\$DEPLOY_ROOT/current/.env.test" \
+            -f "\$DEPLOY_ROOT/current/docker-compose.test.yml" \
+            up --build -d
+
+          for url in \
+            "http://127.0.0.1:8001/" \
+            "http://127.0.0.1:8000/" \
+            "http://127.0.0.1:8002/"; do
+            success=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              if curl --fail --silent --show-error "\$url" >/dev/null; then
+                success=1
+                break
+              fi
+              sleep 3
+            done
+            if [ "\$success" -ne 1 ]; then
+              echo "Smoke check failed for \$url"
+              exit 1
+            fi
+          done
+
+          trap - ERR
+
+          docker image prune -f >/dev/null 2>&1 || true
+
+          ls -1dt "\$DEPLOY_ROOT"/releases/* | awk 'NR>5' | xargs -r rm -rf
+
+          docker compose \
+            --env-file "\$DEPLOY_ROOT/current/.env.test" \
+            -f "\$DEPLOY_ROOT/current/docker-compose.test.yml" \
+            ps
+          EOF
+
+      - name: Publish deployment summary
+        run: |
+          {
+            echo "## Test Deploy"
+            echo
+            echo "- Requested ref: \\`${{ inputs.git_ref }}\\`"
+            echo "- Deployed commit: \\`${{ steps.meta.outputs.release_sha }}\\`"
+            echo "- Server: \\`${SSH_USER}@${SSH_HOST}:${DEPLOY_ROOT}\\`"
+            echo "- Release dir: \\`${{ steps.meta.outputs.release_dir }}\\`"
+            echo "- Smoke checks: \\`/\\` on ports 8000, 8001, 8002"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  confirmation-failed:
+    name: "Confirmation Failed"
+    runs-on: ubuntu-latest
+    if: ${{ inputs.confirm_deploy != 'DEPLOY' }}
+    steps:
+      - name: Explain failure
+        run: |
+          echo "Set confirm_deploy to DEPLOY to run the test deployment." >> "$GITHUB_STEP_SUMMARY"
+          exit 1

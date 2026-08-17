@@ -145,3 +145,8 @@ app.include_router(auth.router)
 app.include_router(subscriptions.router)
 app.include_router(orders.router)
 app.include_router(event.router)
+
+
+@app.get("/")
+def read_root() -> dict[str, str]:
+	return {"service": "NeoMarket B2C", "status": "online", "documentation": "/docs"}
